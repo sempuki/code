@@ -14,9 +14,6 @@ using namespace std::tr1;
 using namespace std::tr1::placeholders;
 
 template <typename T>
-struct safe_delete { void operator() (T* &ptr) { delete ptr; ptr = 0; } };
-
-template <typename T>
 struct Node
 {
     T value;
@@ -44,8 +41,8 @@ class ListIterator : public std::iterator <std::forward_iterator_tag, T>
         bool operator== (const iterator &rhs) const { return p_ == rhs.p_; }
         bool operator!= (const iterator &rhs) const { return p_ != rhs.p_; }
 
-        node *next () { return p_->next; }
-        void next (node *n) { p_->next = n; }
+        iterator next () { return p_->next; }
+        void next (iterator n) { p_->next = n; }
 
         iterator &operator++ () { p_ = next(); return *this; }
         iterator operator++ (int) { iterator t (*this); p_ = next(); return t; }
@@ -68,15 +65,25 @@ class List
             size_ (0) 
         {}
 
+        ~List () { erase_ (begin(), end()); }
+
+        size_t size () const { return size_; }
+        iterator sentinel () { return sen_; }
         iterator begin () { return head_; }
+        iterator tail () { return tail_; }
         iterator end () { return iterator(); }
+
+        void swap (List &rhs)
+        {
+            using std::swap;
+
+            swap (size_, rhs.size_);
+            swap (head_, rhs.head_);
+            swap (tail_, rhs.tail_);
+        }
 
         T &front () { return *head_; }
         T &back () { return *tail_; }
-
-        // erase
-        // reverse
-        // sort / merge
 
         iterator previous (iterator pos)
         {
@@ -86,6 +93,16 @@ class List
                 prev = i;
 
             return prev;
+        }
+
+        void push_front (const T &v)
+        {
+            insert_before_ (head_, v);
+        }
+
+        void push_back (const T &v)
+        {
+            insert_after_ (tail_, v);
         }
 
         void insert (iterator pos, const T &v) 
@@ -104,10 +121,53 @@ class List
                 insert_after_ (pos, *i);
         }
 
-        void splice_after (iterator pos, iterator begin, iterator end)
+        void splice_after (iterator pos, iterator prev)
         {
-            end.next (pos.next());
-            pos.next (begin);
+            splice_after_ (pos, prev, prev.next());
+        }
+
+        void splice_after (iterator pos, iterator prev, iterator end)
+        {
+            splice_after_ (pos, prev, end);
+        }
+
+        void erase (iterator pos)
+        {
+            erase_ (pos, pos.next());
+        }
+
+        void erase (iterator begin, iterator end)
+        {
+            erase_ (begin, end);
+        }
+
+        void reverse ()
+        {
+            using std::swap;
+
+            reverse_ (begin());
+
+            swap (head_, tail_);
+            sen_.next (head_);
+        }
+
+        void merge (List &rhs)
+        {
+            //iterator s1 (sen_), s2 (rhs.sen_);
+
+            //for (;;)
+            //{
+            //    if (*(s2.next()) < *(s1.next()))
+            //    {
+            //        splice_after (s1, s2);
+            //        ++ s2;
+            //    }
+            //    else
+            //        ++ s1;
+
+            //    if (s1 == end())
+            //        splice_after (tail_, 
+            //}
         }
 
     private:
@@ -126,6 +186,7 @@ class List
             else
             {
                 iterator prev (previous (pos));
+
                 prev.next (new node (v, prev.next()));
                 ++ size_;
                 
@@ -146,6 +207,42 @@ class List
             }
         }
 
+        void splice_after_ (iterator pos, iterator prev, iterator end)
+        {
+            iterator succ = pos.next();
+
+            pos.next (prev.next());
+            prev.next (end.next());
+            end.next (succ);
+
+            if (pos == tail_) tail_ = end;
+            if (pos == sen_) head_ = sen_.next();
+        }
+        
+        void erase_ (iterator b, iterator e)
+        {
+            iterator prev (previous (b));
+            prev.next (e);
+            
+            if (b == begin()) head_ = sen_.next();
+            if (e == end()) tail_ = prev;
+            
+            for (; b != e; ++b)
+                delete (node *)b;
+        }
+
+        iterator reverse_ (iterator head)
+        {
+            if (head != tail_)
+            {
+                iterator tail = reverse_ (head.next());
+                head.next (tail.next());
+                tail.next (head);
+            }
+
+            return head;
+        }
+
     private:
         iterator    sen_;
         iterator    head_;
@@ -160,15 +257,22 @@ main (int argc, char** argv)
 {
     List <int> a, b;
 
-    a.insert (a.begin(), 6);
-    a.insert (a.begin(), 4);
-    a.insert (a.end(), 7);
-    a.insert_after (a.begin(), 5);
+    a.push_back (4);
+    a.push_front (2);
+    a.push_back (5);
+    a.push_front (1);
+
+    List<int>::iterator i = find (a.begin(), a.end(), 2);
+    a.insert_after (i, 3);
+    a.erase (i);
 
     b.insert_after (b.begin(), a.begin(), a.end());
+    a.reverse ();
+    b.splice_after (b.begin(), a.begin(), a.begin().next());
+    //a.swap (b);
 
-    copy (a.begin(), a.end(), ostream_iterator <int> (cout, " ")); 
-    copy (b.begin(), b.end(), ostream_iterator <int> (cout, " "));
+    copy (a.begin(), a.end(), ostream_iterator <int> (cout, " ")); cout << endl;
+    copy (b.begin(), b.end(), ostream_iterator <int> (cout, " ")); cout << endl;
     
     return 0;
 }
