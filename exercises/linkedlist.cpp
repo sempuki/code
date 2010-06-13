@@ -36,7 +36,7 @@ class ListIterator : public std::iterator <std::forward_iterator_tag, T>
         ListIterator (node *p = 0) : p_ (p) {}
 
         operator node *() const { return p_; }
-        iterator operator= (node *p) { p_ = p; }
+        iterator operator= (node *p) { p_ = p; return *this; }
 
         T &operator* () const { return p_->value; }
         T *operator-> () const { return &(p_->value); }
@@ -67,14 +67,6 @@ class List
             tail_ (sen_), 
             size_ (0) 
         {}
-
-        List (iterator b, iterator e)
-        {
-            for (; b != e; ++b)
-            {
-
-            }
-        }
 
         iterator begin () { return head_; }
         iterator end () { return iterator(); }
@@ -108,7 +100,8 @@ class List
 
         void insert_after (iterator pos, iterator begin, iterator end)
         { 
-            for_each (begin, end, bind (&List::insert_after_, this, pos, _1));
+            for (iterator i (begin); i != end; ++i, ++pos)
+                insert_after_ (pos, *i);
         }
 
         void splice_after (iterator pos, iterator begin, iterator end)
@@ -165,17 +158,17 @@ class List
 int
 main (int argc, char** argv)
 {
-    List <int> list1;
+    List <int> a, b;
 
-    list1.insert (list1.begin(), 6);
-    list1.insert (list1.begin(), 4);
-    list1.insert (list1.end(), 7);
-    list1.insert_after (list1.begin(), 5);
+    a.insert (a.begin(), 6);
+    a.insert (a.begin(), 4);
+    a.insert (a.end(), 7);
+    a.insert_after (a.begin(), 5);
 
-    List <int> list2 (list1.begin(), list2.begin());
+    b.insert_after (b.begin(), a.begin(), a.end());
 
-    copy (list1.begin(), list1.end(), ostream_iterator <int> (cout, " "));
-    copy (list2.begin(), list2.end(), ostream_iterator <int> (cout, " "));
+    copy (a.begin(), a.end(), ostream_iterator <int> (cout, " ")); 
+    copy (b.begin(), b.end(), ostream_iterator <int> (cout, " "));
     
     return 0;
 }
