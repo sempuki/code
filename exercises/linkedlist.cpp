@@ -59,10 +59,7 @@ class List
         typedef Node <T> node;
 
         List () : sentinel_ (new node) {}
-        ~List () { erase_ (begin(), end()); }
-
-        iterator begin () { return sentinel_.next(); }
-        iterator end () { return iterator(); }
+        ~List () { erase (begin(), end()); }
 
         size_t size () const
         {
@@ -79,7 +76,10 @@ class List
             std::swap (sentinel_, rhs.sentinel_);
         }
 
-        T &front () { return *(sentinel_.next()); }
+        iterator begin () { return sentinel_.next(); }
+        iterator end () { return iterator(); }
+
+        T &front () { return *(begin()); }
 
         iterator previous (iterator pos)
         {
@@ -94,43 +94,68 @@ class List
 
         void push_front (const T &v)
         {
-            insert_before_ (begin(), v);
+            insert (begin(), v);
+        }
+
+        void pop_front ()
+        {
+            erase (begin(), begin().next());
         }
 
         void insert (iterator pos, const T &v) 
         {
-            insert_before_ (pos, v);
+            insert_ (previous (pos), v);
         }
 
         void insert_after (iterator pos, const T &v) 
         { 
-            insert_after_ (pos, v);
+            insert_ (pos, v);
         }
 
+        // note: [begin, end)
         void insert_after (iterator pos, iterator begin, iterator end)
         { 
             for (iterator i (begin); i != end; ++i, ++pos)
-                insert_after_ (pos, *i);
+                insert_ (pos, *i);
+        }
+
+        void splice (iterator pos, List &rhs, iterator s)
+        {
+            splice_ (pos, rhs, previous (s), s);
+        }
+
+        // note: [begin, end)
+        void splice (iterator pos, List &rhs, iterator begin, iterator end)
+        {
+            splice_ (pos, rhs, previous (begin), previous (end));
         }
 
         void splice_after (iterator pos, List &rhs, iterator prev)
         {
-            splice_after_ (pos, rhs, prev, prev.next());
+            splice_ (pos, rhs, prev, prev.next());
         }
 
-        void splice_after (iterator pos, List &rhs, iterator prev, iterator end)
+        // note: (prev, last]
+        void splice_after (iterator pos, List &rhs, iterator prev, iterator last)
         {
-            splice_after_ (pos, rhs, prev, end);
+            splice_ (pos, rhs, prev, last);
         }
 
         void erase (iterator pos)
         {
-            erase_ (pos, pos.next());
+            erase_ (previous (pos), pos.next());
         }
 
+        // note: [begin, end)
         void erase (iterator begin, iterator end)
         {
-            erase_ (begin, end);
+            erase_ (previous (begin), end);
+        }
+
+        // note: (prev, last]
+        void erase_after (iterator prev, iterator last)
+        {
+            erase_ (prev, last.next());
         }
 
         void reverse ()
@@ -140,35 +165,38 @@ class List
 
         void merge (List &rhs)
         {
-            //iterator s1 (sentinel_), s2 (rhs.sentinel_);
+            iterator s1 (sentinel_);
+            iterator s2 (rhs.sentinel_);
+            iterator e = end();
 
-            //for (;;)
-            //{
-            //    if (*(s2.next()) < *(s1.next()))
-            //    {
-            //        splice_after (s1, s2);
-            //        ++ s2;
-            //    }
-            //    else
-            //        ++ s1;
-
-            //    if (s1 == end())
-            //}
-        }
-
-    private:
-        void insert_before_ (iterator pos, const T &v) 
-        { 
-            if (begin() == end())
-                sentinel_.next (new node (v, 0));
-            else
+            for (;;)
             {
-                iterator prev (previous (pos));
-                prev.next (new node (v, prev.next()));
+                if (s1.next() && s2.next())
+                {
+                    if (*s2.next() < *s1.next())
+                        splice_after (s1, rhs, s2);
+                    else
+                        ++ s1;
+                }
+                else
+                {
+                    if (s1.next() == e)
+                        while (s2.next())
+                            splice_after (s1, rhs, s2);
+
+                    if (s2.next() == e)
+                        break;
+                }
             }
         }
 
-        void insert_after_ (iterator pos, const T &v)
+        void sort ()
+        {
+        }
+
+    private:
+        // note: insert after
+        void insert_ (iterator pos, const T &v)
         {
             if (begin() == end())
                 sentinel_.next (new node (v, 0));
@@ -176,24 +204,26 @@ class List
                 pos.next (new node (v, pos.next()));
         }
 
-        void splice_after_ (iterator pos, List &rhs, iterator prev, iterator end)
+        // note: (prev, end)
+        void erase_ (iterator prev, iterator end)
+        {
+            iterator i = prev.next();
+            while (i != end)
+                delete i++;
+        
+            prev.next (end);
+        }
+
+        // note: (prev, last]
+        void splice_ (iterator pos, List &rhs, iterator prev, iterator last)
         {
             iterator succ = pos.next();
-
             pos.next (prev.next());
-            prev.next (end.next());
-            end.next (succ);
+            prev.next (last.next());
+            last.next (succ);
         }
         
-        void erase_ (iterator b, iterator e)
-        {
-            iterator prev (previous (b));
-            prev.next (e);
-            
-            for (; b != e; ++b)
-                delete (node *)b;
-        }
-
+        // note: returns reversed head
         iterator reverse_ (iterator head)
         { 
             iterator i = head;
@@ -243,6 +273,7 @@ main (int argc, char** argv)
     a.reverse ();
     b.splice_after (b.begin(), a, a.previous (a.begin()), a.begin().next());
     a.swap (b);
+    b.pop_front ();
 
     copy (a.begin(), a.end(), ostream_iterator <int> (cout, " ")); cout << endl;
     copy (b.begin(), b.end(), ostream_iterator <int> (cout, " ")); cout << endl;
