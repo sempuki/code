@@ -135,8 +135,7 @@ class List
 
         void reverse ()
         {
-            pair <iterator,iterator> res = reverse_ (begin());
-            sentinel_.next (res.first);
+            sentinel_.next (reverse_ (begin()));
         }
 
         void merge (List &rhs)
@@ -195,25 +194,28 @@ class List
                 delete (node *)b;
         }
 
-        pair <iterator,iterator> reverse_ (iterator head)
-        {
-            pair <iterator,iterator> res;
+        iterator reverse_ (iterator head)
+        { 
+            iterator i = head;
+            iterator curr, res;
 
-            if (head.next())
+            for (;;)
             {
-                res = reverse_ (head.next());
-
-                head.next (res.second.next());
-                res.second.next (head);
-                res.second = head;
+                if (i.next())
+                {
+                    curr = i++;
+                    curr.next (res);
+                    res = curr;
+                }
+                else
+                {
+                    head = i;
+                    head.next (res);
+                    break;
+                }
             }
-            else
-            {
-                res.first = head;
-                res.second = head;
-            }
 
-            return res;
+            return head;
         }
 
     private:
@@ -239,8 +241,8 @@ main (int argc, char** argv)
     b.push_front (0);
     b.insert_after (b.begin(), a.begin(), a.end());
     a.reverse ();
-    //b.splice_after (b.begin(), a, a.previous (a.begin()), a.begin().next());
-    //a.swap (b);
+    b.splice_after (b.begin(), a, a.previous (a.begin()), a.begin().next());
+    a.swap (b);
 
     copy (a.begin(), a.end(), ostream_iterator <int> (cout, " ")); cout << endl;
     copy (b.begin(), b.end(), ostream_iterator <int> (cout, " ")); cout << endl;
