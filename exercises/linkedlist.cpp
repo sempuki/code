@@ -4,15 +4,12 @@
  */
 
 #include <iostream>
-#include <iomanip>
 #include <iterator>
 #include <algorithm>
-#include <tr1/functional>
 
 using namespace std;
-using namespace std::tr1;
-using namespace std::tr1::placeholders;
 
+// Linked List Node
 template <typename T>
 struct Node
 {
@@ -23,6 +20,7 @@ struct Node
     Node (T v, Node <T> *p = 0) : value (v), next (p) {}
 };
 
+// Linked List Iterator
 template <typename T>
 class ListIterator : public std::iterator <std::forward_iterator_tag, T>
 {
@@ -51,6 +49,7 @@ class ListIterator : public std::iterator <std::forward_iterator_tag, T>
         node *p_;
 };
 
+// Linked List Container
 template <typename T>
 class List
 {
@@ -61,6 +60,24 @@ class List
         List () : sentinel_ (new node) {}
         ~List () { erase (begin(), end()); }
 
+        iterator begin () { return sentinel_.next(); }
+        iterator end () { return iterator(); }
+
+        T &front () { return *(begin()); }
+
+        // note: O(n)
+        iterator previous (iterator pos)
+        {
+            iterator prev = sentinel_; 
+            iterator i = begin();
+
+            for (; i != pos; ++i)
+                prev = i;
+
+            return prev;
+        }
+
+        // note: O(n)
         size_t size () const
         {
             size_t size;
@@ -74,22 +91,6 @@ class List
         void swap (List &rhs)
         {
             std::swap (sentinel_, rhs.sentinel_);
-        }
-
-        iterator begin () { return sentinel_.next(); }
-        iterator end () { return iterator(); }
-
-        T &front () { return *(begin()); }
-
-        iterator previous (iterator pos)
-        {
-            iterator prev = sentinel_; 
-            iterator i = begin();
-
-            for (; i != pos; ++i)
-                prev = i;
-
-            return prev;
         }
 
         void push_front (const T &v)
@@ -163,6 +164,7 @@ class List
             sentinel_.next (reverse_ (begin()));
         }
 
+        // note: O(n+m)
         void merge (List &rhs)
         {
             iterator s1 (sentinel_);
@@ -190,6 +192,7 @@ class List
             }
         }
 
+        // note: O(nlgn)
         void sort ()
         {
         }
