@@ -26,11 +26,13 @@ void print (T v)
     cout << v << " "; 
 }
 
-// time and space complexity: linear 
-// O(b^d) where b is branching factor and d is depth
+// time complexity: asympotically linear; 
+// O(b^d) where b is branching factor and d is depth;
+// each node must be visited
 
-// note: function is in preorder position
-// for postorder, place behind recursive calls
+// space complexity: O(n); each node is placed on the stack
+// note: function is in preorder position for postorder, 
+// place behind recursive calls
 template <typename T, typename F>
 void apply_r (Node <T> *n, F f)
 {
@@ -43,8 +45,8 @@ void apply_r (Node <T> *n, F f)
 }
 
 
-// note: currently left depth first 
-// for right depth first, reorder pushes
+// space complexity: O(lgn); max stack size is the depth of the tree
+// note: currently left depth first; for right depth first, reorder pushes
 template <typename T, typename F>
 void apply_dfs (Node <T> *n, F f)
 {
@@ -69,8 +71,8 @@ void apply_dfs (Node <T> *n, F f)
 }
 
 
-// note: currently left breadth first 
-// for right breadth first, reorder pushes
+// space complexity: O(n); max queue size is all children at max depth
+// note: currently left breadth first; for right breadth first, reorder pushes
 template <typename T, typename F>
 void apply_bfs (Node <T> *n, F f)
 {
