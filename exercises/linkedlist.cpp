@@ -197,6 +197,24 @@ class List
         {
         }
 
+        // return node m steps from the end
+        iterator reverse_at (int m)
+        {
+            iterator node;
+            iterator i = begin();
+            iterator e = end();
+
+            for (int n=0; i != e; ++i, ++n)
+            {
+                if (n == m)
+                    node = begin();
+                else if (n > m)
+                    ++ node;
+            }
+
+            return node;
+        }
+
     private:
         // note: insert after
         void insert_ (iterator pos, const T &v)
