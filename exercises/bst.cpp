@@ -9,101 +9,124 @@
 using namespace std;
 
 template <typename T>
-struct BinaryNode
-{
-    T value;
-
-    BinaryNode *left;
-    BinaryNode *right;
-
-    BinaryNode (const T &v) : 
-        value (v), 
-        left (0), 
-        right (0) {}
-};
-
-template <typename T>
 class BinarySearchTree
 {
     public:
-        typedef BinaryNode<T> node;
-        typedef pair <node*, node*> result;
+        struct Node
+        {
+            T       value;
+            Node    *left;
+            Node    *right;
 
+            Node (const T &v, Node *l = 0, Node *r = 0) : 
+                value (v), left (l), right (r) {}
+        };
+
+        struct Result
+        {
+            Node    **link;
+            Node    *node;
+
+            Result (Node **l = 0, Node *n = 0) :
+                link (l), node (n) {}
+        };
+
+    public:
         BinarySearchTree () : size_ (0), head_ (0) {}
         ~BinarySearchTree () {}
 
-        // note: first = parent, second = found
-        result find (const T &v)
+    public:
+        Result find (const T &v)
         {
-            result r = make_pair <node *, node *> (0, head_);
+            Result r (0, head_);
 
-            while (r.second)
+            while (r.node)
             {
-                if (v == r.second->value)
-                    return r;
-                
-                else if (v < r.second->value)
+                if (v == r.node->value)
                 {
-                    r.first = r.second;
-                    r.second = r.second->left;
+                    return r;
                 }
-
+                else if (v < r.node->value)
+                {
+                    r.link = &(r.node->left);
+                    r.node = r.node->left;
+                }
                 else 
                 {
-                    r.first = r.second;
-                    r.second = r.second->right;
+                    r.link = &(r.node->right);
+                    r.node = r.node->right;
                 }
             }
 
             return r;
         }
 
-        node *insert (const T &v)
+        Node *insert (const T &v)
         {
-            result r = find (v);
-            node *n = 0;
+            Result r = find (v);
+            Node *n = 0;
 
-            if (r.second)
-                n = r.second;
+            if (r.node)
+                n = r.node;
 
             else
             {
-                n = new node (v);
+                n = new Node (v);
                 ++ size_;
 
-                if (r.first)
-                {
-                    if (v < r.first->value)
-                        r.first->left = n; 
-                    else
-                        r.first->right = n;
-                }
-                else head_ = n;
+                if (r.link)
+                    *(r.link) = n;
+                else 
+                    head_ = n;
             }
                 
             return n;
         }
 
-        node *erase (const T &v)
+        Node *erase (const T &v)
         {
-            result r = find (v);
-            node *n = 0;
+            Result r = find (v);
+            Node *n = 0;
 
-            if (r.second)
+            if (r.node)
             {
-                delete r.second;
-                -- size_;
-
-                if (r.first)
+                if (r.link)
                 {
-                    if (v < r.first->value)
-                        r.first->left = 0;
-                    else
-                        r.first->right = 0;
+                    if (r.node->left && r.node->right)
+                    {
+                        // find left-most node, starting from right
+                        Result rr = find_rotate_left_ (r.node->right);
+                        
+                        // correct parent link
+                        if (rr.link)
+                        { 
+                            if (rr.node->right)
+                                // leave right-tree behind
+                                *(rr.link) = rr.node->right;
+                            else 
+                                // null terminate
+                                *(rr.link) = 0;
+                        }
 
-                    n = r.first;
+                        // replace node
+                        rr.node->left = r.node->left;
+                        rr.node->right = r.node->right;
+                        *(r.link) = rr.node;
+                    } 
+                    else if (r.node->left && !r.node->right)
+                        *(r.link) = r.node->left;
+
+                    else if (!r.node->left && r.node->right)
+                        *(r.link) = r.node->right;
+
+                    else
+                        *(r.link) = 0;
                 }
-                else head_ = 0;
+                else 
+                    head_ = 0;
+                        
+                delete r.node;
+                -- size_;
             }
 
             return n;
@@ -113,24 +136,56 @@ class BinarySearchTree
         template <typename F> 
         void apply (F fn) 
         { 
-            apply_ (head_, fn); 
+            apply_inorder_ (head_, fn); 
         }
 
     private:
+        Result find_rotate_left_ (Node *n)
+        {
+            Result r (0, n);
+
+            for (;;)
+            {
+                if (!r.node->left)
+                    break;
+
+                r.link = &(r.node->left);
+                r.node = r.node->left;
+            }
+
+            return r;
+        }
+
         template <typename F>
-        void apply_ (node *n, F fn)
+        void apply_preorder_ (Node *n, F fn)
         {
             if (!n) return;
+            fn (n->value);
+            apply_preorder_ (n->left, fn);
+            apply_preorder_ (n->right, fn);
+        }
 
-            apply_ (n->left, fn);
-            apply_ (n->right, fn);
+        template <typename F>
+        void apply_inorder_ (Node *n, F fn)
+        {
+            if (!n) return;
+            apply_inorder_ (n->left, fn);
+            fn (n->value);
+            apply_inorder_ (n->right, fn);
+        }
 
+        template <typename F>
+        void apply_postorder_ (Node *n, F fn)
+        {
+            if (!n) return;
+            apply_postorder_ (n->left, fn);
+            apply_postorder_ (n->right, fn);
             fn (n->value);
         }
 
     private:
         size_t  size_;
-        node    *head_;
+        Node    *head_;
 };
 
 template <typename T>
@@ -146,11 +201,17 @@ main (int argc, char** argv)
 {
     BinarySearchTree <int> tree;
 
-    tree.insert (5);
+    tree.insert (7);
     tree.insert (3);
+    tree.insert (5);
     tree.insert (6);
+    tree.insert (2);
+    tree.insert (4);
     tree.insert (1);
+    tree.insert (9);
+    tree.insert (8);
 
+    tree.erase (3);
     tree.apply (print<int>);
 
     return 0;
