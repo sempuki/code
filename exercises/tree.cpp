@@ -50,22 +50,22 @@ void apply_r (Node <T> *n, F f)
 template <typename T, typename F>
 void apply_dfs (Node <T> *n, F f)
 {
-    stack <Node <T> *> context;
+    stack <Node <T> *> next;
     Node <T> *curr;
 
-    context.push (n);
+    next.push (n);
 
-    while (context.size ())
+    while (next.size ())
     {
-        curr = context.top ();
-        context.pop ();
+        curr = next.top ();
+        next.pop ();
 
         if (curr)
         {
             f (curr->value);
 
-            context.push (curr->right);
-            context.push (curr->left);
+            next.push (curr->right);
+            next.push (curr->left);
         }
     }
 }
@@ -76,22 +76,22 @@ void apply_dfs (Node <T> *n, F f)
 template <typename T, typename F>
 void apply_bfs (Node <T> *n, F f)
 {
-    queue <Node <T> *> context;
+    queue <Node <T> *> next;
     Node <T> *curr;
 
-    context.push (n);
+    next.push (n);
 
-    while (context.size ())
+    while (next.size ())
     {
-        curr = context.front ();
-        context.pop ();
+        curr = next.front ();
+        next.pop ();
 
         if (curr)
         {
             f (curr->value);
 
-            context.push (curr->left);
-            context.push (curr->right);
+            next.push (curr->left);
+            next.push (curr->right);
         }
     }
 }
