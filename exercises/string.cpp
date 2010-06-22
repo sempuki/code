@@ -96,15 +96,9 @@ list <string> permute_characters (string s, int begin, int end)
         {
             // fix one character
             swap (s[begin], s[n]);
-            char c = s[begin];
 
             // recursively permute the rest
             sub = permute_characters (s, begin+1, end);
-
-            // replace the fixed character
-            list<string>::iterator i = sub.begin(); 
-            list<string>::iterator e = sub.end(); 
-            for (; i != e; ++i) (*i)[begin] = c;
 
             // collect in the result
             res.splice (res.end(), sub, sub.begin(), sub.end());
