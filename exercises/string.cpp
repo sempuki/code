@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <list>
 
 #include <tr1/cstdint>
 #include <cctype>
@@ -80,6 +81,45 @@ void reverse_words (string &s)
     }
 }
 
+list <string> permute_characters (string s, int begin, int end)
+{
+    list <string> res, sub;
+    int size = end - begin;
+
+    if (size == 1)
+    {
+        res.push_back (s);
+    }
+    else if (size >= 2)
+    {
+        for (int n = begin; n < end; ++n)
+        {
+            // fix one character
+            swap (s[begin], s[n]);
+            char c = s[begin];
+
+            // recursively permute the rest
+            sub = permute_characters (s, begin+1, end);
+
+            // replace the fixed character
+            list<string>::iterator i = sub.begin(); 
+            list<string>::iterator e = sub.end(); 
+            for (; i != e; ++i) (*i)[begin] = c;
+
+            // collect in the result
+            res.splice (res.end(), sub, sub.begin(), sub.end());
+        }
+    }
+
+    return res;
+}
+
+list <string> permute_characters (const string &s)
+{
+    return permute_characters (s, 0, s.size ());
+}
+
+
 //=============================================================================
 // Main entry point
 int
@@ -96,6 +136,11 @@ main (int argc, char** argv)
 
     reverse_words (s3);
     cout << s3 << endl;
+
+    list <string> l = permute_characters ("abcd");
+    list<string>::iterator i = l.begin(); 
+    list<string>::iterator e = l.end(); 
+    for (; i != e; ++i) cout << *i << endl;
 
     return 0;
 }
