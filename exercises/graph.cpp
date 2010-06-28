@@ -14,15 +14,9 @@ using namespace std;
 using namespace std::tr1;
 using namespace std::tr1::placeholders;
 
-template <typename T>
-void erase_nth (T &v, int n)
-{
-    v.erase (v.begin() + n);
-}
-
 // note: without loss of generality, 
 // all vertices are integer named
-// and edges are integer pairs
+// and edges are pairs of vertices
 
 class DenseGraph
 {
@@ -81,10 +75,9 @@ class DenseGraph
 
         size_t vertices () const { return adj_.size(); }
         size_t edges () const { return edges_; }
-        bool edge (int v, int w) { return joined_ (v, w); }
 
-        EdgeIterator edge_begin (int v) { return EdgeIterator (adj_[v], 0); }
-        EdgeIterator edge_end (int v) { return EdgeIterator (adj_[v], adj_[v].size()); }
+        EdgeIterator edge_begin (int v) const { return EdgeIterator (adj_[v], 0); }
+        EdgeIterator edge_end (int v) const { return EdgeIterator (adj_[v], adj_[v].size()); }
 
         void add () 
         { 
@@ -93,49 +86,36 @@ class DenseGraph
 
         void remove (int v)
         {
-            erase_ (v);
+            for (int i = 0; i < vertices(); ++i)
+                cut (i, v);
         }
 
-        void insert (int v, int w)
+        bool joined (int v, int w) const 
+        { 
+            return (adj_[v][w] || adj_[w][v]);
+        }
+
+        void join (int v, int w)
         {
-            if (!joined_ (v, w))
+            if (!joined (v, w))
             {
-                join_ (v, w);
                 ++ edges_;
+                adj_[v][w] = 
+                    adj_[w][v] = true;
             }
         }
 
-        void remove (int v, int w)
+        void cut (int v, int w)
         {
-            if (joined_ (v, w))
+            if (joined (v, w))
             {
-                cut_ (v, w);
                 -- edges_;
+                adj_[v][w] = 
+                    adj_[w][v] = false;
             }
         }
 
     private:
-        bool joined_ (int v, int w)
-        {
-            return (adj_[v][w] || adj_[w][v]);
-        }
-
-        void join_ (int v, int w)
-        {
-            adj_[v][w] = adj_[w][v] = true;
-        }
-
-        void cut_ (int v, int w)
-        {
-            adj_[v][w] = adj_[w][v] = false;
-        }
-
-        void erase_ (int v)
-        {
-            for (int i = 0; i < vertices(); ++i)
-                cut_ (i, v);
-        }
-
         void resize_ (int n)
         {
             adj_.resize (n);
@@ -148,16 +128,58 @@ class DenseGraph
         size_t          edges_;
 };
 
+// note: O(V^2) since each vertex is visited, with a search of all
+// adjacent vertices via the EdgeIterator::operator++
+template <typename Graph>
+struct TraverseDFS
+{
+    const Graph &graph; 
+    TraverseDFS (const Graph &g) : graph (g) {}
+
+    void operator() (function <void(int)> fn, int start)
+    {
+        vector <bool> visited (graph.vertices());
+        stack <int> next;
+
+        visited [start] = true;
+        next.push (start);
+
+        for (int v; next.size ();)
+        {
+            v = next.top ();
+            next.pop ();
+
+            fn (v); // apply operator
+
+            typename Graph::EdgeIterator i = graph.edge_begin (v);
+            typename Graph::EdgeIterator e = graph.edge_end (v);
+            for (; i != e; ++i)
+            {
+                if (!visited [*i]) 
+                {
+                    visited [*i] = true;
+                    next.push (*i);
+                }
+            }
+        }
+    }
+};
+
+void print (int v) { cout << "found vertex: " << v << endl; }
+
+
 //=============================================================================
 // Main entry point
 int
 main (int argc, char** argv)
 {
-    DenseGraph graph (5);
-    graph.insert (1, 0);
-    graph.insert (2, 1);
-    graph.insert (3, 2);
-    graph.insert (4, 3);
+    DenseGraph graph (7);
+    graph.join (0, 1);
+    graph.join (0, 2);
+    graph.join (1, 3);
+    graph.join (1, 4);
+    graph.join (2, 5);
+    graph.join (2, 6);
 
     for (int v = 0; v < graph.vertices(); ++v)
     {
@@ -168,6 +190,9 @@ main (int argc, char** argv)
             cout << *i << ", ";
         cout << endl;
     }
+
+    TraverseDFS <DenseGraph> traverse (graph);
+    traverse (print, 0);
 
     return 0;
 }
