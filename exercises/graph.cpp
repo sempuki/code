@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <algorithm>
+#include <vector>
+#include <list>
 #include <stack>
 #include <queue>
 
@@ -17,6 +19,8 @@ using namespace std::tr1::placeholders;
 // note: without loss of generality, 
 // all vertices are integer named
 // and edges are pairs of vertices
+
+// Adjacency Matrix-based implementation
 
 class DenseGraph
 {
@@ -125,6 +129,89 @@ class DenseGraph
 
     private:
         AdjacencyMatrix adj_;
+        size_t          edges_;
+};
+
+// Adjacency List-based implementation
+class SparseGraph
+{
+    public:
+        typedef vector <int> AdjacencyVector;
+        typedef vector <AdjacencyVector> AdjacencyList;
+
+        typedef AdjacencyVector::const_iterator EdgeIterator;
+
+        SparseGraph (int n) :
+            edges_ (0)
+        {
+            resize_ (n);
+        }
+
+        size_t vertices () const { return adj_.size(); }
+        size_t edges () const { return edges_; }
+
+        EdgeIterator edge_begin (int v) const { return adj_[v].begin(); }
+        EdgeIterator edge_end (int v) const { return adj_[v].end(); }
+
+        void add () 
+        { 
+            resize_ (vertices() + 1);
+        }
+
+        void remove (int v)
+        {
+            for (int i = 0; i < vertices(); ++i)
+                cut (i, v);
+        }
+
+        bool joined (int v, int w) const 
+        { 
+            return (find_ (adj_[v], w) || find_ (adj_[w], v));
+        }
+
+        void join (int v, int w)
+        {
+            if (!joined (v, w))
+            {
+                ++ edges_;
+                insert_ (adj_[v], w);
+                insert_ (adj_[w], v);
+            }
+        }
+
+        void cut (int v, int w)
+        {
+            if (joined (v, w))
+            {
+                -- edges_;
+                erase_ (adj_[v], w);
+                erase_ (adj_[w], v);
+            }
+        }
+
+    private:
+        bool find_ (const AdjacencyVector &v, int w) const
+        {
+            return (find (v.begin(), v.end(), w) != v.end());
+        }
+
+        void insert_ (AdjacencyVector &v, int w)
+        {
+            v.push_back (w);
+        }
+
+        void erase_ (AdjacencyVector &v, int w)
+        {
+            v.erase (find (v.begin(), v.end(), w));
+        }
+
+        void resize_ (int n)
+        {
+            adj_.resize (n);
+        }
+
+    private:
+        AdjacencyList   adj_;
         size_t          edges_;
 };
 
