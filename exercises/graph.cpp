@@ -215,8 +215,12 @@ class SparseGraph
         size_t          edges_;
 };
 
-// note: O(V^2) since each vertex is visited, with a search of all
-// adjacent vertices via the EdgeIterator::operator++
+// note: 
+// * DenseGraph: O(V^2) since each vertex is visited, with a search of all
+// vertices via the EdgeIterator::operator++()
+// * SparseGraph: O(V+E) since each vertex is visited, with a search of all
+// edges via the EdgeIterator::operator++()
+
 template <typename Graph>
 struct TraverseDFS
 {
