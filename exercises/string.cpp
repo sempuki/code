@@ -5,6 +5,8 @@
 
 #include <iostream>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 #include <map>
 #include <set>
 #include <list>
@@ -113,6 +115,37 @@ list <string> permute_characters (const string &s)
     return permute_characters (s, 0, s.size ());
 }
 
+void sort (list <string> &l, int pos = 0)
+{
+    if (l.size() < 2)
+        return;
+    else if (l.size() == 2)
+    {
+        if (l.front().at (pos) > l.back().at (pos))
+            swap (l.front(), l.back());
+        return;
+    }
+
+    vector <list <string> > bucket (26);
+
+    list<string>::iterator i = l.begin();
+    list<string>::iterator e = l.end();
+    for (char c; i != e; ++i)
+    {
+        c = toupper (i->at (pos)) - 65;
+        bucket[c].push_back (*i);
+    }
+
+    l.clear ();
+    vector<list <string> >::iterator bi = bucket.begin();
+    vector<list <string> >::iterator be = bucket.end();
+    for (; bi != be; ++bi) 
+    {
+        sort (*bi, pos+1);
+        l.splice (l.end(), *bi);
+    }
+}
+
 
 //=============================================================================
 // Main entry point
@@ -135,6 +168,19 @@ main (int argc, char** argv)
     list<string>::iterator i = l.begin(); 
     list<string>::iterator e = l.end(); 
     for (; i != e; ++i) cout << *i << endl;
+
+    l.clear ();
+    l.push_back ("age");
+    l.push_back ("aft");
+    l.push_back ("art");
+    l.push_back ("agog");
+    l.push_back ("agag");
+    l.push_back ("sage");
+    l.push_back ("bob");
+    sort (l);
+
+    copy (l.begin(), l.end(), ostream_iterator <string> (cout, " "));
+    cout << endl;
 
     return 0;
 }

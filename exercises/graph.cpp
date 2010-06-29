@@ -21,7 +21,6 @@ using namespace std::tr1::placeholders;
 // and edges are pairs of vertices
 
 // Adjacency Matrix-based implementation
-
 class DenseGraph
 {
     public:
