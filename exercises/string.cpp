@@ -16,6 +16,38 @@
 
 using namespace std;
 
+char most_frequent_char (char *buf)
+{
+    int count [26];
+    int i, freq, ch;
+
+    for (i=0; i < 26; ++i)
+        count [i] = 0;
+
+    for (char c; c = *buf; ++buf)
+    {
+        if (isalpha (c))
+        {
+            i = toupper (c) - 'A';
+            assert (i >= 0 && i < 26);
+            ++ count [i];
+        }
+    }
+
+    ch = 26; freq = 0;
+
+    for (i=0; i < 26; ++i)
+    {
+        if (count[i] > freq)
+        {
+            ch = i;
+            freq = count[i];
+        }
+    }
+
+    return ch + 'A';
+}
+
 string::const_iterator find_first_nonrepeating (const string &s)
 {
     static const uint8_t SINGLE = 1;
