@@ -176,21 +176,18 @@ namespace Memory
 
                 for (int i = 0; i < N; ++i)
                     pool_.insert (new ChunkType);
-
-                // for LRU/MRU use
-                last_allocated_ = last_deallocated_ = *pool_.begin();
             }
 
             ~Pool ()
             {
                 delete_chunks_ (pool_);
-                delete_chunks_ (dead_);
+                delete_chunks_ (empty_);
             }
 
             T *get ()
             {
-                // check latest for availability
-                if (last_allocated_->full())
+                // check MRU for availability
+                if (!last_allocated_ || last_allocated_->full())
                 {
                     typename ChunkType::Set::iterator i = pool_.begin();
                     typename ChunkType::Set::iterator e = pool_.end();
@@ -207,15 +204,17 @@ namespace Memory
                     // no available chunks found
                     if (i == e)
                     {
-                        if (dead_.size())
+                        if (empty_.size())
                         {
                             // reuse dead chunk
-                            pool_.insert (*dead_.begin());
-                            dead_.erase (dead_.begin());
+                            last_allocated_ = *empty_.begin();
+                            empty_.erase (empty_.begin());
                         }
                         else
                             // allocate new chunk
-                            pool_.insert (new ChunkType);
+                            last_allocated_ = new ChunkType;
+
+                        pool_.insert (last_allocated_);
                     }
                 }
                     
@@ -224,8 +223,8 @@ namespace Memory
 
             void release (T *b)
             {
-                // check latest for availability
-                if (!last_deallocated_->owns (b))
+                // check MRU for availability
+                if (!last_deallocated_ || !last_deallocated_->owns (b))
                 {
                     typename ChunkType::Set::iterator i = pool_.begin();
                     typename ChunkType::Set::iterator e = pool_.end();
@@ -245,17 +244,17 @@ namespace Memory
                     
                 last_deallocated_->deallocate (b);
 
-                // mark chunks dead if empty
+                // collect empty chunks
                 if (last_deallocated_->empty())
                 {
-                    dead_.insert (last_deallocated_);
+                    empty_.insert (last_deallocated_);
                     pool_.erase (last_deallocated_);
                     last_allocated_ = *pool_.begin();
                 }
                     
                 // reclaim unused chunks
-                if (dead_.size() > pool_.size())
-                    delete_chunks_ (dead_);
+                if (pool_.size() && empty_.size() > pool_.size())
+                    delete_chunks_ (empty_);
             }
 
             void print (std::ostream &out)
@@ -284,10 +283,10 @@ namespace Memory
 
         private:
             typename ChunkType::Set pool_;
-            typename ChunkType::Set dead_;
+            typename ChunkType::Set empty_;
 
-            ChunkType   *last_allocated_;
-            ChunkType   *last_deallocated_;
+            ChunkType   *last_allocated_;   // MRU allocation chunk
+            ChunkType   *last_deallocated_; // MRU deallocation chunk
     };
 }
 
