@@ -22,135 +22,141 @@ typedef unsigned char uint8_t;
 
 namespace Memory
 {
-
-    // Chunk manages allocations for up to 2^sizeof(Index) objects of type T.
-    // Ensure sizeof(Index) <= sizeof(T) to avoid memory overhead from Index.
+    // Chunk is a segment of memory divided into N uniform blocks.
+    // Each block is space to hold one type of object T.
+    // The first bytes of an unused block are an index pointing
+    // to the next unused block. It is an implicit linked list
+    // that keeps operation within constant time complexity.
+    // Index must be chosen such that sizeof(Index) <= sizeof(T).
+    // Size is how many objects T will be allocated per chunk.
+    // For correct indexing, Size must be chosen such that
+    // Size < 2^(sizeof(Index)*8).
 
     template <typename T, typename Index, size_t Size>
-    class Chunk
+    struct Chunk 
     {
-        // Block contains either a value of type T
-        // or an index within an array that points
-        // to the next available block; a linked list
+        typedef std::set <Chunk *> Set;
 
-        union Block
+        // Pointer to allocated memory
+        T       *memory;
+
+        // Index to number of available and next available
+        Index   available;
+        Index   next;
+
+        // allocate size blocks
+        // space complexity: O(1)
+        Chunk ()
         {
-            Index next;
-            T value;
-        };
+            // Check Chunk constraints. (todo: static_assert)
+            // ensure Index is smaller than T and can index Size
+            assert (sizeof(Index) <= sizeof(T));
+            assert (Size <= ((Index) ~0));
 
-        public:
-            typedef std::set <Chunk *> Set;
+            // allocate size Blocks
+            memory = new T [Size];
 
-            // allocate size blocks
-            // space complexity: O(1)
-            Chunk ()
-            {
-                // ensure Index can index Size
-                assert ((Index)(~0) <= Size);
+            // init linked list of available blocks
+            T *b = memory;
+            for (size_t i=0; i < Size; ++b, ++i)
+                index (b) = i+1;
 
-                // allocate size Blocks
-                mem_ = new Block [Size];
+            // init number of available and next available
+            available = static_cast <Index> (Size);
+            next = 0;
+        } 
 
-                // linked list of available blocks
-                for (size_t i=0; i < Size; ++i)
-                    mem_[i].next = i+1;
+        // deallocate blocks
+        ~Chunk ()
+        {
+            delete [] memory;
+        }
 
-                available_ = static_cast <Index> (Size);
-                next_ = 0;
-            } 
+        // allocate one item of type T
+        // time complexity: O(1)
+        T *allocate ()
+        {
+            // check there is space available
+            assert (available);
 
-            // deallocate blocks
-            ~Chunk ()
-            {
-                delete [] mem_;
-            }
+            // get next available block
+            // and check bounds
+            T *b = memory + next;
+            assert (owns (b));
 
-            // allocate one item of type T
-            // time complexity: O(1)
-            T *allocate ()
-            {
-                // check there is space available
-                assert (available_);
+            // remove from available pool
+            // advance to next available
+            next = index (b);
+            -- available;
 
-                // get next available block
-                // and check bounds
-                Block *b = mem_ + next_;
-                assert ((b >= mem_) && (b < mem_ + Size));
+            // head must be in bounds
+            assert (next < Size);
 
-                // remove from available pool
-                // advance to next available
-                next_ = b->next;
-                -- available_;
-                
-                return reinterpret_cast <T *> (b);
-            }
+            return b;
+        }
 
-            // deallocate one item of type T
-            // time complexity: O(1)
-            void deallocate (T *p)
-            {
-                using std::swap;
+        // deallocate one item of type T
+        // time complexity: O(1)
+        void deallocate (T *b)
+        {
+            using std::swap;
 
-                // convert to block pointer
-                // and check bounds
-                Block *b = reinterpret_cast <Block *> (p); 
-                assert ((b >= mem_) && (b < mem_ + Size));
+            // convert to block pointer
+            // and check bounds
+            assert (owns (b));
 
-                // compute block's index
-                b->next = b - mem_;
+            // compute block's index
+            index (b) = b - memory;
 
-                // add to available pool
-                // and insert as next head
-                swap (b->next, next_);
-                ++ available_;
+            // add to available pool
+            // and insert as next head
+            swap (index (b), next);
+            ++ available;
 
-                // head must be in bounds
-                assert (next_ < Size);
-            }
+            // head must be in bounds
+            assert (next < Size);
+        }
 
-            // return true if p was allocated by this chunk
-            // time complexity: O(1)
-            inline bool owns (T *p)
-            {
-                return ((Block *)p >= mem_) && ((Block *)p < mem_ + Size);
-            }
+        // return reference to block b's embedded index
+        // time complexity: O(1)
+        inline Index &index (T *b)
+        {
+            return *(reinterpret_cast <Index *> (b));
+        }
 
-            // return available space
-            // time complexity: O(1)
-            inline size_t available ()
-            {
-                return available_;
-            }
+        // return true if b was allocated by this chunk
+        // time complexity: O(1)
+        inline bool owns (T *b)
+        {
+            return (b >= memory) && (b < memory + Size);
+        }
 
-            // return true if empty
-            // time complexity: O(1)
-            inline bool empty ()
-            {
-                return available_ == Size;
-            }
+        // return true if empty
+        // time complexity: O(1)
+        inline bool empty ()
+        {
+            return available == Size;
+        }
+
+        // return true if full
+        // time complexity: O(1)
+        inline bool full ()
+        {
+            return available == 0;
+        }
 
 
-            // debugging dump
-            void print (std::ostream &out)
-            {
-                using std::copy;
-                using std::ostream_iterator;
+        // debugging dump
+        void print (std::ostream &out)
+        {
+            using std::copy;
+            using std::ostream_iterator;
 
-                T *begin = reinterpret_cast <T *> (mem_);
-                T *end = reinterpret_cast <T *> (mem_ + Size);
-
-                out << "next: " << (int) next_ << std::endl;
-                out << "available: " << (int) available_ << std::endl;
-                copy (begin, end, ostream_iterator <T> (out, ", "));
-                out << std::endl;
-            }
-
-        private:
-            Index   available_;
-            Index   next_;
-
-            Block   *mem_;
+            out << "next: " << (int) next << std::endl;
+            out << "available: " << (int) available << std::endl;
+            copy (memory, memory+Size, ostream_iterator <T> (out, ", "));
+            out << std::endl;
+        }
     };
 
     // Pool extends Chunk for dynamic allocation 
@@ -184,14 +190,14 @@ namespace Memory
             T *get ()
             {
                 // check latest for availability
-                if (!last_allocated_->available ())
+                if (last_allocated_->full())
                 {
                     typename ChunkType::Set::iterator i = pool_.begin();
                     typename ChunkType::Set::iterator e = pool_.end();
                     for (; i != e; ++i)
                     {
                         // found available chunk
-                        if ((*i)->available ())
+                        if ((*i)->available)
                         {
                             last_allocated_ = *i;
                             break;
@@ -216,17 +222,17 @@ namespace Memory
                 return last_allocated_->allocate ();
             }
 
-            void release (T *p)
+            void release (T *b)
             {
                 // check latest for availability
-                if (!last_deallocated_->owns (p))
+                if (!last_deallocated_->owns (b))
                 {
                     typename ChunkType::Set::iterator i = pool_.begin();
                     typename ChunkType::Set::iterator e = pool_.end();
                     for (; i != e; ++i)
                     {
                         // found owner chunk
-                        if ((*i)->owns (p))
+                        if ((*i)->owns (b))
                         {
                             last_deallocated_ = *i;
                             break;
@@ -237,7 +243,7 @@ namespace Memory
                     assert (i != e);
                 }
                     
-                last_deallocated_->deallocate (p);
+                last_deallocated_->deallocate (b);
 
                 // mark chunks dead if empty
                 if (last_deallocated_->empty())
@@ -292,7 +298,6 @@ using namespace std;
 int
 main (int argc, char** argv)
 {
-    // only POD allowed in Unions!
     Memory::Pool <Base1> pool;
 
     Base1 *a = pool.get ();
