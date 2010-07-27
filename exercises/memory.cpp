@@ -1,5 +1,7 @@
 /* main.cpp
  *
+ * Resource: Modern C++ Design by Andrei Alexandrescu
+ *
  *			Ryan McDougall
  */
 
@@ -12,11 +14,11 @@
 #include <cmath>
 
 //#include <main.h>
+#include "ExampleClasses.h"
 
-const int g_MaxObjectSize = 1000;
+const int g_MaxObjectSize = 64;
 const int g_MaxNumberOfObjectsInPool = 1000;
 typedef unsigned char uint8_t;
-
 
 namespace Memory
 {
@@ -290,26 +292,14 @@ using namespace std;
 int
 main (int argc, char** argv)
 {
-    Memory::Pool <int> pool;
+    // only POD allowed in Unions!
+    Memory::Pool <Base1> pool;
 
-    int *a = pool.get ();
-    int *b = pool.get ();
-    int *c = pool.get ();
-    int *d = pool.get ();
-    int *e = pool.get ();
+    Base1 *a = pool.get ();
 
-    *(a) = 10001;
-    *(b) = 10002;
-    *(c) = 10003;
-    *(d) = 10004;
-    *(e) = 10005;
+    cout << "b1: " << a->GetNumber() << endl;
 
     pool.release (a);
-    pool.release (b);
-    pool.release (c);
-    
-    pool.release (d);
-    pool.release (e);
 
     return 0;
 }
