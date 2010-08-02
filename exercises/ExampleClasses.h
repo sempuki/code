@@ -34,7 +34,7 @@ protected:
 };
 
 // (Another class with a virtual function table)
-class Base2
+class Base2 : public Memory::PooledObject <Base2>
 {
 public:
 	Base2()					: number2(rand())	{ printf("Base2() %d = %d\n", this, number2); }

@@ -8,13 +8,11 @@
 #include <iostream>
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <set>
 
 #include <cassert>
 #include <cmath>
-
-//#include <main.h>
-#include "ExampleClasses.h"
 
 const int g_MaxObjectSize = 64;
 const int g_MaxNumberOfObjectsInPool = 1000;
@@ -32,7 +30,7 @@ namespace Memory
     // For correct indexing, Size must be chosen such that
     // Size < 2^(sizeof(Index)*8).
 
-    template <typename T, typename Index, size_t Size>
+    template <typename T, typename Index, Index Size>
     struct Chunk 
     {
         typedef std::set <Chunk *> Set;
@@ -57,15 +55,13 @@ namespace Memory
             memory = new uint8_t [sizeof(T) * Size];
 
             // init linked list of available blocks
-            uint8_t *b = memory;
-            for (size_t i = 0; i < Size; ++i)
-            {
-                index (b) = i + 1;
-                advance (b);
-            }
+            uint8_t *b = memory; 
+            for (size_t i = 1; i < Size-1; ++i, increment (b))
+                index (b) = i;
+            index (b) = 0;
 
             // init number of available and next available
-            available = static_cast <Index> (Size);
+            available = Size;
             next = 0;
         } 
 
@@ -141,7 +137,7 @@ namespace Memory
         }
 
         // return the block ith block from b
-        inline void advance (uint8_t *&b)
+        inline void increment (uint8_t *&b)
         {
             b += sizeof(T);
         }
@@ -198,13 +194,15 @@ namespace Memory
         }
     };
 
-    // Pool extends Chunk for dynamic allocation 
-    // by creating new chunks on request.
+    // Pool extends Chunk for dynamic allocation by creating new chunks 
+    // on request. The caller is responsible for calling the constructor
+    // (via placement new) and the destructor manually.
 
-    template <typename T, typename Index = uint8_t, size_t ChunkSize = 0xFF>
+    template <typename T, typename Index = uint8_t, Index ChunkSize = 0xFF>
     class Pool
     {
         public:
+            typedef T ObjectType;
             typedef Chunk <T, Index, ChunkSize> ChunkType;
 
             Pool (int reserve = 0) : 
@@ -225,8 +223,13 @@ namespace Memory
                 delete_chunks_ (empty_);
             }
 
+            // time complexity: 
+            //  worst case: O(N) in the number of chunks
+            //  best case: O(1) for MRU
             T *get ()
             {
+                std::cout << "get" << std::endl;
+
                 // check MRU for availability
                 if (!last_allocated_ || last_allocated_->full())
                 {
@@ -263,8 +266,13 @@ namespace Memory
                 return last_allocated_->allocate ();
             }
 
+            // time complexity: 
+            //  worst case: O(N) in the number of chunks
+            //  best case: O(1) for MRU
             void release (T *b)
             {
+                std::cout << "release" << std::endl;
+
                 // check MRU for availability
                 if (!last_deallocated_ || !last_deallocated_->owns (b))
                 {
@@ -330,7 +338,99 @@ namespace Memory
             ChunkType   *last_allocated_;   // MRU allocation chunk
             ChunkType   *last_deallocated_; // MRU deallocation chunk
     };
+
+    template <typename T, typename MemoryPool = Pool<T> >
+    class PooledObject
+    {
+        public:
+            virtual ~PooledObject () {}
+
+            static void *operator new (size_t size, MemoryPool *pool) 
+            {
+                // not suitable for our pool
+                if (!pool || size != sizeof(typename MemoryPool::ObjectType) 
+                        || size > g_MaxObjectSize)
+                    return operator new (size);
+
+                if (!size) size = 1;
+                void *memory = 0;
+
+                //for (;;)
+                {
+                    // allocate from pool
+                    memory = pool->get ();
+
+                    if (!memory)
+                    {
+                        // should never happen (??)
+                        // try to get more memory from new_handler
+                        std::new_handler handle = std::set_new_handler (0);
+                        std::set_new_handler (handle);
+                        if (!handle) throw std::bad_alloc ();
+                        else handle ();
+                    }
+                }
+            }
+
+            static void operator delete (void *p, MemoryPool *pool) 
+            {
+                // not suitable for our pool
+                if (!pool) return operator delete (p);
+
+                // release to pool
+                if (p) pool->release (p);
+            }
+
+            static void *operator new (size_t size) { return ::operator new (size); }
+            static void operator delete (void *p) { return ::operator delete (p); }
+    };
+
+    template <typename T, typename MemoryPool>
+    void destroy (PooledObject <T, MemoryPool> *obj, MemoryPool *pool)
+    {
+        obj->~PooledObject ();
+        operator delete (obj, pool);
+    }
+
+    // Object Oriented front-end used for objects allocated directly
+    // from a given memory pool.
+
+    template <typename T, typename MemoryPool = Pool<T> >
+    class Factory
+    {
+        public:
+            Factory ()
+                : mem_ (new MemoryPool) {}
+
+            Factory (std::auto_ptr <MemoryPool> pool)
+                : mem_ (pool) {}
+
+            T *create ()
+            {
+                return new (mem_->get()) T;
+            }
+
+            template <typename U>
+            T *create (const U &init)
+            {
+                return new (mem_->get()) T (init);
+            }
+
+            void destroy (T *item)
+            {
+                item->~T();
+                mem_->release (item);
+            }
+
+        private:
+            Factory (const Factory &);
+
+        private:
+            std::auto_ptr <MemoryPool>  mem_;
+    };
 }
+
+#include "ExampleClasses.h"
 
 using namespace std;
 
@@ -339,19 +439,15 @@ using namespace std;
 int
 main (int argc, char** argv)
 {
-    Memory::Pool <Base1> pool;
+    Memory::Factory <Base1> factory;
+    Memory::Pool <Base2> *pool = new Memory::Pool <Base2>;
 
-    Base1 *a = pool.get ();
-    Base1 *b = pool.get ();
-    Base1 *c = pool.get ();
+    Base1 *a = factory.create ();
+    cout << "factory b1: " << a->GetNumber() << endl;
+    factory.destroy (a);
 
-    cout << "b1a: " << a->GetNumber() << endl;
-    cout << "b1b: " << b->GetNumber() << endl;
-    cout << "b1c: " << c->GetNumber() << endl;
-
-    pool.release (a);
-    pool.release (b);
-    pool.release (c);
+    Base2 *b2 = new (pool) Base2;
+    destroy (b2, pool);
 
     return 0;
 }
