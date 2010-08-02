@@ -38,7 +38,7 @@ namespace Memory
         typedef std::set <Chunk *> Set;
 
         // Pointer to allocated memory
-        T       *memory;
+        uint8_t *memory;
 
         // Index to number of available and next available
         Index   available;
@@ -53,13 +53,16 @@ namespace Memory
             assert (sizeof(Index) <= sizeof(T));
             assert (Size <= ((Index) ~0));
 
-            // allocate size Blocks
-            memory = new T [Size];
+            // allocate enough bytes for Size blocks
+            memory = new uint8_t [sizeof(T) * Size];
 
             // init linked list of available blocks
-            T *b = memory;
-            for (size_t i=0; i < Size; ++b, ++i)
-                index (b) = i+1;
+            uint8_t *b = memory;
+            for (size_t i = 0; i < Size; ++i)
+            {
+                index (b) = i + 1;
+                advance (b);
+            }
 
             // init number of available and next available
             available = static_cast <Index> (Size);
@@ -72,7 +75,7 @@ namespace Memory
             delete [] memory;
         }
 
-        // allocate one item of type T
+        // allocate one object T
         // time complexity: O(1)
         T *allocate ()
         {
@@ -81,32 +84,34 @@ namespace Memory
 
             // get next available block
             // and check bounds
-            T *b = memory + next;
+            uint8_t *b = memory;
+            advance (b, next);
             assert (owns (b));
 
             // remove from available pool
-            // advance to next available
+            // set index to next available
             next = index (b);
             -- available;
 
             // head must be in bounds
             assert (next < Size);
 
-            return b;
+            return object (b);
         }
 
-        // deallocate one item of type T
+        // deallocate one object T
         // time complexity: O(1)
-        void deallocate (T *b)
+        void deallocate (T *o)
         {
             using std::swap;
 
             // convert to block pointer
             // and check bounds
+            uint8_t *b = block (o);
             assert (owns (b));
 
             // compute block's index
-            index (b) = b - memory;
+            index (b) = distance (memory, b);
 
             // add to available pool
             // and insert as next head
@@ -117,29 +122,63 @@ namespace Memory
             assert (next < Size);
         }
 
+        // return pointer to object T's block
+        inline uint8_t *block (T *o)
+        {
+            return reinterpret_cast <uint8_t *> (o);
+        }
+
+        // return pointer to block b's object T
+        inline T *object (uint8_t *b)
+        {
+            return reinterpret_cast <T *> (b);
+        }
+
         // return reference to block b's embedded index
-        // time complexity: O(1)
-        inline Index &index (T *b)
+        inline Index &index (uint8_t *b)
         {
             return *(reinterpret_cast <Index *> (b));
         }
 
+        // return the block ith block from b
+        inline void advance (uint8_t *&b)
+        {
+            b += sizeof(T);
+        }
+
+        // return the block ith block from b
+        inline void advance (uint8_t *&b, Index i)
+        {
+            b += (sizeof(T) * i);
+        }
+
+        // return the index distance between a, b (a < b)
+        inline Index distance (uint8_t *a, uint8_t *b)
+        {
+            return (b - a) / sizeof(T);
+        }
+
         // return true if b was allocated by this chunk
-        // time complexity: O(1)
+        inline bool owns (uint8_t *b)
+        {
+            return (b >= memory) && 
+                (b < memory + (sizeof(T) * Size));
+        }
+
+        // return true if b was allocated by this chunk
         inline bool owns (T *b)
         {
-            return (b >= memory) && (b < memory + Size);
+            return ((uint8_t *)b >= memory) && 
+                ((uint8_t *)b < memory + (sizeof(T) * Size));
         }
 
         // return true if empty
-        // time complexity: O(1)
         inline bool empty ()
         {
             return available == Size;
         }
 
         // return true if full
-        // time complexity: O(1)
         inline bool full ()
         {
             return available == 0;
@@ -168,7 +207,9 @@ namespace Memory
         public:
             typedef Chunk <T, Index, ChunkSize> ChunkType;
 
-            Pool (int reserve = 0)
+            Pool (int reserve = 0) : 
+                last_allocated_ (0), 
+                last_deallocated_ (0)
             {
                 // reserve a certain number of chunks
                 const int N = (reserve)? 
@@ -214,6 +255,7 @@ namespace Memory
                             // allocate new chunk
                             last_allocated_ = new ChunkType;
 
+                        // insert newly available
                         pool_.insert (last_allocated_);
                     }
                 }
@@ -300,10 +342,16 @@ main (int argc, char** argv)
     Memory::Pool <Base1> pool;
 
     Base1 *a = pool.get ();
+    Base1 *b = pool.get ();
+    Base1 *c = pool.get ();
 
-    cout << "b1: " << a->GetNumber() << endl;
+    cout << "b1a: " << a->GetNumber() << endl;
+    cout << "b1b: " << b->GetNumber() << endl;
+    cout << "b1c: " << c->GetNumber() << endl;
 
     pool.release (a);
+    pool.release (b);
+    pool.release (c);
 
     return 0;
 }
