@@ -16,17 +16,6 @@
 static PathNodes sPathNodes;
 static PowerUps sPowerUps;
 
-// NOTE: Question 3 -- I feel my creativity is best expressed in 
-// terms of my fledgling open source game engine here: 
-// == http://github.com/sempuki/scaffold
-
-
-// ## Question 2
-//
-// resources used:
-// * http://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
-// * http://www.cplusplus.com/reference/
-//
 // algorithm: 
 // after much back-forth, I decided to stick with a simple heuristic
 // that the nearest powerups were the nearest neighbors of the start node, since
