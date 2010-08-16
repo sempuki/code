@@ -446,8 +446,8 @@ main (int argc, char** argv)
     cout << "factory b1: " << a->GetNumber() << endl;
     factory.destroy (a);
 
-    Base2 *b2 = new (pool) Base2;
-    destroy (b2, pool);
+    //Base2 *b2 = new (pool) Base2;
+    //destroy (b2, pool);
 
     return 0;
 }
