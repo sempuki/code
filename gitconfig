@@ -2,6 +2,7 @@
 	name = Ryan McDougall
 	email = sempuki1@gmail.com
 [alias]
+    cl = clone
 	ci = commit
 	co = checkout
 	st = status

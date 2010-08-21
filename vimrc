@@ -17,41 +17,19 @@ set number                  "print line numbers
 set incsearch               "incremental search
 set hlsearch                "highlight search matches
 "set ignorecase              "only for smartcase below
-set smartcase               "if no caps, case insensitive
+"set smartcase               "if no caps, case insensitive
 set ruler                   "show the cursor
 set wildmenu                "print menu completions
 set autowrite               "write buffer to file when switching
 set scrolloff=5             "keep lines of context when scrolling
 set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
+set matchpairs+=<:>         "match angle brackets
+set novisualbell            "no annoying bell
 colorscheme slate
 
 "list of places to look for tags
-set tags=./tags,tags
-
-"cscope settings
-set cst                 "use tags interface
-set csto=0              "search cscope first
-
-"global cscope database
-if filereadable($HOME."/Code/tags/cscope.out")
-    cs add ~/Code/tags/cscope.out
-endif
-
-" add any cscope database in current directory
-if filereadable("cscope.out")
-    cs add cscope.out
-endif
-
-" 0 or s: Find this C symbol
-" 1 or g: Find this definition
-" 2 or d: Find functions called by this function
-" 3 or c: Find functions calling this function
-" 4 or t: Find this text string
-" 6 or e: Find this egrep pattern
-" 7 or f: Find this file
-" 8 or i: Find files #including this file
-nmap <C-\> :cs find s <C-R>=expand("<cword>")<CR><CR>
+set tags=./tags,$HOME/Code/tags
 
 "set cinwords
 "set cinkeys
@@ -76,9 +54,6 @@ nnoremap <C-J> i<CR><Esc>==
 
 "search+replace word under cursor
 nnoremap <C-S> :,$s/\<<C-R><C-W>\>/
-
-"no annoying bell
-set t_vb=
 
 " Switch on syntax highlighting if it wasn't on yet.
 if !exists("syntax_on")
