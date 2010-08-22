@@ -1,11 +1,20 @@
+" Plugins:
+" - a.vim                   "automatically switch header/impl files
+" - surround.vim            "surround text quotes
+" - ragtag.vim              "navigating XML-type script
+" - OmniCppComplete         "C++ omnifunc
+" $ ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++ -f tags .
+
 "use VIM settings
 set nocompatible
+colorscheme slate
 
 "list of file encodings to try
 "set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
 
 "change CWD to the dir of the file in the buffer
 ":autocmd BufEnter * cd %:p:h
+
 filetype plugin indent on   "autoguess by file extension
 set tabstop=4               "number of spaces in a tab, used in expandtab
 set softtabstop=4           "number of spaces in a tab, used in smarttab
@@ -26,10 +35,15 @@ set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
 set matchpairs+=<:>         "match angle brackets
 set novisualbell            "no annoying bell
-colorscheme slate
 
 "list of places to look for tags
-set tags=./tags,$HOME/Code/tags
+set tags+=$HOME/Code/tags
+
+" OmniCppComplete
+set completeopt-=preview    "disable annoying window
+let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
+let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
+let OmniCpp_DefaultNamespaces   = ["std", "_GLIBCXX_STD"]
 
 "set cinwords
 "set cinkeys
