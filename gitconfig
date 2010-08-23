@@ -1,11 +1,11 @@
 [user]
-	name = Ryan McDougall
-	email = sempuki1@gmail.com
+    name = Ryan McDougall
+    email = sempuki1@gmail.com
 [alias]
     cl = clone
-	ci = commit
-	co = checkout
-	st = status
+    ci = commit
+    co = checkout
+    st = status
     df = diff
     fe = fetch
     rb = rebase
@@ -13,31 +13,33 @@
     lg = log
     bl = blame
 [apply]
-	whitespace = strip
+    whitespace = strip
 [diff]
-	color = auto
-	rename = copy
+    color = auto
+    rename = copy
 [pager]
-	color = true 
+    color = true 
 [status]
-	color = auto
+    color = auto
 [color]
-	branch = auto
-	diff = auto
-	status = auto
+    branch = auto
+    diff = auto
+    status = auto
 [color "branch"]
-	current = yellow reverse
-	local = yellow
-	remote = green
+    current = yellow reverse
+    local = yellow
+    remote = green
 [color "diff"]
-	meta = yellow bold
-	frag = magenta bold
-	old = red bold
-	new = green bold
+    meta = yellow bold
+    frag = magenta bold
+    old = red bold
+    new = green bold
 [color "status"]
-	added = yellow
-	changed = green
-	untracked = cyan
+    added = yellow
+    changed = green
+    untracked = cyan
 [core]
-	excludesfile = ~/.gitignore
+    excludesfile = ~/.gitignore
+    #autocrlf = true
+    autocrlf = input
 
