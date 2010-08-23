@@ -40,6 +40,6 @@
     untracked = cyan
 [core]
     excludesfile = ~/.gitignore
-    #autocrlf = true
-    autocrlf = input
+    #autocrlf = true                # used in Windows 
+    autocrlf = input                # used in Unix
 
