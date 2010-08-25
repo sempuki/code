@@ -4,7 +4,7 @@ export LD_LIBRARY_PATH=/usr/local/lib
 
 # User specific aliases and functions
 function grep_impl_(){
-    egrep -Ins --color --exclude-dir=*/.svn "$@"
+    egrep -Ins --color --exclude=tags --exclude-dir=.git "$@"
 }
 
 function rgrep_impl_() {
