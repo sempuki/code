@@ -53,6 +53,9 @@ let OmniCpp_DefaultNamespaces   = ["std", "_GLIBCXX_STD"]
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
 
+"toggle .{c|cpp}/.{h|hpp}
+nnoremap <C-A> :A<CR>
+
 "save buffer
 noremap <F1> <Esc>:w<CR>
 noremap! <F1> <Esc>:w<CR>

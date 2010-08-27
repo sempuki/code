@@ -12,6 +12,7 @@
     pu = pull
     lg = log
     bl = blame
+    br = branch
 [apply]
     whitespace = strip
 [diff]
