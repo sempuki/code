@@ -3,7 +3,8 @@
 " - surround.vim            "surround text quotes
 " - ragtag.vim              "navigating XML-type script
 " - OmniCppComplete         "C++ omnifunc
-" $ ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q --language-force=C++ -f tags .
+" $ ctags -R --language-force=C++ --c++-kinds=+p --fields=+iaS --extra=+q
+" $ ctags -R --language-force=C# --c#-kinds=cimnp --fields=+ianmzS --extra=+fq
 
 "use VIM settings
 set nocompatible
