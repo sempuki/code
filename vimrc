@@ -50,25 +50,32 @@ let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
 let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
 let OmniCpp_DefaultNamespaces   = ["std", "_GLIBCXX_STD"]
 
+"toggle .{c|cpp}/.{h|hpp}
+nnoremap <C-A> :A<CR>
+
 "next/prev buffer
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
 
-"toggle .{c|cpp}/.{h|hpp}
-nnoremap <C-A> :A<CR>
-
 "save buffer
-noremap <F1> <Esc>:w<CR>
-noremap! <F1> <Esc>:w<CR>
+noremap <silent> <F1> <Esc>:w<CR>
+noremap! <silent> <F1> <Esc>:w<CR>
 
 "cancel highlighting
-nnoremap <C-X> :nohl<CR>
+nnoremap <silent> <C-X> :nohl<CR>
 
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
 
 "search+replace word under cursor
 nnoremap <C-S> :,$s/\<<C-R><C-W>\>/
+
+"quickfix window
+nnoremap <C-Q><C-W> :copen<CR>
+nnoremap <C-Q><C-Q> :cclose<CR>
+
+"vimgrep word under cursor
+nnoremap <C-G> :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "text editing
 
