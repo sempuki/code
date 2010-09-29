@@ -62,7 +62,7 @@ noremap <silent> <F1> <Esc>:w<CR>
 noremap! <silent> <F1> <Esc>:w<CR>
 
 "cancel highlighting
-nnoremap <silent> <C-X> :nohl<CR>
+nnoremap <silent> <C-X> <C-C>:nohl<CR>
 
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
@@ -76,6 +76,16 @@ nnoremap <C-Q><C-Q> :cclose<CR>
 
 "vimgrep word under cursor
 nnoremap <C-G> :vimgrep /\<<C-R><C-W>\>/gj %:h
+
+" Windows GUI tweaks
+if has("gui_win32")
+    autocmd GUIEnter * :simalt ~x
+    set guifont=DejaVu_Sans_Mono:h8
+    set guioptions-=tT
+endif
+
+"p4 integration
+" nnoremap <C-E> :!p4 edit %<CR>
 
 "text editing
 
