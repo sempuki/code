@@ -47,11 +47,11 @@ endif
 
 "generate local C++ tags files
 nnoremap <silent> <C-\>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
-set tags+=./cpp.tags
+set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
 nnoremap <silent> <C-\># :exe "!".TAGS.' -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f '.getcwd()."/cs.tags"<CR>
-set tags+=./cs.tags
+set tags+=./cs.tags,cs.tags
 
 "look for global tags files
 if filereadable ("C:/Code/")
