@@ -38,11 +38,29 @@ if !exists ("syntax_on")
     syntax on
 endif
 
-"list of places to look for tags
-if filereadable ($HOME."/Code/tags")
-    set tags+=$HOME/Code/tags
-elseif filereadable ("C:/Code/tags")
-    set tags+=C:/Code/tags
+"multi-platform support
+if has("unix")
+    let FIND="find . -name "
+    let TAGS="ctags"
+else
+    let FIND="dir /b /s "
+    let TAGS="ctags.exe"
+endif
+
+"generate local C++ tags files
+nnoremap <C-\>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f cpp.tags"
+set tags+=./cpp.tags
+
+"generate local C# tags files
+nnoremap <C-\># :exe "!".TAGS." -R --languages=C# --c#-kinds=cimnp --fields=+ianmzS --extra=+fq -f cs.tags"
+set tags+=./cs.tags
+
+"look for global tags files
+if filereadable ("C:/Code/")
+    set tags+="C:/Code/"
+endif
+if filereadable ($HOME."/Code/")
+    let tags+=$HOME."/Code/"
 endif
 
 " OmniCppComplete
@@ -63,7 +81,7 @@ noremap <silent> <F1> <Esc>:w<CR>
 noremap! <silent> <F1> <Esc>:w<CR>
 
 "cancel highlighting
-nnoremap <silent> <C-X> <C-C>:nohl<CR>
+nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
@@ -79,11 +97,7 @@ nnoremap <C-Q><C-Q> :cclose<CR>
 nnoremap <C-G> :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
-if has("unix")
-    nnoremap <C-F> :cgetexpr system('find . -name *')
-else
-    nnoremap <C-F> :cgetexpr system('dir /b /s *')
-endif
+nnoremap <C-F> :cgetexpr system(FIND."")
 
 " Windows GUI tweaks
 if has("gui_win32")
