@@ -30,6 +30,7 @@ set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
 set matchpairs+=<:>         "match angle brackets
 set splitright              "split in empty space to the right
+set diffopt+=context:100    "turn off folding context in diffs
 set t_vb=                   "turn off annoying bells
 
 "syntax highlighting always on
@@ -76,6 +77,13 @@ nnoremap <C-Q><C-Q> :cclose<CR>
 
 "vimgrep word under cursor
 nnoremap <C-G> :vimgrep /\<<C-R><C-W>\>/gj %:h
+
+"find file with quickfix integration
+if has("unix")
+    nnoremap <C-F> :cgetexpr system('find . -name *')
+else
+    nnoremap <C-F> :cgetexpr system('dir /b /s *')
+endif
 
 " Windows GUI tweaks
 if has("gui_win32")
