@@ -28,7 +28,7 @@ set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
 set matchpairs+=<:>         "match angle brackets
 set splitright              "split in empty space to the right
-set diffopt+=context:100    "turn off folding context in diffs
+set diffopt+=context:1000   "turn off folding context in diffs
 set t_vb=                   "turn off annoying bells
 
 "syntax highlighting always on
