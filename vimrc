@@ -67,7 +67,7 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 "next/prev/delete buffer
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
-nnoremap <silent> <C-D> :bd<CR>
+nnoremap <silent> <C-D> :bdelete<CR>
 
 "quickfix window
 nnoremap <C-Q><C-W> :copen<CR>
