@@ -30,6 +30,7 @@ set matchpairs+=<:>         "match angle brackets
 set splitright              "split in empty space to the right
 set diffopt+=context:1000   "turn off folding context in diffs
 set t_vb=                   "turn off annoying bells
+let mapleader=","           "comma is more convenient
 
 "syntax highlighting always on
 if !exists ("syntax_on")
@@ -45,12 +46,57 @@ else
     let TAGS="ctags.exe"
 endif
 
+" Windows GUI tweaks
+if has("gui_win32")
+    autocmd GUIEnter * :simalt ~x
+    set guifont=DejaVu_Sans_Mono:h8
+    set guioptions-=tT
+endif
+
+"quit
+noremap <silent> <Leader>q :wqa<CR>
+
+"save buffer
+noremap <silent> <Leader>w <C-C>:w<CR>
+noremap <silent> <F1> <Esc><C-C>:w!<CR>
+noremap! <silent> <F1> <Esc><C-C>:w!<CR>
+
+"cancel highlighting
+nnoremap <silent> <C-C> <C-C>:nohl<CR>
+
+"next/prev/delete buffer
+nnoremap <silent> <C-N> :bnext<CR>
+nnoremap <silent> <C-P> :bprevious<CR>
+nnoremap <silent> <C-D> :bd<CR>
+
+"quickfix window
+nnoremap <C-Q><C-W> :copen<CR>
+nnoremap <C-Q><C-Q> :cclose<CR>
+
+"toggle .{c|cpp}/.{h|hpp}
+nnoremap <silent> <C-A> :A<CR>
+
+"insert newline
+nnoremap <C-J> i<CR><Esc>==
+
+"search+replace word under cursor
+nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
+
+"vimgrep word under cursor
+nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
+
+"find file with quickfix integration
+nnoremap <Leader>f :cgetexpr system(FIND."")
+
+"p4 integration
+nnoremap <Leader>e :!p4 edit %<CR>
+
 "generate local C++ tags files
-nnoremap <silent> <C-\>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
+nnoremap <silent> <Leader>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
 set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
-nnoremap <silent> <C-\># :exe "!".TAGS.' -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f '.getcwd()."/cs.tags"<CR>
+nnoremap <silent> <Leader># :exe "!".TAGS.' -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f '.getcwd()."/cs.tags"<CR>
 set tags+=./cs.tags,cs.tags
 
 "look for global tags files
@@ -66,46 +112,6 @@ set completeopt-=preview    "disable annoying window
 let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
 let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
 let OmniCpp_DefaultNamespaces   = ["std", "_GLIBCXX_STD"]
-
-"toggle .{c|cpp}/.{h|hpp}
-nnoremap <C-A> :A<CR>
-
-"next/prev buffer
-nnoremap <silent> <C-N> :bnext<CR>
-nnoremap <silent> <C-P> :bprevious<CR>
-
-"save buffer
-noremap <silent> <F1> <Esc>:w<CR>
-noremap! <silent> <F1> <Esc>:w<CR>
-
-"cancel highlighting
-nnoremap <silent> <C-C> <C-C>:nohl<CR>
-
-"insert newline
-nnoremap <C-J> i<CR><Esc>==
-
-"search+replace word under cursor
-nnoremap <C-S> :,$s/\<<C-R><C-W>\>/
-
-"quickfix window
-nnoremap <C-Q><C-W> :copen<CR>
-nnoremap <C-Q><C-Q> :cclose<CR>
-
-"vimgrep word under cursor
-nnoremap <C-G> :vimgrep /\<<C-R><C-W>\>/gj %:h
-
-"find file with quickfix integration
-nnoremap <C-F> :cgetexpr system(FIND."")
-
-" Windows GUI tweaks
-if has("gui_win32")
-    autocmd GUIEnter * :simalt ~x
-    set guifont=DejaVu_Sans_Mono:h8
-    set guioptions-=tT
-endif
-
-"p4 integration
-" nnoremap <C-E> :!p4 edit %<CR>
 
 "text editing
 
