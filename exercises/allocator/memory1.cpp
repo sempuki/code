@@ -25,7 +25,7 @@ struct A
 // Allocation is linear; deallocation is constant.
 
 template <int Alignment>
-class StaticAllocation
+class Allocation
 {
     private:
         typedef size_t      size_type;
@@ -36,23 +36,24 @@ class StaticAllocation
         {
             guard_type  guard;
             size_type   size;
+            byte_type   *next;
         };
     
     public:
         StaticAllocation (string name, size_type size, StaticAllocation *parent = 0) : 
             name_ (name), 
             parent_ (parent),
-            max_bytes_ (size)
+            max_bytes_ (size),
+            free_bytes_ (size)
         {
             if (parent_)
                 memory_ = (byte_type *)(parent_->allocate (size));
             else
                 memory_ = new byte_type [size];
-
-            free_bytes_ = 0;
-            next_free_ = 0; // sentinel value indicating end of free list
-
-            write_free_record_ (&next_free_, memory_, size - sizeof (record_type));
+            
+            free_bytes_ -= sizeof (record_type);
+            next_free_ = 0, write_free_record_ (memory_, free_bytes_);
+            next_free_ = (byte_type *)(memory_);
         }
 
         ~StaticAllocation ()
@@ -82,19 +83,22 @@ class StaticAllocation
 
             if (free)
             {
-                bool fragment = false;
-                if (diff > sizeof (record_type) << 1)
-                    diff -= sizeof (record_type), fragment = true;
-                else
-                    bytes += diff;
+                // ensure there is enough memory to fragment
+                bool fragment = (diff > sizeof (record_type));
+                if (!fragment) bytes += diff;
 
                 // allocate memory
-                free = write_alloc_record_ (&prev, free, bytes);
-                free_bytes_ -= bytes + sizeof (record_type);
-                memory = (void *)free;
+                free = write_alloc_record_ (prev, free, bytes);
+                free_bytes_ -= bytes;
+                memory = (void *)(free);
 
                 // fragment memory
-                if (fragment) write_free_record_ (&next_free_, free + bytes, diff);
+                if (fragment) 
+                {
+                    diff -= sizeof (record_type);
+                    free_bytes_ -= sizeof (record_type);
+                    write_free_record_ (free + bytes, diff);
+                }
 
                 // assert allocation is in-bounds
                 assert (memory > memory_ && memory < memory_ + max_bytes_);
@@ -113,7 +117,7 @@ class StaticAllocation
             size_type size = check_alloc_record_ (alloc);
 
             // write free record
-            write_free_record_ (&next_free_, alloc, size);
+            write_free_record_ (alloc, size);
             free_bytes_ += size;
         }
 
@@ -122,35 +126,32 @@ class StaticAllocation
         }
 
     private:
-        byte_type *write_free_record_ (byte_type **head, byte_type *p, size_type size)
+        byte_type *write_free_record_ (byte_type *p, size_type size)
         {
             record_type *record = (record_type *)(p);
-            record->guard = (guard_type) 0xDDDDDDDD;
-            record->size = (size_type) size;
-            p += sizeof (record_type);
-
-            // write the last head of the free list
-            *((byte_type **)(p)) = *(head);
+            record->guard = 0xDDDDDDDD;
+            record->size = size;
+            record->next = next_free_;
 
             // update head of free list to this
-            *(head) = p - sizeof (record_type);
+            next_free_ = p;
 
-            // return address of pointer to next free block
-            return p;
+            // return address of freed memory
+            return p + sizeof (record_type);
         }
 
-        byte_type *write_alloc_record_ (byte_type **pred, byte_type *p, size_type size)
+        byte_type *write_alloc_record_ (byte_type *pred, byte_type *p, size_type size)
         {
             record_type *record = (record_type *)(p);
-            record->guard = (guard_type) 0xAAAAAAAA;
-            record->size = (size_type) size;
-            p += sizeof (record_type);
+            record->guard = 0xAAAAAAAA;
+            record->size = size;
 
             // update predecessor to next free
-            *(pred) = *((byte_type **)(p));
+            if (pred) ((record_type *)pred)->next = record->next;
+            else next_free_ = record->next;
             
             // return address of allocated memory
-            return p;
+            return p + sizeof (record_type);
         }
 
         size_type check_free_record_ (byte_type *p, size_type size)
@@ -179,7 +180,8 @@ class StaticAllocation
 
         byte_type *get_next_free_block_ (byte_type *p)
         {
-            return *((byte_type **)(p + sizeof (record_type)));
+            record_type *record = (record_type *)(p);
+            return record->next;
         }
 
         byte_type *get_block_ (byte_type *p)
@@ -255,14 +257,26 @@ main (int argc, char** argv)
     //A *a1 = factory.create(i);
     //A *a2 = factory.create(i,f);
 
-    StaticAllocation <sizeof(void *)> allocation ("main", 100);
+    Allocation <sizeof(void *)> allocation ("main", 100);
     int *a = (int *)(allocation.allocate (sizeof(int)));
     int *b = (int *)(allocation.allocate (sizeof(int)));
     int *c = (int *)(allocation.allocate (sizeof(int)));
+    cout << "available memory: " << allocation.free() << endl;
 
-    *a = 69;
-    *b = 69;
-    *c = 69;
+    *a = 1;
+    *b = 2;
+    *c = 3;
+
+    allocation.deallocate (a);
+    allocation.deallocate (c);
+    cout << "available memory: " << allocation.free() << endl;
+
+    int *d = (int *)(allocation.allocate (sizeof(int)));
+    int *e = (int *)(allocation.allocate (sizeof(int)));
+    cout << "available memory: " << allocation.free() << endl;
+
+    *d = 4;
+    *e = 5;
 
     return 0;
 }
