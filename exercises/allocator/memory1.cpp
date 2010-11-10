@@ -19,6 +19,7 @@ struct A
     ~A () { cout << "~A()" << endl; }
 };
 
+// Large-block, static allocator.
 // Meant to logically partition available memory at load time.
 // Not to be used for dynamic/small-object memory allocation.
 // Fragmentation from repeated allocation/deallocation is expected.
@@ -40,7 +41,7 @@ class Allocation
         };
     
     public:
-        StaticAllocation (string name, size_type size, StaticAllocation *parent = 0) : 
+        Allocation (string name, size_type size, Allocation *parent = 0) : 
             name_ (name), 
             parent_ (parent),
             max_bytes_ (size),
@@ -56,7 +57,7 @@ class Allocation
             next_free_ = (byte_type *)(memory_);
         }
 
-        ~StaticAllocation ()
+        ~Allocation ()
         {
             if (parent_)
                 parent_->deallocate ((void *)(memory_));
@@ -190,12 +191,12 @@ class Allocation
         }
 
     private:
-        StaticAllocation (const StaticAllocation &copy);
-        void operator= (const StaticAllocation &rhs);
+        Allocation (const Allocation &copy);
+        void operator= (const Allocation &rhs);
 
     private:
         string              name_;
-        StaticAllocation    *parent_;
+        Allocation          *parent_;
         byte_type           *memory_;
         byte_type           *next_free_;
         size_type           free_bytes_;
