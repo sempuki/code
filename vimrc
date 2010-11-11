@@ -28,8 +28,9 @@ set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
 set matchpairs+=<:>         "match angle brackets
 set splitright              "split in empty space to the right
-set diffopt+=context:1000   "turn off folding context in diffs
-set t_vb=                   "turn off annoying bells
+set diffopt+=context:999    "turn off folding context in diffs
+set noerrorbells            "turn off annoying bells
+set t_vb=                   "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
 "syntax highlighting always on
@@ -53,6 +54,10 @@ if has("gui_win32")
     set guioptions-=tT
 endif
 
+"quit without saving
+noremap <silent> <C-Q> <Esc>:qa!<CR>
+noremap! <silent> <C-Q> <Esc>:qa!<CR>
+
 "save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 noremap <silent> <F1> <Esc><C-C>:w<CR>
@@ -64,10 +69,11 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 "next/prev/delete buffer
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
+nnoremap <silent> <C-X> :bdelete<CR>
 
 "quickfix window
-nnoremap <C-Q><C-W> :copen<CR>
-nnoremap <C-Q><C-Q> :cclose<CR>
+nnoremap <Leader>q :copen<CR>
+nnoremap <Leader>Q :cclose<CR>
 
 "toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-A> :A<CR>
