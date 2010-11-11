@@ -148,8 +148,12 @@ class Allocation
                     record->size += get_block_size_ (*n);
 
                 // link current and next
-                record_type *next = (record_type *) *(n-1);
-                record->pointer = next->pointer;
+                if (n == i+1) record->pointer = *n;
+                else
+                {
+                    record_type *next = (record_type *) *(n-1);
+                    record->pointer = next->pointer;
+                }
             }
 
             // set new free head and count
@@ -309,6 +313,9 @@ main (int argc, char** argv)
 
     allocation.deallocate (a);
     allocation.deallocate (c);
+    cout << "available memory: " << allocation.free() << endl;
+
+    allocation.defragment ();
     cout << "available memory: " << allocation.free() << endl;
 
     int *d = (int *)(allocation.allocate (sizeof(int)));
