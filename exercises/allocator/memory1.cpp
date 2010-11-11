@@ -203,16 +203,6 @@ class Allocation
             return record->size;
         }
 
-        bool is_free_block_ (byte_type *p)
-        {
-            return ((record_type *)(p))->guard == 0xDDDDDDDD;
-        }
-
-        bool is_alloc_block_ (byte_type *p)
-        {
-            return ((record_type *)(p))->guard == 0xAAAAAAAA;
-        }
-
         byte_type *get_next_free_block_ (byte_type *p)
         {
             return ((record_type *)(p))->pointer;
