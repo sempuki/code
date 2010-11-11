@@ -53,13 +53,10 @@ if has("gui_win32")
     set guioptions-=tT
 endif
 
-"quit
-noremap <silent> <Leader>q :wqa<CR>
-
 "save buffer
-noremap <silent> <Leader>w <C-C>:w<CR>
-noremap <silent> <F1> <Esc><C-C>:w!<CR>
-noremap! <silent> <F1> <Esc><C-C>:w!<CR>
+noremap <silent> <Leader>w <Esc><C-C>:w<CR>
+noremap <silent> <F1> <Esc><C-C>:w<CR>
+noremap! <silent> <F1> <Esc><C-C>:w<CR>
 
 "cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
@@ -67,7 +64,6 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 "next/prev/delete buffer
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
-nnoremap <silent> <C-D> :bdelete<CR>
 
 "quickfix window
 nnoremap <C-Q><C-W> :copen<CR>
@@ -89,7 +85,7 @@ nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
 nnoremap <Leader>f :cgetexpr system(FIND."")
 
 "p4 integration
-nnoremap <Leader>e :!p4 edit %<CR>
+nnoremap <C-E> :!p4 edit %<CR>
 
 "generate local C++ tags files
 nnoremap <silent> <Leader>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
