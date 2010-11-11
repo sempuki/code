@@ -28,16 +28,16 @@ struct A
 template <int Alignment>
 class Allocation
 {
-    private:
+    public:
         typedef size_t      size_type;
         typedef uint8_t     byte_type;
-        typedef uint32_t    guard_type;
 
+    private:
         struct record_type
         {
-            guard_type  guard;
+            uint32_t    guard;
             size_type   size;
-            byte_type   *next;
+            byte_type   *pointer;
         };
     
     public:
@@ -52,7 +52,7 @@ class Allocation
             else
                 memory_ = new byte_type [size];
             
-            free_bytes_ -= sizeof (record_type);
+            free_bytes_ -= get_record_size_ ();
             next_free_ = 0, write_free_record_ (memory_, free_bytes_);
             next_free_ = (byte_type *)(memory_);
         }
@@ -96,8 +96,8 @@ class Allocation
                 // fragment memory
                 if (fragment) 
                 {
-                    diff -= sizeof (record_type);
-                    free_bytes_ -= sizeof (record_type);
+                    diff -= get_record_size_ ();
+                    free_bytes_ -= get_record_size_ ();
                     write_free_record_ (free + bytes, diff);
                 }
 
@@ -127,18 +127,15 @@ class Allocation
         }
 
     private:
-        byte_type *write_free_record_ (byte_type *p, size_type size)
+        void write_free_record_ (byte_type *p, size_type size)
         {
             record_type *record = (record_type *)(p);
             record->guard = 0xDDDDDDDD;
             record->size = size;
-            record->next = next_free_;
+            record->pointer = next_free_;
 
             // update head of free list to this
             next_free_ = p;
-
-            // return address of freed memory
-            return p + sizeof (record_type);
         }
 
         byte_type *write_alloc_record_ (byte_type *pred, byte_type *p, size_type size)
@@ -148,11 +145,11 @@ class Allocation
             record->size = size;
 
             // update predecessor to next free
-            if (pred) ((record_type *)pred)->next = record->next;
-            else next_free_ = record->next;
+            if (pred) ((record_type *)pred)->pointer = record->pointer;
+            else next_free_ = record->pointer;
             
             // return address of allocated memory
-            return p + sizeof (record_type);
+            return p + offsetof (record_type, pointer);
         }
 
         size_type check_free_record_ (byte_type *p, size_type size)
@@ -173,21 +170,22 @@ class Allocation
             return record->size;
         }
 
-        size_type get_block_size_ (byte_type *p)
+        size_type get_record_size_ ()
         {
-            record_type *record = (record_type *)(p);
-            return record->size + sizeof (record_type);
+            // pointer must be the last member
+            return offsetof (record_type, pointer);
         }
 
         byte_type *get_next_free_block_ (byte_type *p)
         {
             record_type *record = (record_type *)(p);
-            return record->next;
+            return record->pointer;
         }
 
         byte_type *get_block_ (byte_type *p)
         {
-            return (byte_type *)(p) - sizeof (record_type);
+            // allocated memory starts from pointer
+            return (byte_type *)(p) - offsetof (record_type, pointer);
         }
 
     private:
