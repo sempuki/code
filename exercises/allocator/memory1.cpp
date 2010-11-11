@@ -4,6 +4,9 @@
  */
 
 #include <iostream>
+#include <algorithm>
+#include <vector>
+
 #include <tr1/memory>
 
 #include <assert.h>
@@ -122,8 +125,38 @@ class Allocation
             free_bytes_ += size;
         }
 
-        void coalesce ()
+        void defragment ()
         {
+            using std::sort;
+            using std::vector;
+
+            vector<byte_type *> free;
+
+            // sort free blocks for coalescing
+            for (byte_type *b = next_free_; b; b = get_next_free_block_ (b))
+                free.push_back (b);
+            sort (free.begin(), free.end());
+
+            // coalesce and re-link
+            vector<byte_type *>::iterator i, n, e;
+            for (i = free.begin(), e = free.end(); (i != e) && (n != e); ++i)
+            {
+                record_type *record = (record_type *)(*i);
+
+                // find largest contiguous chunk
+                for (n = i+1; (*i + get_block_size_ (*i) == *n) && (n != e); ++n)
+                    record->size += get_block_size_ (*n);
+
+                // link current and next
+                record_type *next = (record_type *) *(n-1);
+                record->pointer = next->pointer;
+            }
+
+            // set new free head and count
+            free_bytes_ = 0;
+            next_free_ = *free.begin();
+            for (byte_type *b = next_free_; b; b = get_next_free_block_ (b))
+                free_bytes_ += ((record_type *)(b))->size;
         }
 
     private:
@@ -170,16 +203,19 @@ class Allocation
             return record->size;
         }
 
-        size_type get_record_size_ ()
+        bool is_free_block_ (byte_type *p)
         {
-            // pointer must be the last member
-            return offsetof (record_type, pointer);
+            return ((record_type *)(p))->guard == 0xDDDDDDDD;
+        }
+
+        bool is_alloc_block_ (byte_type *p)
+        {
+            return ((record_type *)(p))->guard == 0xAAAAAAAA;
         }
 
         byte_type *get_next_free_block_ (byte_type *p)
         {
-            record_type *record = (record_type *)(p);
-            return record->pointer;
+            return ((record_type *)(p))->pointer;
         }
 
         byte_type *get_block_ (byte_type *p)
@@ -187,6 +223,19 @@ class Allocation
             // allocated memory starts from pointer
             return (byte_type *)(p) - offsetof (record_type, pointer);
         }
+
+        size_type get_block_size_ (byte_type *p)
+        {
+            // free + record size
+            return ((record_type *)(p))->size + get_record_size_ ();
+        }
+        
+        size_type get_record_size_ ()
+        {
+            // record pointer must be the last member
+            return offsetof (record_type, pointer);
+        }
+
 
     private:
         Allocation (const Allocation &copy);
@@ -257,6 +306,8 @@ main (int argc, char** argv)
     //A *a2 = factory.create(i,f);
 
     Allocation <sizeof(void *)> allocation ("main", 100);
+    cout << "available memory: " << allocation.free() << endl;
+
     int *a = (int *)(allocation.allocate (sizeof(int)));
     int *b = (int *)(allocation.allocate (sizeof(int)));
     int *c = (int *)(allocation.allocate (sizeof(int)));
@@ -276,6 +327,14 @@ main (int argc, char** argv)
 
     *d = 4;
     *e = 5;
+
+    allocation.deallocate (b);
+    allocation.deallocate (d);
+    allocation.deallocate (e);
+    cout << "available memory: " << allocation.free() << endl;
+
+    allocation.defragment ();
+    cout << "available memory: " << allocation.free() << endl;
 
     return 0;
 }
