@@ -60,16 +60,16 @@ noremap! <silent> <C-Q> <Esc>:qa!<CR>
 
 "save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
-noremap <silent> <F1> <Esc><C-C>:w<CR>
-noremap! <silent> <F1> <Esc><C-C>:w<CR>
+noremap <silent> <F1> <Esc><C-C>:w!<CR>
+noremap! <silent> <F1> <Esc><C-C>:w!<CR>
 
-"cancel highlighting
+"!cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
 "next/prev/delete buffer
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
-nnoremap <silent> <C-X> :bdelete<CR>
+nnoremap <silent> <C-X> :bdelete!<CR>
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
