@@ -28,7 +28,7 @@ struct A
 // Fragmentation from repeated allocation/deallocation is expected.
 // Allocation is linear; deallocation is constant.
 
-template <int Alignment>
+template <size_t Alignment>
 class Allocation
 {
     public:
@@ -81,6 +81,9 @@ class Allocation
             byte_type *prev = 0;
             byte_type *free = next_free_;
 
+            // allocate for requested alignment
+            bytes = get_aligned_ (bytes);
+
             // find next suitable free block (includes the free record)
             while (free && ((diff = check_free_record_ (free, bytes)) < 0))
                 prev = free, free = get_next_free_block_ (prev);
@@ -92,9 +95,9 @@ class Allocation
                 if (!fragment) bytes += diff;
 
                 // allocate memory
-                free = write_alloc_record_ (prev, free, bytes);
                 free_bytes_ -= bytes;
-                memory = (void *)(free);
+                free = write_alloc_record_ (prev, free, bytes);
+                memory = (void *)(get_aligned_ (free));
 
                 // fragment memory
                 if (fragment) 
@@ -164,38 +167,38 @@ class Allocation
         }
 
     private:
-        void write_free_record_ (byte_type *p, size_type size)
+        void write_free_record_ (byte_type *p, size_type s)
         {
             record_type *record = (record_type *)(p);
             record->guard = 0xDDDDDDDD;
-            record->size = size;
+            record->size = s;
             record->pointer = next_free_;
 
             // update head of free list to this
             next_free_ = p;
         }
 
-        byte_type *write_alloc_record_ (byte_type *pred, byte_type *p, size_type size)
+        byte_type *write_alloc_record_ (byte_type *prev, byte_type *p, size_type s)
         {
             record_type *record = (record_type *)(p);
             record->guard = 0xAAAAAAAA;
-            record->size = size;
+            record->size = s;
 
             // update predecessor to next free
-            if (pred) ((record_type *)pred)->pointer = record->pointer;
+            if (prev) ((record_type *)(prev))->pointer = record->pointer;
             else next_free_ = record->pointer;
             
             // return address of allocated memory
             return p + offsetof (record_type, pointer);
         }
 
-        size_type check_free_record_ (byte_type *p, size_type size)
+        size_type check_free_record_ (byte_type *p, size_type s)
         {
             record_type *record = (record_type *)(p);
             assert (record->guard == 0xDDDDDDDD);
 
             // return diff of available and requested size
-            return record->size - size;
+            return record->size - s;
         }
 
         size_type check_alloc_record_ (byte_type *p)
@@ -230,6 +233,15 @@ class Allocation
             return offsetof (record_type, pointer);
         }
 
+        byte_type *get_aligned_ (byte_type *p)
+        {
+            return (byte_type *)(((uintptr_t)(p) + Alignment-1) & ~(Alignment-1));
+        }
+
+        size_type get_aligned_ (size_type s)
+        {
+            return (s + Alignment-1) & ~(Alignment-1);
+        }
 
     private:
         Allocation (const Allocation &copy);
