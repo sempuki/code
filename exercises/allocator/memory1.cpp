@@ -235,7 +235,7 @@ class Allocation
 
         byte_type *get_aligned_ (byte_type *p)
         {
-            return (byte_type *)(((uintptr_t)(p) + Alignment-1) & ~(Alignment-1));
+            return ((uintptr_t)(p) + Alignment-1) & ~(Alignment-1);
         }
 
         size_type get_aligned_ (size_type s)
