@@ -8,12 +8,14 @@
 #include <vector>
 
 #include <tr1/memory>
+#include <tr1/functional>
 
 #include <assert.h>
 #include <stdint.h>
 
 using namespace std;
 using namespace std::tr1;
+using namespace std::tr1::placeholders;
 
 struct A
 {
@@ -266,6 +268,7 @@ namespace Object
     {
         public:
             typedef Allocator AllocatorType;
+            typedef std::tr1::shared_ptr<T> SharedPtrType;
 
             Factory (Allocator *a) : mem_(a) {}
             Allocator *allocator () { return mem_; }
@@ -315,6 +318,47 @@ namespace Object
                 void *memory = mem_->allocate (sizeof (T));
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0, a1, a2, a3, a4); 
+            }
+
+            SharedPtrType createShared () 
+            { 
+                return SharedPtrType (create (), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
+            }
+
+            template <typename A0> 
+            SharedPtrType createShared (A0 a0) 
+            { 
+                return SharedPtrType (create (a0), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
+            }
+
+            template <typename A0, typename A1> 
+            SharedPtrType createShared (A0 a0, A1 a1) 
+            { 
+                return SharedPtrType (create (a0, a1), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
+            }
+
+            template <typename A0, typename A1, typename A2> 
+            SharedPtrType createShared (A0 a0, A1 a1, A2 a2) 
+            { 
+                return SharedPtrType (create (a0, a1, a2), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
+            }
+
+            template <typename A0, typename A1, typename A2, typename A3> 
+            SharedPtrType createShared (A0 a0, A1 a1, A2 a2, A3 a3) 
+            { 
+                return SharedPtrType (create (a0, a1, a2, a3), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
+            }
+
+            template <typename A0, typename A1, typename A2, typename A3, typename A4> 
+            SharedPtrType createShared (A0 a0, A1 a1, A2 a2, A3 a3, A4 a4) 
+            { 
+                return SharedPtrType (create (a0, a1, a2, a3, a4), 
+                        bind (&Factory<T,Allocator>::destroy, this, _1));
             }
 
             template <typename U>
@@ -379,6 +423,9 @@ main (int argc, char** argv)
 
     factory.allocator()->defragment();
     cout << "available memory: " << allocation.free() << endl;
+
+    Object::Factory <A, Memory::StaticAllocation<4> >::SharedPtrType 
+        shared = factory.createShared (i,f);
 
     return 0;
 }
