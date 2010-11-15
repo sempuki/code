@@ -343,6 +343,7 @@ namespace Memory
     class PooledObject
     {
         public:
+            PooledObject () : pool_ (0) {}
             virtual ~PooledObject () {}
 
             static void *operator new (size_t size, MemoryPool *pool) 
@@ -383,6 +384,9 @@ namespace Memory
 
             static void *operator new (size_t size) { return ::operator new (size); }
             static void operator delete (void *p) { return ::operator delete (p); }
+
+        protected:
+            MemoryPool *pool_;
     };
 
     template <typename T, typename MemoryPool>
