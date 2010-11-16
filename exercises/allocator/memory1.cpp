@@ -80,6 +80,12 @@ namespace Memory
             size_type size () const { return max_bytes_; }
             size_type free () const { return free_bytes_; }
 
+            StaticAllocation *suballocate (string name, size_type bytes)
+            {
+                void *mem = allocate (sizeof (StaticAllocation<Alignment>));
+                return new (mem) StaticAllocation <Alignment> (name, bytes, this);
+            }
+
             void *allocate (size_type bytes) 
             {
                 void *memory = 0;
@@ -426,6 +432,9 @@ main (int argc, char** argv)
 
     Object::Factory <A, Memory::StaticAllocation<4> >::SharedPtrType 
         shared = factory.createShared (i,f);
+
+    Memory::StaticAllocation<4> *sub = allocation.suballocate ("next", 50);
+    cout << "available sub memory: " << sub->free() << endl;
 
     return 0;
 }
