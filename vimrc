@@ -1,7 +1,7 @@
 " Plugins:
 " - a.vim                   "automatically switch header/impl files
 " - surround.vim            "surround text quotes
-" - ragtag.vim              "navigating XML-type script
+" - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
 
 "use VIM settings
