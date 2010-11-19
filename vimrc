@@ -92,9 +92,6 @@ nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
 "find file with quickfix integration
 nnoremap <Leader>f :cgetexpr system(FIND."")
 
-"p4 integration
-nnoremap <C-E> :!p4 edit %<CR>
-
 "generate local C++ tags files
 nnoremap <silent> <Leader>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
 set tags+=./cpp.tags,cpp.tags
