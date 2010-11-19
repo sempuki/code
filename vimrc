@@ -74,6 +74,8 @@ nnoremap <silent> <C-X> :bdelete!<CR>
 "quickfix window
 nnoremap <Leader>q :copen<CR>
 nnoremap <Leader>Q :cclose<CR>
+nnoremap ]q :cnext<CR>
+nnoremap [q :cprevious<CR>
 
 "toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-A> :A<CR>
