@@ -40,11 +40,9 @@ endif
 
 "multi-platform support
 if has("unix")
-    let FIND="find . -name "
-    let TAGS="ctags"
+    let find="find . -name "
 else
-    let FIND="dir /b /s "
-    let TAGS="ctags.exe"
+    let find="dir /b /s "
 endif
 
 " Windows GUI tweaks
@@ -90,14 +88,14 @@ nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
-nnoremap <Leader>f :cgetexpr system(FIND."")
+nnoremap <Leader>f :cgetexpr system(find."")
 
 "generate local C++ tags files
-nnoremap <silent> <Leader>+ :exe "!".TAGS." -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f ".getcwd()."/cpp.tags"<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
-nnoremap <silent> <Leader># :exe "!".TAGS.' -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f '.getcwd()."/cs.tags"<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 "look for global tags files
