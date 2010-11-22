@@ -53,8 +53,8 @@ if has("gui_win32")
 endif
 
 "quit without saving
-noremap <silent> <C-Q> <Esc>:qa!<CR>
-noremap! <silent> <C-Q> <Esc>:qa!<CR>
+noremap <silent> <C-Q><C-Q> <Esc>:qa!<CR>
+noremap! <silent> <C-Q><C-Q> <Esc>:qa!<CR>
 
 "save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
