@@ -34,7 +34,6 @@ namespace Memory
     // Fragmentation from repeated allocation/deallocation is expected.
     // Allocation is linear, deallocation is constant; free-list uses embedded linked-list.
     // Uses no heap memory external to the allocation.
-    // TODO: find machine's natural alignment
 
     template <size_t Alignment = 1>
     class StaticAllocation
@@ -173,8 +172,11 @@ namespace Memory
                 sort (free.begin(), free.end());
 
                 // coalesce and re-link
-                vector<byte_type *>::iterator i, n, e;
-                for (i = free.begin(), e = free.end(); (i != e) && (n != e); ++i)
+                vector<byte_type *>::iterator i = free.begin();
+                vector<byte_type *>::iterator n = free.begin();
+                vector<byte_type *>::iterator e = free.end();
+
+                for (; (i != e) && (n != e); ++i)
                 {
                     record = (record_type *)(*i);
 
@@ -296,8 +298,32 @@ namespace Memory
                 size_type   size;
 
                 block_type (byte_type *b, size_type s) : memory (b), size (s) {}
-                bool operator< (const block_type &b) { return size < b.size; }
             };
+
+            struct block_empty_pred_type
+            {
+                bool operator() (const block_type &b) const
+                {
+                    return b.size == 0;
+                }
+            };
+
+            struct block_addr_comp_type
+            {
+                bool operator() (const block_type &l, const block_type &r) const
+                {
+                    return l.memory < r.memory;
+                }
+            };
+
+            struct block_size_comp_type
+            {
+                bool operator() (const block_type &l, const block_type &r) const
+                {
+                    return l.size < r.size;
+                }
+            };
+
 
         public:
             LargeBlockAllocator (string name, size_type size, Allocator *parent = 0)
@@ -341,6 +367,34 @@ namespace Memory
                 push_free_ (block_type ((byte_type *)(memory), bytes));
             }
 
+            void defragment ()
+            {
+                using std::sort;
+                using std::remove_if;
+
+                // sort free blocks for coalescing
+                sort (free_list_.begin(), free_list_.end(), addr_comp_);
+                
+                // coalesce and re-link
+                typename block_type::heap::iterator i = free_list_.begin();
+                typename block_type::heap::iterator n = free_list_.begin();
+                typename block_type::heap::iterator e = free_list_.end();
+
+                for (; (i != e) && (n != e); ++i)
+                {
+                    // find largest contiguous chunk
+                    for (n = i+1; (i->memory + i->size == n->memory) && (n != e); ++n)
+                        i->size += n->size, n->size = 0;
+                }
+
+                // remove empty blocks
+                n = remove_if (free_list_.begin(), free_list_.end(), empty_pred_);
+                free_list_.erase (n, free_list_.end());
+                
+                // rebuild heap
+                make_heap (free_list_.begin(), free_list_.end(), size_comp_);
+            }
+
         private:
             block_type top_free_ () const
             {
@@ -355,14 +409,14 @@ namespace Memory
                 free_list_.push_back (block); 
                 free_bytes_ += free_list_.back().size; 
 
-                push_heap (free_list_.begin(), free_list_.end());
+                push_heap (free_list_.begin(), free_list_.end(), size_comp_);
             }
 
             void pop_free_ ()
             {
                 using std::pop_heap;
 
-                pop_heap (free_list_.begin(), free_list_.end()); 
+                pop_heap (free_list_.begin(), free_list_.end(), size_comp_); 
 
                 free_bytes_ -= free_list_.back().size;
                 free_list_.pop_back ();
@@ -376,6 +430,9 @@ namespace Memory
             size_type   free_bytes_;
 
             typename block_type::heap   free_list_;
+            block_addr_comp_type        addr_comp_;
+            block_size_comp_type        size_comp_;
+            block_empty_pred_type       empty_pred_;
     };
 
     template <typename Allocator = StaticAllocation<> >
@@ -399,6 +456,10 @@ namespace Memory
             }
 
             void deallocate (void *memory)
+            {
+            }
+
+            void deallocate (void *memory, size_type bytes)
             {
             }
 
@@ -593,8 +654,8 @@ main (int argc, char** argv)
     factory.destroyArray (5, array);
     cout << "available memory: " << factory.allocator()->free() << endl;
 
-    //factory.allocator()->defragment();
-    //cout << "available memory: " << factory.allocator()->free() << endl;
+    factory.allocator()->defragment();
+    cout << "available memory: " << factory.allocator()->free() << endl;
 
     SharedPtrType shared = factory.createShared (i,f);
     cout << "available memory: " << factory.allocator()->free() << endl;
