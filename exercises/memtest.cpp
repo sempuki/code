@@ -4,26 +4,43 @@
 #include <algorithm>
 #include <vector>
 #include <list>
+#include <cstdlib>
 
 using namespace std;
 
+void dowork (int &v)
+{
+    v /= atoi("13");
+    v -= rand() % 314159;
+}
+
+void mutate (int &d, int **p)
+{
+    d += atoi("123456789");
+    d *= rand() % 0xFFFF;
+    *p = &d, **p /= 17;
+}
+
 struct Object
 {
-    int v;
     bool dead;
+    int v, d, *p;
 
-    Object () : v (-1), dead (false)
+    Object () : v (-1), dead (true)
     { 
+        mutate (d, &p);
         //cout << "default constructor: (" << v << ") " << this << endl; 
     }
 
     Object (int i) : v (i), dead (false)
     {
+        mutate (d, &p);
         //cout << "init constructor: (" << v << ") " << this << endl; 
     }
 
-    Object (Object const &o) : v (o.v), dead (false)
+    Object (Object const &o) : v (o.v), dead (o.dead)
     { 
+        mutate (d, &p);
         //cout << "copy constructor: (" << v << ") " << this << " <- " << &o << endl; 
     }
 
@@ -31,7 +48,18 @@ struct Object
     { 
         v = o.v; 
         dead = o.dead;
+
+        mutate (d, &p);
         //cout << "operator=: (" << v << ") " << this << " <- " << &o << endl; 
+    }
+
+    void init (int v, bool dead)
+    {
+        this->v = v; 
+        this->dead = dead;
+
+        mutate (d, &p);
+        //cout << "init method: " << this << endl;
     }
 
     ~Object () 
@@ -41,54 +69,51 @@ struct Object
 
 };
 
-struct ObjectDeadPred
-{
-    bool operator() (Object const *o) { return o->dead; }
-};
-    
 struct Allocator
 {
-    // Cache-friendly O(1) time (and easily space) complexity allocator
-    // Making this STL-ready is an exercise for the reader
-
     Allocator (size_t reserve)
     {
-        // allocate room for all objects
-        // ideally reserve is a multiple of cache line size
         memory.resize (reserve);
 
-        // create free list containing all objects
-        // optimization: free list can be embedded in unused memory 
-        // (see Modern C++ Design [Alexandrescu])
         vector<Object>::iterator i = memory.begin(), e = memory.end();
         for (; i != e; ++i) free.push_back (&*i);
     }
 
     Object *allocate ()
     {
-        if (free.empty())
-            throw std::runtime_error ("out of memory");
+        if (free.empty()) 
+            throw runtime_error ("out of memory");
 
         Object *o;
         o = free.front(); 
         free.pop_front();
+
         return o;
     }
 
     void deallocate (Object *o)
     {
-        // if one is worried about compaction for use in DMA transfers
-        // one can insert the freed object in sorted order at the cost of O(n) time complexity
-        free.push_back (o);
+        free.push_front (o);
     }
 
     list<Object *> free;
     vector<Object> memory;
 };
 
+struct ObjectDead
+{
+    Allocator *alloc;
+    ObjectDead (Allocator *a) : alloc (a) {}
+
+    bool operator() (Object *o) 
+    { 
+        if (o->dead) alloc->deallocate (o);
+        return o->dead;
+    }
+};
+    
 int main (int argc, char **argv)
 {
-    int done = 0;
     bool alive = false;
 
     if (argc == 1)
@@ -101,7 +126,7 @@ int main (int argc, char **argv)
         for (int frames=0; frames < 1000; ++frames)
         {
             // load work queue
-            for (int i=0; i < 100; ++i)
+            for (int i=0; i < 1000; ++i)
                 work.push_back (Object (frames));
 
             // dispatch work queue
@@ -111,10 +136,10 @@ int main (int argc, char **argv)
             {
                 if (alive = !alive)
                 {
-                    //cout << "do: " << work[item].v << endl;
+                    dowork (work[item].v);
+
                     swap (work[item], work[--size]);
                     work.erase (work.end()-1);
-                    ++ done;
                 }
                 else
                     ++ item;
@@ -125,45 +150,37 @@ int main (int argc, char **argv)
     {
         cout << "method 2" << endl;
 
-        Allocator alloc (1000);
+        Allocator alloc (2000);
         vector<Object *> work;
-        vector<Object *>::iterator item, dead, begin, end;
+        vector<Object *>::iterator item, begin, end;
         Object *obj;
 
         for (int frames=0; frames < 1000; ++frames)
         {
             // init work queue
-            for (int i=0; i < 100; ++i)
+            for (int i=0; i < 1000; ++i)
             {
                 obj = alloc.allocate();
-                obj->v = i;
+                obj->init (frames, false);
 
                 work.push_back (obj);
             }
 
             // dispatch work queue
             begin = work.begin(), end = work.end();
-            
             for (item = begin; item != end; ++item)
             {
                 if (alive = !alive)
                 {
-                    //cout << "do: " << (*item)->v << endl;
+                    dowork ((*item)->v);
+
                     (*item)->dead = true;
-                    ++ done;
                 }
             }
 
-            dead = remove_if (begin, end, ObjectDeadPred());
-
-            for (item = dead; item != end; ++item)
-                alloc.deallocate (*item);
-
-            work.erase (dead, end);
+            work.erase (remove_if (begin, end, ObjectDead (&alloc)), end);
         }
     }
-
-    cout << "work done: " << done << endl;
 
     return 0;
 }
