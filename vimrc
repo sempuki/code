@@ -9,6 +9,7 @@ set nocompatible
 colorscheme slate
 
 filetype plugin indent on   "autoguess by file extension
+set undofile                "persistent undo
 set tabstop=4               "number of spaces in a tab, used in expandtab
 set softtabstop=4           "number of spaces in a tab, used in smarttab
 set shiftwidth=4            "used in shifting or C indenting
@@ -53,8 +54,8 @@ if has("gui_win32")
 endif
 
 "quit without saving
-noremap <silent> <C-Q><C-Q> <Esc>:qa!<CR>
-noremap! <silent> <C-Q><C-Q> <Esc>:qa!<CR>
+"noremap <silent> <C-Q><C-Q> <Esc>:qa!<CR>
+"noremap! <silent> <C-Q><C-Q> <Esc>:qa!<CR>
 
 "save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
@@ -68,6 +69,11 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
 nnoremap <silent> <C-X> :bdelete!<CR>
+
+"ctag windows
+nnoremap <Leader>t :tselect 
+nnoremap ]t :tnext<CR>
+nnoremap [t :tprevious<CR>
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
@@ -106,11 +112,11 @@ if filereadable ($HOME."/Code/")
     let tags+=$HOME."/Code/"
 endif
 
-" OmniCppComplete
-set completeopt-=preview    "disable annoying window
-let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
-let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
-let OmniCpp_DefaultNamespaces   = ["std", "_GLIBCXX_STD"]
+"C++ OmniCppComplete
+set completeopt-=preview            "disable annoying window
+let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
+let OmniCpp_MayCompleteScope = 1    "autocomplete after ::
+let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 
 "text editing
 
