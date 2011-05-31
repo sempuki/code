@@ -97,11 +97,11 @@ nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
 nnoremap <Leader>f :cgetexpr system(find."")
 
 "generate local C++ tags files
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q -f cpp.tags<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --c\#-kinds=cimnp --fields=+ianmzS --extra=+fq -f cs.tags<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --c\#-kinds=cimnp --fields=+iamzS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 "look for global tags files
