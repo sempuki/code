@@ -28,9 +28,6 @@ struct A
 
 namespace Memory
 {
-    static const size_t WORD_SIZE = sizeof (void *);
-    //static const size_t WORD_SIZE = 1;
-
     void *align (void *pointer, size_t alignment)
     {
         return (void *)(((uintptr_t)(pointer) + alignment-1) & ~(alignment-1));
@@ -71,32 +68,20 @@ namespace Memory
                 (string name, 
                  size_type size, 
                  StaticAllocation *parent = 0, 
-                 size_type alignment = WORD_SIZE)
+                 size_type alignment = 1)
                 : name_ (name), parent_ (parent)
             {
-                if (parent_)
-                    memory_ = (byte_type *)(parent_->allocate (size, alignment));
-                else
-                {
-                    size += alignment - 1; // over-allocate for alignment
-                    memory_ = (byte_type *)(align (new byte_type [size], alignment));
-                }
-                
                 max_bytes_ = size;
-                free_bytes_ = size - record_type::overhead;
+                memory_ = base_allocate_ (size, alignment);
 
+                free_bytes_ = size - record_type::overhead;
                 free_list_ = 0, write_free_record_ ((record_type *)(memory_), free_bytes_);
                 free_list_ = (record_type *)(memory_);
             }
 
             ~StaticAllocation ()
             {
-                if (parent_)
-                    parent_->deallocate (memory_, max_bytes_);
-                else
-                    delete [] memory_;
-
-                memory_ = 0;
+                base_deallocate_ (memory_, max_bytes_);
             }
 
             size_type size () const { return max_bytes_; }
@@ -110,7 +95,7 @@ namespace Memory
                 return new (m) StaticAllocation (name, bytes, this);
             }
 
-            void *allocate (size_type bytes, size_type alignment = WORD_SIZE) 
+            void *allocate (size_type bytes, size_type alignment = 1) 
             {
                 void *memory = 0;
 
@@ -210,55 +195,80 @@ namespace Memory
             }
 
         private:
+            byte_type *base_allocate_ (size_type size, size_type alignment)
+            {
+                void *memory = 0;
+
+                if (parent_)
+                    memory = parent_->allocate (size, alignment);
+                else
+                {
+                    size += alignment - 1; // over-allocate for alignment
+                    memory = align (new byte_type [size], alignment);
+                }
+
+                return (byte_type *)(memory);
+            }
+
+            void base_deallocate_ (byte_type *&memory, size_type size)
+            {
+                if (parent_)
+                    parent_->deallocate (memory, size);
+                else
+                    delete [] memory;
+
+                memory = 0;
+            }
+                
             record_type *get_record_ (void *pointer)
             {
                 // rewind to record from pointer
                 return (record_type *)((byte_type *)(pointer) - record_type::overhead);
             }
 
-            void *get_memory_ (record_type *record)
+            void *get_memory_ (record_type *rec)
             {
                 // free memory starts from next
-                return (byte_type *)(record) + record_type::overhead;
+                return (byte_type *)(rec) + record_type::overhead;
             }
 
-            void write_free_record_ (record_type *record, size_type size)
+            void write_free_record_ (record_type *rec, size_type size)
             {
-                record->guard = 0xDDDDDDDD;
-                record->size = size;
+                rec->guard = 0xDDDDDDDD;
+                rec->size = size;
 
                 // add record to head of free list
-                record->next = free_list_;
-                free_list_ = record;
+                rec->next = free_list_;
+                free_list_ = rec;
             }
 
-            void write_alloc_record_ (record_type *prev, record_type *record, size_type size)
+            void write_alloc_record_ (record_type *prev, record_type *rec, size_type size)
             {
-                record->guard = 0xAAAAAAAA;
-                record->size = size;
+                rec->guard = 0xAAAAAAAA;
+                rec->size = size;
 
                 // update predecessor to next free
-                if (prev) prev->next = record->next;
-                else free_list_ = record->next;
+                if (prev) prev->next = rec->next;
+                else free_list_ = rec->next;
             }
 
-            size_type check_free_record_ (record_type *record, size_type size, size_type alignment = WORD_SIZE)
+            size_type check_free_record_ (record_type *rec, size_type size, size_type alignment = 1)
             {
-                assert (record->guard == 0xDDDDDDDD);
+                assert (rec->guard == 0xDDDDDDDD);
 
                 // include space needed for alignment
-                size += alignment_offset (get_memory_ (record), alignment);
+                size += alignment_offset (get_memory_ (rec), alignment);
 
                 // return diff of available and requested size
-                return record->size - size;
+                return rec->size - size;
             }
 
-            size_type check_alloc_record_ (record_type *record)
+            size_type check_alloc_record_ (record_type *rec)
             {
-                assert (record->guard == 0xAAAAAAAA);
+                assert (rec->guard == 0xAAAAAAAA);
 
                 // return allocated size
-                return record->size;
+                return rec->size;
             }
 
             bool contiguous_block_ (record_type *a, record_type *b)
@@ -266,9 +276,9 @@ namespace Memory
                 return ((byte_type *)(a) + a->size + record_type::overhead) == (byte_type *)(b);
             }
 
-            size_type get_block_size_ (record_type *record)
+            size_type get_block_size_ (record_type *rec)
             {
-                return record->size + record_type::overhead;
+                return rec->size + record_type::overhead;
             }
 
         private:
@@ -307,7 +317,6 @@ namespace Memory
             {
                 typedef std::vector<record_type> heap;
 
-                uint32_t    guard;
                 size_type   size;
                 byte_type   *memory;
 
@@ -343,53 +352,40 @@ namespace Memory
                 (string name, 
                  size_type size, 
                  Allocator *parent = 0, 
-                 size_type alignment = WORD_SIZE)
+                 size_type alignment = 1)
                 : name_ (name), parent_ (parent)
             {
-                if (parent)
-                    memory_ = (byte_type *)(parent->allocate (size, alignment));
-                else
-                {
-                    size += alignment - 1; // over-allocate for alignment
-                    memory_ = (byte_type *)(align (new byte_type [size], alignment));
-                }
-
                 max_bytes_ = size;
-                free_bytes_ = 0;
+                memory_ = base_allocate_ (size, alignment);
 
-                push_free_record_ (record_type (memory_, max_bytes_));
+               free_bytes_ = 0, push_free_record_ (record_type (memory_, max_bytes_));
             }
 
             ~LargeBlockAllocator ()
             {
-                if (parent_)
-                    parent_->deallocate (memory_, max_bytes_);
-                else
-                    delete [] memory_;
-
-                memory_ = 0;
+                base_deallocate_ (memory_, max_bytes_);
             }
 
             size_type size () const { return max_bytes_; }
             size_type free () const { return free_bytes_; }
 
-            void *allocate (size_type bytes, size_t alignment = WORD_SIZE)
+            void *allocate (size_type bytes, size_t alignment = 1)
             {
                 void *memory = 0;
 
-                record_type record (top_free_record_ ());
+                record_type rec (top_free_record_ ());
 
-                if (record.size >= bytes)
+                if (rec.size >= bytes)
                 {
                     pop_free_record_ ();
 
-                    if (record.size > bytes)
+                    if (rec.size > bytes)
                     {
-                        record_type fragment (record.memory + bytes, record.size - bytes);
+                        record_type fragment (rec.memory + bytes, rec.size - bytes);
                         push_free_record_ (fragment);
                     }
                     
-                    memory = record.memory;
+                    memory = rec.memory;
                 }
 
                 return memory;
@@ -429,16 +425,41 @@ namespace Memory
             }
 
         private:
+            byte_type *base_allocate_ (size_type size, size_type alignment)
+            {
+                void *memory = 0;
+
+                if (parent_)
+                    memory = parent_->allocate (size, alignment);
+                else
+                {
+                    size += alignment - 1; // over-allocate for alignment
+                    memory = align (new byte_type [size], alignment);
+                }
+
+                return (byte_type *)(memory);
+            }
+
+            void base_deallocate_ (byte_type *&memory, size_type size)
+            {
+                if (parent_)
+                    parent_->deallocate (memory, size);
+                else
+                    delete [] memory;
+
+                memory = 0;
+            }
+                
             record_type top_free_record_ () const
             {
                 return free_list_.size()? *(free_list_.begin()) : record_type (0, 0);
             }
 
-            void push_free_record_ (const record_type &record)
+            void push_free_record_ (const record_type &rec)
             {
                 using std::push_heap;
 
-                free_list_.push_back (record); 
+                free_list_.push_back (rec); 
                 free_bytes_ += free_list_.back().size; 
 
                 push_heap (free_list_.begin(), free_list_.end(), size_comp_);
@@ -474,15 +495,33 @@ namespace Memory
         public:
             typedef typename Allocator::size_type size_type;
             typedef typename Allocator::byte_type byte_type;
+            
+        private:
+            struct block_type
+            {
+                size_type   size;
+                byte_type   *memory;
+
+                block_type (byte_type *b, size_type s) : memory (b), size (s) {}
+            };
 
         public:
-            SmallBlockAllocator (string name, size_type size, Allocator *parent = 0)
-                : name_ (name), parent_ (parent), max_bytes_ (size), free_bytes_ (size)
+            SmallBlockAllocator 
+                (string name, 
+                 size_type size, 
+                 Allocator *parent = 0,
+                 size_type alignment = 1)
+                : name_ (name), parent_ (parent)
             {
+                max_bytes_ = size;
+                memory_ = base_allocate_ (size, alignment);
+
+                free_bytes_ = 0;
             }
 
             ~SmallBlockAllocator()
             {
+                base_deallocate_ (memory_, max_bytes_);
             }
 
             void *allocate (size_type size)
@@ -496,10 +535,37 @@ namespace Memory
             void deallocate (void *memory)
             {
             }
+            
+        private:
+            byte_type *base_allocate_ (size_type size, size_type alignment)
+            {
+                void *memory = 0;
+
+                if (parent_)
+                    memory = parent_->allocate (size, alignment);
+                else
+                {
+                    size += alignment - 1; // over-allocate for alignment
+                    memory = align (new byte_type [size], alignment);
+                }
+
+                return (byte_type *)(memory);
+            }
+
+            void base_deallocate_ (byte_type *&memory, size_type size)
+            {
+                if (parent_)
+                    parent_->deallocate (memory, size);
+                else
+                    delete [] memory;
+
+                memory = 0;
+            }
 
         private:
             string      name_;
             Allocator   *parent_;
+
             byte_type   *memory_;
             size_type   max_bytes_;
             size_type   free_bytes_;
@@ -514,7 +580,6 @@ namespace Object
         public:
             typedef Allocator AllocatorType;
             typedef std::tr1::shared_ptr<T> SharedPtrType;
-            typedef typename std::tr1::aligned_storage<sizeof(T), std::tr1::alignment_of<T>::value>::type AlignedType;
 
             ~Factory () {} // TODO: destroy all allocated objects
 
@@ -523,7 +588,7 @@ namespace Object
 
             T *create () 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (); 
             }
@@ -531,7 +596,7 @@ namespace Object
             template <typename A0> 
             T *create (A0 a0) 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0); 
             }
@@ -539,7 +604,7 @@ namespace Object
             template <typename A0, typename A1> 
             T *create (A0 a0, A1 a1) 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0, a1); 
             }
@@ -547,7 +612,7 @@ namespace Object
             template <typename A0, typename A1, typename A2> 
             T *create (A0 a0, A1 a1, A2 a2) 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0, a1, a2); 
             }
@@ -555,7 +620,7 @@ namespace Object
             template <typename A0, typename A1, typename A2, typename A3> 
             T *create (A0 a0, A1 a1, A2 a2, A3 a3) 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0, a1, a2, a3); 
             }
@@ -563,7 +628,7 @@ namespace Object
             template <typename A0, typename A1, typename A2, typename A3, typename A4> 
             T *create (A0 a0, A1 a1, A2 a2, A3 a3, A4 a4) 
             { 
-                void *memory = mem_->allocate (sizeof (AlignedType));
+                void *memory = mem_->allocate (sizeof(T), alignment_of<T>::value);
                 if (!memory) throw std::bad_alloc();
                 return new (memory) T (a0, a1, a2, a3, a4); 
             }
@@ -614,8 +679,8 @@ namespace Object
             {
                 using std::uninitialized_fill;
 
-                size_t bytes = sizeof (AlignedType) * num;
-                T *array = (T *)(mem_->allocate (bytes));
+                size_t bytes = sizeof (T) * num;
+                T *array = (T *)(mem_->allocate (bytes), alignment_of<T>::value);
                 if (!array) throw std::bad_alloc();
 
                 uninitialized_fill (array, array + bytes, init);
@@ -627,7 +692,7 @@ namespace Object
             {
                 object->~T();
 
-                mem_->deallocate (object, sizeof (AlignedType));
+                mem_->deallocate (object, sizeof (T));
             }
 
             void destroyArray (size_t num, T *object)
@@ -635,7 +700,7 @@ namespace Object
                 T *obj = object, *end = object + num;
                 while (obj != end) (obj++)->~T();
 
-                mem_->deallocate (object, sizeof (AlignedType) * num);
+                mem_->deallocate (object, sizeof (T) * num);
             }
 
         private:
