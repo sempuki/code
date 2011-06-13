@@ -172,7 +172,7 @@ void method1()
             if (n<33)
             {
                 dowork(v[i].v);
-                swap(v[i],v.back());
+                v[i] = v.back();
                 v.pop_back();
             }
             else ++i;

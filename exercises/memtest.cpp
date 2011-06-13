@@ -85,18 +85,18 @@ struct Allocator
             throw runtime_error ("out of memory");
 
         Object *o;
-        o = free.front(); 
-        free.pop_front();
+        o = free.back(); 
+        free.pop_back();
 
         return o;
     }
 
     void deallocate (Object *o)
     {
-        free.push_front (o);
+        free.push_back (o);
     }
 
-    list<Object *> free;
+    vector<Object *> free;
     vector<Object> memory;
 };
 
@@ -123,10 +123,10 @@ int main (int argc, char **argv)
         vector<Object> work;
         int item, size;
 
-        for (int frames=0; frames < 1000; ++frames)
+        for (int frames=0; frames < 10; ++frames)
         {
             // load work queue
-            for (int i=0; i < 1000; ++i)
+            for (int i=0; i < 1000000; ++i)
                 work.push_back (Object (frames));
 
             // dispatch work queue
@@ -150,15 +150,15 @@ int main (int argc, char **argv)
     {
         cout << "method 2" << endl;
 
-        Allocator alloc (2000);
+        Allocator alloc (2000000);
         vector<Object *> work;
         vector<Object *>::iterator item, begin, end;
         Object *obj;
 
-        for (int frames=0; frames < 1000; ++frames)
+        for (int frames=0; frames < 10; ++frames)
         {
             // init work queue
-            for (int i=0; i < 1000; ++i)
+            for (int i=0; i < 1000000; ++i)
             {
                 obj = alloc.allocate();
                 obj->init (frames, false);
