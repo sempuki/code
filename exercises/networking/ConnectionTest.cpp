@@ -28,10 +28,35 @@ namespace AK
 	}
 }
 
+template <typename T>
+class Using
+{
+    public:
+        Using(T *o) : obj(o) 
+        { 
+            obj->Initialize(); 
+        }
+
+        ~Using() 
+        { 
+            obj->Finalize(); 
+            delete obj, obj = 0;
+        }
+
+        T& operator*() const { return *obj; }
+        T* operator->() const { return obj; }
+
+    private:
+        T   *obj;
+};
+
 // NOTE: the API documents are inconsistent in their integer type treatment:
 // assuming integers are 4-byte. This is perhaps not an unfair assumption 
 // given the stable nature of the PS3 hardware, but may not always be true.
 // We just use unadorned (unsigned) int.
+//
+// TODO: it's not appropriate to assert on every failed return code; 
+// case-by-case return code error handling should be more robust.
 
 namespace Network
 {
@@ -256,7 +281,6 @@ namespace Network
                     //    case CELL_SYSUTIL_BGMPLAYBACK_PLAY:
                     //    case CELL_SYSUTIL_BGMPLAYBACK_STOP:
                     //    case CELL_SYSUTIL_NP_INVITATION_SELECTED:
-                    //    default:
                     //        break;
                     //}
                 }
@@ -341,12 +365,12 @@ namespace Network
                     res = sceNpLookupCreateTitleCtx(&Product::Id, &m_local.info.userId);
                     ASSERTF(res > 0, "[Network::PS3::Manager] Could not create lookup context. (0x%x)\n", res);
 
-                    m_lookupctx = res;
+                    m_context = res;
                 }
 
                 void Finalize()
                 {
-                    int res = sceNpLookupDestroyTitleCtx(m_lookupctx);
+                    int res = sceNpLookupDestroyTitleCtx(m_context);
                     ASSERTF(res == 0, "[Network::PS3::Manager] Could not destroy lookup context. (0x%x)\n", res);
 
                     res = sceNpManagerUnregisterCallback();
@@ -359,12 +383,12 @@ namespace Network
                     ASSERTF(res == 0, "[Network::PS3::Manager] Could not finalize manager. (0x%x)\n", res);
                 }
 
-                bool TryGetStatus(int &status)
+                bool TryGetStatus(int &status) const
                 {
                     return sceNpManagerGetStatus(&status) == 0;
                 }
 
-                bool TryGetLocalUser(User &user)
+                bool TryGetLocalUser(User &user) const
                 {
                     int res = sceNpManagerGetNpId(&user.info.userId);
                     ASSERTF(res >= 0, "[Network::PS3::User] Get NpId failed. (0x%x)\n", res);
@@ -392,6 +416,11 @@ namespace Network
                     return true;
                 }
 
+                Transaction CreateTransaction(const User &user) const
+                {
+                    return Transaction(m_context, user);
+                }
+
             private:
                 static void manager_cb(int event, int result, void *data)
                 {
@@ -411,18 +440,57 @@ namespace Network
             private:
                 User            m_local;
                 TicketUpdater   m_updater;
-                int             m_lookupctx;
+                int             m_context;
         };
 
         class MatchMaker
         {
             public:
-                MatchMaker()
-                {
-                }
+                MatchMaker(const Manager &m) : m_manager(m) {}
+                ~MatchMaker() {}
 
                 void Initialize()
                 {
+                    int res = sceNpMatching2Init2(0, 0, 0); // use default values for heap and queues
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not initialize matchmaking. (0x%x)\n", res);
+
+                    res = m_manager.TryGetLocalUser(m_local);
+                    ASSERTF(res == 1, "[Network::PS3::MatchMaker] Could not get local user. (0x%x)\n", res);
+
+                    int opt = SCE_NP_MATCHING2_CONTEXT_OPTION_USE_ONLINENAME | SCE_NP_MATCHING2_CONTEXT_OPTION_USE_AVATARURL; 
+                    res = sceNpMatching2CreateContext(&m_local.info.userId, &Product::Id, &Product::Passphrase, &m_context, opt);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get matchmaking context. (0x%x)\n", res);
+
+                    int timeout = 10 * 1000 * 1000; // wait for ten seconds
+                    res = sceNpMatching2ContextStartAsync(m_context, timeout);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not start matchmaking context. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterContextCallback(m_context, context_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register context callback. (0x%x)\n", res);
+
+                    SceNpMatching2RequestOptParam param;
+                    memset(&param, 0, sizeof(param));
+                    param.cbFunc = request_event_cb;
+                    param.cbFuncArg = this;
+                    param.timeout = 20 * 1000 * 1000; // 20s
+
+                    res = sceNpMatching2SetDefaultRequestOptParam(m_context, &param);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register request callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterSignalingCallback(m_context, signaling_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register signaling callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterRoomEventCallback(m_context, room_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register room callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterRoomMessageCallback(m_context, room_message_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register room message callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterLobbyEventCallback (m_context, lobby_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register lobby callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2RegisterLobbyMessageCallback(m_context, lobby_message_event_cb, this);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register lobby message callback. (0x%x)\n", res);
                 }
 
                 void Finalize()
@@ -430,6 +498,294 @@ namespace Network
                 }
 
             private:
+                static void context_event_cb
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventCause cause,
+                     int error, void *arg)
+                {
+                    if (error < 0)
+                        return;
+
+                    switch (event)
+                    {
+                        case SCE_NP_MATCHING2_CONTEXT_EVENT_StartOver:
+                            break;
+
+                        case SCE_NP_MATCHING2_CONTEXT_EVENT_Start:
+                            break;
+
+                        case SCE_NP_MATCHING2_CONTEXT_EVENT_Stop:
+                            break;
+                    }
+                }
+
+                static void request_event_cb 
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2RequestId req, 
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventKey key,
+                     int error, size_t size, void *arg)
+                {
+                    if (error < 0)
+                        return;
+
+                    //void *buf = 0;
+                    //if (size > 0)
+                    //{
+                    //    buf = new char[size];
+                    //    int res = sceNpMatching2GetEventData(ctx, key, buf, size);
+                    //}
+
+                    switch (event)
+                    {
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetServerInfo:
+                            //SceNpMatching2GetServerInfoResponse *resp = (SceNpMatching2GetServerInfoResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetWorldInfoList:
+                            //SceNpMatching2GetWorldInfoListResponse *resp = (SceNpMatching2GetWorldInfoListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomMemberDataExternalList:
+                            //SceNpMatching2GetRoomMemberDataExternalListResponse *resp = (SceNpMatching2GetRoomMemberDataExternalListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetRoomDataExternal:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomDataExternalList:
+                            //SceNpMatching2GetRoomDataExternalListResponse *resp = (SceNpMatching2GetRoomDataExternalListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyInfoList:
+                            //SceNpMatching2GetLobbyInfoListResponse *resp = (SceNpMatching2GetLobbyInfoListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetUserInfo:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetUserInfoList:
+                            //SceNpMatching2GetUserInfoListResponse *resp = (SceNpMatching2GetUserInfoListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_CreateServerContext:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_DeleteServerContext:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_CreateJoinRoom:
+                            //SceNpMatching2CreateJoinRoomResponse *resp = (SceNpMatching2CreateJoinRoomResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_JoinRoom:
+                            //SceNpMatching2JoinRoomResponse *resp = (SceNpMatching2JoinRoomResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_LeaveRoom:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GrantRoomOwner:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_KickoutRoomMember:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SearchRoom:
+                            //SceNpMatching2SearchRoomResponse *resp = (SceNpMatching2SearchRoomResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SendRoomChatMessage:
+                            //SceNpMatching2SendRoomChatMessageResponse *resp = (SceNpMatching2SendRoomChatMessageResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SendRoomMessage:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetRoomDataInternal:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomDataInternal:
+                            //SceNpMatching2GetRoomDataInternalResponse *resp = (SceNpMatching2GetRoomDataInternalResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetRoomMemberDataInternal:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomMemberDataInternal:
+                            //SceNpMatching2GetRoomMemberDataInternalResponse *resp = (SceNpMatching2GetRoomMemberDataInternalResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetSignalingOptParam:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_JoinLobby:
+                            //SceNpMatching2JoinLobbyResponse *resp = (SceNpMatching2JoinLobbyResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_LeaveLobby:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SendLobbyChatMessage:
+                            //SceNpMatching2SendLobbyChatMessageResponse *resp = (SceNpMatching2SendLobbyChatMessageResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SendLobbyInvitation:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SetLobbyMemberDataInternal:
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyMemberDataInternal:
+                            //SceNpMatching2GetLobbyMemberDataInternalResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyMemberDataInternalList:
+                            //SceNpMatching2GetLobbyMemberDataInternalListResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalListResponse *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_REQUEST_EVENT_SignalingGetPingInfo:
+                            //SceNpMatching2SignalingGetPingInfoResponse *resp = (SceNpMatching2SignalingGetPingInfoResponse *)buf;
+                            break;
+                    }
+                }
+
+                static void signaling_event_cb
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2RoomId room,
+                     SceNpMatching2RoomMemberId src,
+                     SceNpMatching2Event event, 
+                     int error, void *arg)
+                {
+                    if (error < 0)
+                        return;
+
+                    switch (event)
+                    {
+                        case SCE_NP_MATCHING2_SIGNALING_EVENT_Dead:
+                            break;
+
+                        case SCE_NP_MATCHING2_SIGNALING_EVENT_Established:
+                            break;
+                    }
+                }
+
+                static void room_event_cb 
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2RoomId room, 
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventKey key,
+                     int error, size_t size, void *arg)
+                {
+                    if (error < 0)
+                        return;
+
+                    //void *buf = 0;
+                    //if (size > 0)
+                    //{
+                    //    buf = new char[size];
+                    //    int res = sceNpMatching2GetEventData(ctx, key, buf, size);
+                    //}
+
+                    switch (event)
+                    {
+                        case SCE_NP_MATCHING2_ROOM_EVENT_MemberJoined:
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_MemberLeft:
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_Kickedout:
+                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_RoomDestroyed:
+                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_RoomOwnerChanged:
+                            //SceNpMatching2RoomOwnerUpdateInfo *resp = (SceNpMatching2RoomOwnerUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedRoomDataInternal:
+                            //SceNpMatching2RoomMemberDataInternalUpdateInfo *resp = (SceNpMatching2RoomMemberDataInternalUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedRoomMemberDataInternal:
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            break;
+
+                        case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedSignalingOptParam:
+                            //SceNpMatching2SignalingOptParamUpdateInfo *resp = (SceNpMatching2SignalingOptParamUpdateInfo *)buf;
+                            break;
+                    }
+                }
+
+                static void room_message_event_cb
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2RoomId room,
+                     SceNpMatching2RoomMemberId src,
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventKey key,
+                     int error, size_t size, void *arg)
+                {
+                    //if (error < 0)
+                    //    return;
+
+                    //switch (event)
+                    //{
+                    //    case SCE_NP_MATCHING2_ROOM_MSG_EVENT_ChatMessage:
+                    //    case SCE_NP_MATCHING2_ROOM_MSG_EVENT_Message:
+                    //        break;
+                    //}
+                }
+
+                static void lobby_event_cb
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2LobbyId lobby, 
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventKey key,
+                     int error, size_t size, void *arg)
+                {
+                    //if (error < 0)
+                    //    return;
+
+                    //switch (event)
+                    //{
+                    //    case SCE_NP_MATCHING2_LOBBY_EVENT_MemberJoined:
+                    //    case SCE_NP_MATCHING2_LOBBY_EVENT_MemberLeft:
+                    //    case SCE_NP_MATCHING2_LOBBY_EVENT_LobbyDestroyed:
+                    //    case SCE_NP_MATCHING2_LOBBY_EVENT_UpdatedLobbyMemberDataInternal:
+                    //        break;
+                    //}
+                }
+
+                static void lobby_message_event_cb
+                    (SceNpMatching2ContextId ctx, 
+                     SceNpMatching2LobbyId lobby, 
+                     SceNpMatching2LobbyMemberId src,
+                     SceNpMatching2Event event, 
+                     SceNpMatching2EventKey key,
+                     int error, size_t size, void *arg)
+                {
+                    //if (error < 0)
+                    //    return;
+
+                    //switch (event)
+                    //{
+                    //    case SCE_NP_MATCHING2_LOBBY_MSG_EVENT_ChatMessage:
+                    //    case SCE_NP_MATCHING2_LOBBY_MSG_EVENT_Invitation:
+                    //        break;
+                    //}
+                }
+
+            private:
+                SceNpMatching2ContextId m_context;
+                const Manager &         m_manager;
+                User                    m_local;
         };
     }
 
@@ -438,35 +794,11 @@ namespace Network
     typedef PS3::MatchMaker MatchMaker;
 }
 
-template <typename T>
-class Using
-{
-    public:
-        Using(T *o) : obj(o) 
-        { 
-            obj->Initialize(); 
-        }
-
-        ~Using() 
-        { 
-            obj->Finalize(); 
-            delete obj, obj = 0;
-        }
-
-        T& operator->() const 
-        { 
-            return *obj; 
-        }
-
-    private:
-        T   *obj;
-};
-
 int main(int argc, char** argv)
 {
     Using<Network::System> system(new Network::System);
     Using<Network::Manager> manager(new Network::Manager);
-    Using<Network::MatchMaker> matchmaker(new Network::MatchMaker);
+    Using<Network::MatchMaker> matchmaker(new Network::MatchMaker(*manager));
 
 	return 0;
 }
