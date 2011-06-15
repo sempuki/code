@@ -570,17 +570,26 @@ namespace Network
 
                 bool TryGetServerInfo(Server &server, int index = -1)
                 {
-                    if (index < 0 || index > m_servers.size)
-                        index = rand() % m_servers.size; // todo: seed
+                    bool success = false;
 
-                    SceNpMatching2RequestId reqid; // needed to track this request
-                    server.info.serverId = m_servers.data[index]; // convert index to id
+                    if (m_servers.size > 0 && m_servers.size < 255)
+                    {
+                        if (index < 0 || index > m_servers.size)
+                            index = rand() % m_servers.size; // todo: seed
 
-                    int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
-                    ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
+                        SceNpMatching2RequestId reqid; // needed to track this request
+                        server.info.serverId = m_servers.data[index]; // convert index to id
 
-                    m_request_queue.push_back(reqid);
-                    m_updater_queue.push_back(Updater(&server));
+                        int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
+                        ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
+
+                        m_request_queue.push_back(reqid);
+                        m_updater_queue.push_back(Updater(&server));
+
+                        success = true;
+                    }
+
+                    return success;
                 }
 
             private:
@@ -589,6 +598,7 @@ namespace Network
                     int res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
                     ASSERTF(res == 0, "Could not get number of servers. (0x%x)\n", res);
 
+                    m_servers.Release();
                     m_servers.Allocate(res);
 
                     res = sceNpMatching2GetServerIdListLocal(m_context, m_servers.data, m_servers.size);
@@ -922,6 +932,7 @@ namespace Network
     typedef PS3::System     System;
     typedef PS3::Manager    Manager;
     typedef PS3::MatchMaker MatchMaker;
+    typedef PS3::Status     Status;
     typedef PS3::Server     Server;
 }
 
@@ -949,7 +960,7 @@ class Application
                     break;
 
                 case RUNNING:
-                    if (server->state == Status::READY)
+                    if (server.state == Network::Status::READY)
                         state = STOP;
                     break;
 
