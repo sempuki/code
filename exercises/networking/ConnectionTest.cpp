@@ -50,6 +50,20 @@ class Using
         T   *obj;
 };
 
+template <typename T>
+struct Buffer
+{
+        size_t  size;
+        T      *data;
+
+        Buffer() : size(0), data(0) {}
+        Buffer(size_t s) { Allocate(s); }
+        ~Buffer() { Release(); }
+
+        void Allocate(size_t s) { size = s, data = new T[size]; }
+        void Release() { delete [] data, data = 0, size = 0; }
+};
+
 // NOTE: the API documents are inconsistent in their integer type treatment:
 // assuming integers are 4-byte. This is perhaps not an unfair assumption 
 // given the stable nature of the PS3 hardware, but may not always be true.
@@ -121,6 +135,21 @@ namespace Network
             };
         };
 
+        struct Status
+        {
+            enum { WAITING, ABORTED, READY, ERROR };
+            Status() : state(WAITING) {}
+            int state;
+        };
+
+        struct Updater
+        {
+            Status *object;
+            Updater() : object(0) {}
+            Updater(Status *o) : object(o) {}
+            void operator()(int status) { object->state = status; }
+        };
+
         struct User
         {
             User()
@@ -133,7 +162,7 @@ namespace Network
                 memset(&avatar, 0, sizeof(avatar));
             }
 
-            User(const User &u)
+            User& operator=(const User &u)
             {
                 memcpy(&info, &u.info, sizeof(info));
                 memcpy(&onlineId, &u.onlineId, sizeof(onlineId));
@@ -141,6 +170,7 @@ namespace Network
                 memcpy(&languages, &u.languages, sizeof(languages));
                 memcpy(&country, &u.country, sizeof(country));
                 memcpy(&avatar, &u.avatar, sizeof(avatar));
+                return *this;
             }
 
             SceNpUserInfo       info;
@@ -151,21 +181,22 @@ namespace Network
             SceNpAvatarImage    avatar;
         };
 
-        struct Ticket
+        struct Ticket : public Status
         {
-            Ticket(const char *s) : service(s), ready(false)
+            Ticket(const char *s) : service(s)
             {
                 memset(&version, 0, sizeof(version));
             }
 
-            Ticket(const Ticket &t) : service(t.service), ready(t.ready)
+            Ticket& operator=(const Ticket &t)
             {
+                service = t.service;
                 memcpy(&version, &t.version, sizeof(version));
+                return *this;
             }
 
             const char*         service;
             SceNpTicketVersion  version;
-            bool                ready;
 
             struct Param
             {
@@ -177,9 +208,11 @@ namespace Network
                     ASSERTF(res == 0, "[Network::PS3::Ticket::Param] Could not get ticket parameter. (0x%x)\n", res);
                 }
 
-                Param(const Param &p) : id(p.id)
+                Param& operator=(const Param &p)
                 {
+                    id = p.id;
                     memcpy(&param, &p.param, sizeof(param));
+                    return *this;
                 }
 
                 int                 id;
@@ -192,9 +225,12 @@ namespace Network
                     : entitlement(e), number(n)
                 {}
 
-                Entitlement(const Entitlement &e)
-                    : entitlement(e.entitlement), number(e.number)
-                {}
+                Entitlement& operator=(const Entitlement &e)
+                {
+                    entitlement = e.entitlement;
+                    number = e.number;
+                    return *this;
+                }
 
                 const char* entitlement;
                 size_t      number;
@@ -202,21 +238,104 @@ namespace Network
 
             struct Cookie
             {
-                Cookie(const char *d, size_t s) : data(d), size(s) {}
-                Cookie(const Cookie &c) : data(c.data), size(c.size) {}
+                Cookie(const char *d, size_t s) 
+                    : data(d), size(s) 
+                {}
+
+                Cookie& operator=(const Cookie &c) 
+                { 
+                    data = c.data; 
+                    size = c.size; 
+                    return *this;
+                }
 
                 const void* data;
                 size_t      size;
             };
         };
 
+        struct Transaction : public Status
+        {
+            Transaction(int ctx, const User &u) 
+                : lookupctx(ctx), user(u)
+            {
+                id = sceNpLookupCreateTransactionCtx(lookupctx);
+                ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not create transaction context. (0x%x)\n", id);
+            }
+
+            ~Transaction()
+            {
+                id = sceNpLookupDestroyTransactionCtx(lookupctx);
+                ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not destroy transaction context. (0x%x)\n", id);
+            }
+
+            bool Poll()
+            {
+                int res = sceNpLookupPollAsync(id, &result);
+                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to poll transaction. (0x%x)\n", res);
+
+                switch (res)
+                {
+                    case 0: state = Status::READY; break;
+                    case 1: state = Status::WAITING; break;
+                }
+
+                return state == Status::WAITING;
+            }
+
+            bool Wait()
+            {
+                int res = sceNpLookupWaitAsync(id, &result);
+                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to wait for transaction. (0x%x)\n", res);
+                
+                switch (res)
+                {
+                    case 0: state = Status::READY; break;
+                    case 1: state = Status::WAITING; break;
+                }
+
+                return state == Status::READY;
+            }
+
+            bool Abort()
+            {
+                int res = sceNpLookupAbortTransaction(id);
+                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to abort transaction. (0x%x)\n", res);
+                state = Status::ABORTED;
+
+                return state == Status::ABORTED;
+            }
+
+            int         id;
+            int         result;
+
+            const int   lookupctx;
+            const User& user;
+        };
+
+        struct Server : public Status
+        {
+            Server()
+            {
+                memset(&info, 0, sizeof(info));
+            }
+
+            Server& operator=(const Server &s)
+            {
+                memcpy(&info, &s.info, sizeof(info));
+                return *this;
+            }
+
+            SceNpMatching2GetServerInfoRequest info;
+        };
+
         class System
         {
+            enum { SYSUTIL_SLOT = 3 };
+
             public:
                 System() {}
                 ~System() {}
-
-                enum SysutilSlotType { SYSUTIL_SLOT = 3 };
 
                 void Initialize()
                 {
@@ -262,10 +381,11 @@ namespace Network
                         ABORTF("[Network::PS3::System] Could not load CELL_SYSMODULE_NET or CELL_SYSMODULE_SYSUTIL_NP2 or could not finalize PS3 sockets.");
                 }
 
-                void Update()
+                bool Update()
                 {
                     int res = cellSysutilCheckCallback(); // pump system utility events
                     ASSERTF(res == 0, "[Network::PS3::Sytem] Could not update system. (0x%x)\n", res);
+                    return true;
                 }
 
             private:
@@ -291,59 +411,6 @@ namespace Network
 
         class Manager
         {
-            public:
-                struct Transaction
-                {
-                    Transaction(int ctx, const User &u) 
-                        : lookupctx(ctx), user(u)
-                    {
-                        id = sceNpLookupCreateTransactionCtx(lookupctx);
-                        ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not create transaction context. (0x%x)\n", id);
-                    }
-
-                    ~Transaction()
-                    {
-                        id = sceNpLookupDestroyTransactionCtx(lookupctx);
-                        ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not destroy transaction context. (0x%x)\n", id);
-                    }
-
-                    bool Poll()
-                    {
-                        int res = sceNpLookupPollAsync(id, &result);
-                        ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to poll transaction. (0x%x)\n", res);
-                        return res != 0;
-                    }
-
-                    bool Wait()
-                    {
-                        int res = sceNpLookupWaitAsync(id, &result);
-                        ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to wait for transaction. (0x%x)\n", res);
-                        return res == 0;
-                    }
-
-                    bool Abort()
-                    {
-                        int res = sceNpLookupAbortTransaction(id);
-                        ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to abort transaction. (0x%x)\n", res);
-                        return true;
-                    }
-
-                    int         id;
-                    int         result;
-
-                    const int   lookupctx;
-                    const User& user;
-                };
-
-            private:
-                struct TicketUpdater
-                {
-                    Ticket *ticket;
-                    TicketUpdater() : ticket(0) {}
-                    TicketUpdater(Ticket *t) : ticket(t) {}
-                    void operator()(bool status, int size) { ticket->ready = status; }
-                };
-
             public:
                 Manager() {}
                 ~Manager() {}
@@ -408,10 +475,10 @@ namespace Network
                     int res = sceNpManagerRequestTicket2(&m_local.info.userId, &ticket.version, ticket.service, 0, 0, 0, 0);
                     ASSERTF(res == 0, "[Network::PS3::Manager] Could not request ticket. (0x%x)\n", res);
 
-                    ASSERTF(m_updater.ticket->ready, "[Network::PS3::Manager] Previous request ticket did not complete. (%s)\n", \
-                            m_updater.ticket->service);
+                    ASSERTF(m_updater.object->state == Status::READY, "[Network::PS3::Manager] Previous request ticket did not complete. (%s)\n", \
+                            static_cast<Ticket *>(m_updater.object)->service);
 
-                    m_updater = TicketUpdater(&ticket);
+                    m_updater = Updater(&ticket);
 
                     return true;
                 }
@@ -431,20 +498,23 @@ namespace Network
                         case SCE_NP_MANAGER_EVENT_GOT_TICKET:
                             {
                                 Manager *m = static_cast<Manager *>(data);
-                                m->m_updater(true, result); // report ticket readiness and size
+                                m->m_updater(Status::READY);
                             }
                             break;
                     }
                 }
 
             private:
-                User            m_local;
-                TicketUpdater   m_updater;
-                int             m_context;
+                User        m_local;
+                Updater     m_updater;
+                int         m_context;
         };
 
         class MatchMaker
         {
+            typedef std::vector<SceNpMatching2RequestId>    RequestIdQueue;
+            typedef std::vector<Updater>                    UpdaterQueue;
+
             public:
                 MatchMaker(const Manager &m) : m_manager(m) {}
                 ~MatchMaker() {}
@@ -491,10 +561,32 @@ namespace Network
 
                     res = sceNpMatching2RegisterLobbyMessageCallback(m_context, lobby_message_event_cb, this);
                     ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register lobby message callback. (0x%x)\n", res);
+
+                    res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get server list. (0x%x)\n", res);
+
+                    m_servers.Allocate(res);
+
+                    res = sceNpMatching2GetServerIdListLocal(m_context, m_servers.data, m_servers.size);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get server list. (0x%x)\n", res);
                 }
 
                 void Finalize()
                 {
+                }
+
+                bool TryGetServerInfo(Server &server)
+                {
+                    if (server.info.serverId > m_servers.size)
+                        server.info.serverId = rand() % m_servers.size;
+
+                    SceNpMatching2RequestId reqid;
+
+                    int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
+                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not request server info. (0x%x)\n", res);
+
+                    m_request_queue.push_back(reqid);
+                    m_updater_queue.push_back(Updater(&server));
                 }
 
             private:
@@ -527,46 +619,62 @@ namespace Network
                      SceNpMatching2EventKey key,
                      int error, size_t size, void *arg)
                 {
+                    MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
+                    typename RequestIdQueue::iterator ri = mm->m_request_queue.begin(); 
+                    typename RequestIdQueue::iterator re = mm->m_request_queue.end(); 
+                    typename UpdaterQueue::iterator updater = mm->m_updater_queue.begin();
+                    typename UpdaterQueue::iterator end = mm->m_updater_queue.end();
+
+                    // find the updater that matches this request
+                    for (; ri != re; ++ri, ++updater)
+                        if (*ri == req) break; 
+
+                    ASSERTF(updater != end, "[Network::PS3::MatchMaker] Count not find request id.");
+
                     if (error < 0)
+                    {
+                        (*updater)(Status::ERROR);
                         return;
+                    }
 
-                    //void *buf = 0;
-                    //if (size > 0)
-                    //{
-                    //    buf = new char[size];
-                    //    int res = sceNpMatching2GetEventData(ctx, key, buf, size);
-                    //}
-
+                    int res = 0;
                     switch (event)
                     {
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetServerInfo:
-                            //SceNpMatching2GetServerInfoResponse *resp = (SceNpMatching2GetServerInfoResponse *)buf;
+                            {
+                                Server *obj = static_cast<Server *>(updater->object);
+                                ASSERTF(size == sizeof(obj->info), "[Network::PS3::MatchMaker] Event data wrong size.\n");
+
+                                res = sceNpMatching2GetEventData(mm->m_context, key, &obj->info, size);
+                                ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get event data. (0x%x)\n", res);
+                            }
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetWorldInfoList:
-                            //SceNpMatching2GetWorldInfoListResponse *resp = (SceNpMatching2GetWorldInfoListResponse *)buf;
+                            //SceNpMatching2GetWorldInfoListResponse *resp = (SceNpMatching2GetWorldInfoListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomMemberDataExternalList:
-                            //SceNpMatching2GetRoomMemberDataExternalListResponse *resp = (SceNpMatching2GetRoomMemberDataExternalListResponse *)buf;
+                            //SceNpMatching2GetRoomMemberDataExternalListResponse *resp = (SceNpMatching2GetRoomMemberDataExternalListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SetRoomDataExternal:
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomDataExternalList:
-                            //SceNpMatching2GetRoomDataExternalListResponse *resp = (SceNpMatching2GetRoomDataExternalListResponse *)buf;
+                            //SceNpMatching2GetRoomDataExternalListResponse *resp = (SceNpMatching2GetRoomDataExternalListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyInfoList:
-                            //SceNpMatching2GetLobbyInfoListResponse *resp = (SceNpMatching2GetLobbyInfoListResponse *)buf;
+                            //SceNpMatching2GetLobbyInfoListResponse *resp = (SceNpMatching2GetLobbyInfoListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SetUserInfo:
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetUserInfoList:
-                            //SceNpMatching2GetUserInfoListResponse *resp = (SceNpMatching2GetUserInfoListResponse *)buf;
+                            //SceNpMatching2GetUserInfoListResponse *resp = (SceNpMatching2GetUserInfoListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_CreateServerContext:
@@ -576,11 +684,11 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_CreateJoinRoom:
-                            //SceNpMatching2CreateJoinRoomResponse *resp = (SceNpMatching2CreateJoinRoomResponse *)buf;
+                            //SceNpMatching2CreateJoinRoomResponse *resp = (SceNpMatching2CreateJoinRoomResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_JoinRoom:
-                            //SceNpMatching2JoinRoomResponse *resp = (SceNpMatching2JoinRoomResponse *)buf;
+                            //SceNpMatching2JoinRoomResponse *resp = (SceNpMatching2JoinRoomResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_LeaveRoom:
@@ -593,11 +701,11 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SearchRoom:
-                            //SceNpMatching2SearchRoomResponse *resp = (SceNpMatching2SearchRoomResponse *)buf;
+                            //SceNpMatching2SearchRoomResponse *resp = (SceNpMatching2SearchRoomResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SendRoomChatMessage:
-                            //SceNpMatching2SendRoomChatMessageResponse *resp = (SceNpMatching2SendRoomChatMessageResponse *)buf;
+                            //SceNpMatching2SendRoomChatMessageResponse *resp = (SceNpMatching2SendRoomChatMessageResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SendRoomMessage:
@@ -607,28 +715,28 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomDataInternal:
-                            //SceNpMatching2GetRoomDataInternalResponse *resp = (SceNpMatching2GetRoomDataInternalResponse *)buf;
+                            //SceNpMatching2GetRoomDataInternalResponse *resp = (SceNpMatching2GetRoomDataInternalResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SetRoomMemberDataInternal:
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetRoomMemberDataInternal:
-                            //SceNpMatching2GetRoomMemberDataInternalResponse *resp = (SceNpMatching2GetRoomMemberDataInternalResponse *)buf;
+                            //SceNpMatching2GetRoomMemberDataInternalResponse *resp = (SceNpMatching2GetRoomMemberDataInternalResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SetSignalingOptParam:
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_JoinLobby:
-                            //SceNpMatching2JoinLobbyResponse *resp = (SceNpMatching2JoinLobbyResponse *)buf;
+                            //SceNpMatching2JoinLobbyResponse *resp = (SceNpMatching2JoinLobbyResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_LeaveLobby:
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SendLobbyChatMessage:
-                            //SceNpMatching2SendLobbyChatMessageResponse *resp = (SceNpMatching2SendLobbyChatMessageResponse *)buf;
+                            //SceNpMatching2SendLobbyChatMessageResponse *resp = (SceNpMatching2SendLobbyChatMessageResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SendLobbyInvitation:
@@ -638,15 +746,15 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyMemberDataInternal:
-                            //SceNpMatching2GetLobbyMemberDataInternalResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalResponse *)buf;
+                            //SceNpMatching2GetLobbyMemberDataInternalResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetLobbyMemberDataInternalList:
-                            //SceNpMatching2GetLobbyMemberDataInternalListResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalListResponse *)buf;
+                            //SceNpMatching2GetLobbyMemberDataInternalListResponse *resp = (SceNpMatching2GetLobbyMemberDataInternalListResponse *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_REQUEST_EVENT_SignalingGetPingInfo:
-                            //SceNpMatching2SignalingGetPingInfoResponse *resp = (SceNpMatching2SignalingGetPingInfoResponse *)buf;
+                            //SceNpMatching2SignalingGetPingInfoResponse *resp = (SceNpMatching2SignalingGetPingInfoResponse *)buf.data;
                             break;
                     }
                 }
@@ -681,45 +789,38 @@ namespace Network
                     if (error < 0)
                         return;
 
-                    //void *buf = 0;
-                    //if (size > 0)
-                    //{
-                    //    buf = new char[size];
-                    //    int res = sceNpMatching2GetEventData(ctx, key, buf, size);
-                    //}
-
                     switch (event)
                     {
                         case SCE_NP_MATCHING2_ROOM_EVENT_MemberJoined:
-                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_MemberLeft:
-                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_Kickedout:
-                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf;
+                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_RoomDestroyed:
-                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf;
+                            //SceNpMatching2RoomUpdateInfo *resp = (SceNpMatching2RoomUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_RoomOwnerChanged:
-                            //SceNpMatching2RoomOwnerUpdateInfo *resp = (SceNpMatching2RoomOwnerUpdateInfo *)buf;
+                            //SceNpMatching2RoomOwnerUpdateInfo *resp = (SceNpMatching2RoomOwnerUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedRoomDataInternal:
-                            //SceNpMatching2RoomMemberDataInternalUpdateInfo *resp = (SceNpMatching2RoomMemberDataInternalUpdateInfo *)buf;
+                            //SceNpMatching2RoomMemberDataInternalUpdateInfo *resp = (SceNpMatching2RoomMemberDataInternalUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedRoomMemberDataInternal:
-                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf;
+                            //SceNpMatching2RoomMemberUpdateInfo *resp = (SceNpMatching2RoomMemberUpdateInfo *)buf.data;
                             break;
 
                         case SCE_NP_MATCHING2_ROOM_EVENT_UpdatedSignalingOptParam:
-                            //SceNpMatching2SignalingOptParamUpdateInfo *resp = (SceNpMatching2SignalingOptParamUpdateInfo *)buf;
+                            //SceNpMatching2SignalingOptParamUpdateInfo *resp = (SceNpMatching2SignalingOptParamUpdateInfo *)buf.data;
                             break;
                     }
                 }
@@ -783,22 +884,71 @@ namespace Network
                 }
 
             private:
-                SceNpMatching2ContextId m_context;
-                const Manager &         m_manager;
-                User                    m_local;
+                const Manager &                 m_manager;
+                User                            m_local;
+
+                SceNpMatching2ContextId         m_context;
+                Buffer<SceNpMatching2ServerId>  m_servers;
+
+                RequestIdQueue                  m_request_queue;
+                UpdaterQueue                    m_updater_queue;
         };
     }
 
-    typedef PS3::System System;
-    typedef PS3::Manager Manager;
+    typedef PS3::System     System;
+    typedef PS3::Manager    Manager;
     typedef PS3::MatchMaker MatchMaker;
+    typedef PS3::Server     Server;
 }
+
+class Application
+{
+    enum { START, RUNNING, STOP };
+
+    public:
+        Application() : 
+            system (new Network::System), 
+            manager (new Network::Manager), 
+            matchmaker (new Network::MatchMaker(*manager)),
+            state (START)
+        {}
+
+        bool Update()
+        {
+            bool update = system->Update();
+
+            switch (state)
+            {
+                case START:
+                    if (matchmaker->TryGetServerInfo(server))
+                        state = RUNNING;
+                    break;
+
+                case RUNNING:
+                    state = STOP;
+                    break;
+
+                case STOP:
+                    update = false;
+                    break;
+            }
+
+            return update;
+        }
+
+    private:
+        Using<Network::System>      system;
+        Using<Network::Manager>     manager;
+        Using<Network::MatchMaker>  matchmaker;
+        Network::Server             server;
+        int                         state;
+};
 
 int main(int argc, char** argv)
 {
-    Using<Network::System> system(new Network::System);
-    Using<Network::Manager> manager(new Network::Manager);
-    Using<Network::MatchMaker> matchmaker(new Network::MatchMaker(*manager));
+    Application app;
+
+    while (app.Update());
 
 	return 0;
 }
