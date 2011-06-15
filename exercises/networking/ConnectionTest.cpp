@@ -471,7 +471,7 @@ namespace Network
 
                 bool TryGetTicket(Ticket &ticket)
                 {
-                    // TODO: handle cookies and entitlements
+                    // todo: handle cookies and entitlements
                     int res = sceNpManagerRequestTicket2(&m_local.info.userId, &ticket.version, ticket.service, 0, 0, 0, 0);
                     ASSERTF(res == 0, "Could not request ticket. (0x%x)\n", res);
 
@@ -568,12 +568,13 @@ namespace Network
                 {
                 }
 
-                bool TryGetServerInfo(Server &server)
+                bool TryGetServerInfo(Server &server, int index = -1)
                 {
-                    if (server.info.serverId > m_servers.size)
-                        server.info.serverId = rand() % m_servers.size;
+                    if (index < 0 || index > m_servers.size)
+                        index = rand() % m_servers.size; // todo: seed
 
-                    SceNpMatching2RequestId reqid;
+                    SceNpMatching2RequestId reqid; // needed to track this request
+                    server.info.serverId = m_servers.data[index]; // convert index to id
 
                     int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
                     ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
@@ -630,18 +631,22 @@ namespace Network
 
                     typename RequestIdQueue::iterator ri = mm->m_request_queue.begin(); 
                     typename RequestIdQueue::iterator re = mm->m_request_queue.end(); 
-                    typename UpdaterQueue::iterator updater = mm->m_updater_queue.begin();
-                    typename UpdaterQueue::iterator end = mm->m_updater_queue.end();
+                    typename UpdaterQueue::iterator ui = mm->m_updater_queue.begin();
+                    typename UpdaterQueue::iterator ue = mm->m_updater_queue.end();
 
                     // find the updater that matches this request
-                    for (; ri != re; ++ri, ++updater)
+                    for (; ri != re; ++ri, ++ui)
                         if (*ri == req) break; 
+                    
+                    ASSERTF(ui != ue, "Count not find request id.");
 
-                    ASSERTF(updater != end, "Count not find request id.");
+                    Updater updater (*ui);
+                    mm->m_request_queue.erase(ri);
+                    mm->m_updater_queue.erase(ui);
 
                     if (error < 0)
                     {
-                        (*updater)(Status::ERROR);
+                        updater(Status::ERROR);
                         return;
                     }
 
@@ -650,11 +655,13 @@ namespace Network
                     {
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetServerInfo:
                             {
-                                Server *obj = static_cast<Server *>(updater->object);
+                                Server *obj = static_cast<Server *>(updater.object);
                                 ASSERTF(size == sizeof(obj->info), "Event data wrong size.\n");
 
                                 res = sceNpMatching2GetEventData(mm->m_context, key, &obj->info, size);
                                 ASSERTF(res == 0, "Could not get event data. (0x%x)\n", res);
+
+                                updater(Status::READY);
                             }
                             break;
 
