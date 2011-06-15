@@ -260,19 +260,19 @@ namespace Network
                 : lookupctx(ctx), user(u)
             {
                 id = sceNpLookupCreateTransactionCtx(lookupctx);
-                ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not create transaction context. (0x%x)\n", id);
+                ASSERTF(id == 0, "Could not create transaction context. (0x%x)\n", id);
             }
 
             ~Transaction()
             {
                 id = sceNpLookupDestroyTransactionCtx(lookupctx);
-                ASSERTF(id == 0, "[Network::PS3::Manager::Transaction] Could not destroy transaction context. (0x%x)\n", id);
+                ASSERTF(id == 0, "Could not destroy transaction context. (0x%x)\n", id);
             }
 
             bool Poll()
             {
                 int res = sceNpLookupPollAsync(id, &result);
-                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to poll transaction. (0x%x)\n", res);
+                ASSERTF(id >= 0, "Failed to poll transaction. (0x%x)\n", res);
 
                 switch (res)
                 {
@@ -286,7 +286,7 @@ namespace Network
             bool Wait()
             {
                 int res = sceNpLookupWaitAsync(id, &result);
-                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to wait for transaction. (0x%x)\n", res);
+                ASSERTF(id >= 0, "Failed to wait for transaction. (0x%x)\n", res);
                 
                 switch (res)
                 {
@@ -300,7 +300,7 @@ namespace Network
             bool Abort()
             {
                 int res = sceNpLookupAbortTransaction(id);
-                ASSERTF(id >= 0, "[Network::PS3::Manager::Transaction] Failed to abort transaction. (0x%x)\n", res);
+                ASSERTF(id >= 0, "Failed to abort transaction. (0x%x)\n", res);
                 state = Status::ABORTED;
 
                 return state == Status::ABORTED;
@@ -343,7 +343,7 @@ namespace Network
                         cellSysmoduleLoadModule(CELL_SYSMODULE_NET)			!= CELL_OK ||
                         cellSysmoduleLoadModule(CELL_SYSMODULE_SYSUTIL_NP)	!= CELL_OK ||
                         cellSysmoduleLoadModule(CELL_SYSMODULE_SYSUTIL_NP2) != CELL_OK)
-                        ABORTF("[Network::PS3::System] Could not load CELL_SYSMODULE_NET or CELL_SYSMODULE_SYSUTIL_NP2 or could not initialize PS3 sockets.");
+                        ABORTF("Could not load CELL_SYSMODULE_NET or CELL_SYSMODULE_SYSUTIL_NP2 or could not initialize PS3 sockets.");
 
                     int res = sys_net_initialize_network(); // initialize UDP/IP stack
                     ASSERTF(res >= 0, "sys_net_initialize_network() failed. (0x%x)\n", res);
@@ -355,36 +355,36 @@ namespace Network
                     ASSERTF(res >= 0,"cellNetCtlInit() failed. (0x%x)\n", res);
 
                     res = sceNp2Init(SCE_NP_MIN_POOL_SIZE, m_nppool);
-                    ASSERTF(res == 0, "[Network::PS3::System] Could not initialize system. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not initialize system. (0x%x)\n", res);
 
                     res = cellSysutilRegisterCallback(SYSUTIL_SLOT, &System::sysutil_cb, 0);
-                    ASSERTF(res == 0, "[Network::PS3::System] Could not set sysutil callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not set sysutil callback. (0x%x)\n", res);
                 }
 
                 void Finalize()
                 {
                     int res = cellSysutilUnregisterCallback(SYSUTIL_SLOT);
-                    ASSERTF(res == 0, "[Network::PS3::System] Could not terminate system. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not terminate system. (0x%x)\n", res);
 
                     res = sceNp2Term();
-                    ASSERTF(res == 0, "[Network::PS3::System] Could not terminate system. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not terminate system. (0x%x)\n", res);
 
                     cellNetCtlTerm();
 
                     res = sys_net_finalize_network();
-                    ASSERTF(res == 0, "[Network::PS3::System] Could not finalize system. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not finalize system. (0x%x)\n", res);
 
                     if (cellSysmoduleUnloadModule(CELL_SYSMODULE_NET)			!= CELL_OK ||
                         cellSysmoduleUnloadModule(CELL_SYSMODULE_SYSUTIL_NP)	!= CELL_OK ||
                         cellSysmoduleUnloadModule(CELL_SYSMODULE_SYSUTIL_NP2)   != CELL_OK ||
                         cellSysmoduleFinalize()							        != CELL_OK)
-                        ABORTF("[Network::PS3::System] Could not load CELL_SYSMODULE_NET or CELL_SYSMODULE_SYSUTIL_NP2 or could not finalize PS3 sockets.");
+                        ABORTF("Could not load CELL_SYSMODULE_NET or CELL_SYSMODULE_SYSUTIL_NP2 or could not finalize PS3 sockets.");
                 }
 
                 bool Update()
                 {
                     int res = cellSysutilCheckCallback(); // pump system utility events
-                    ASSERTF(res == 0, "[Network::PS3::Sytem] Could not update system. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not update system. (0x%x)\n", res);
                     return true;
                 }
 
@@ -418,19 +418,19 @@ namespace Network
                 void Initialize()
                 {
                     int res = sceNpManagerInit();
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not initialize manager. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not initialize manager. (0x%x)\n", res);
 
                     res = sceNpLookupInit();
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not initialize lookup.(0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not initialize lookup.(0x%x)\n", res);
 
                     res = sceNpManagerRegisterCallback(&Manager::manager_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not register callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register callback. (0x%x)\n", res);
 
                     res = TryGetLocalUser(m_local);
-                    ASSERTF(res == 1, "[Network::PS3::Manager] Could not get local user. (0x%x)\n", res);
+                    ASSERTF(res == 1, "Could not get local user. (0x%x)\n", res);
 
                     res = sceNpLookupCreateTitleCtx(&Product::Id, &m_local.info.userId);
-                    ASSERTF(res > 0, "[Network::PS3::Manager] Could not create lookup context. (0x%x)\n", res);
+                    ASSERTF(res > 0, "Could not create lookup context. (0x%x)\n", res);
 
                     m_context = res;
                 }
@@ -438,16 +438,16 @@ namespace Network
                 void Finalize()
                 {
                     int res = sceNpLookupDestroyTitleCtx(m_context);
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not destroy lookup context. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not destroy lookup context. (0x%x)\n", res);
 
                     res = sceNpManagerUnregisterCallback();
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not unregister callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not unregister callback. (0x%x)\n", res);
                     
                     res = sceNpLookupTerm();
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not finalize lookup. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not finalize lookup. (0x%x)\n", res);
 
                     res = sceNpManagerTerm();
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not finalize manager. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not finalize manager. (0x%x)\n", res);
                 }
 
                 bool TryGetStatus(int &status) const
@@ -458,13 +458,13 @@ namespace Network
                 bool TryGetLocalUser(User &user) const
                 {
                     int res = sceNpManagerGetNpId(&user.info.userId);
-                    ASSERTF(res >= 0, "[Network::PS3::User] Get NpId failed. (0x%x)\n", res);
+                    ASSERTF(res >= 0, "Get NpId failed. (0x%x)\n", res);
 
                     res = sceNpManagerGetOnlineId(&user.onlineId);
-                    ASSERTF(res >= 0, "[Network::PS3::User] Get OnlineId failed. (0x%x)\n", res);
+                    ASSERTF(res >= 0, "Get OnlineId failed. (0x%x)\n", res);
 
                     res = sceNpManagerGetOnlineName(&user.info.name);
-                    ASSERTF(res >= 0, "[Network::PS3::User] Get OnlineName failed. (0x%x)\n", res);
+                    ASSERTF(res >= 0, "Get OnlineName failed. (0x%x)\n", res);
 
                     return true;
                 }
@@ -473,9 +473,9 @@ namespace Network
                 {
                     // TODO: handle cookies and entitlements
                     int res = sceNpManagerRequestTicket2(&m_local.info.userId, &ticket.version, ticket.service, 0, 0, 0, 0);
-                    ASSERTF(res == 0, "[Network::PS3::Manager] Could not request ticket. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not request ticket. (0x%x)\n", res);
 
-                    ASSERTF(m_updater.object->state == Status::READY, "[Network::PS3::Manager] Previous request ticket did not complete. (%s)\n", \
+                    ASSERTF(m_updater.object->state == Status::READY, "Previous request ticket did not complete. (%s)\n", \
                             static_cast<Ticket *>(m_updater.object)->service);
 
                     m_updater = Updater(&ticket);
@@ -491,7 +491,7 @@ namespace Network
             private:
                 static void manager_cb(int event, int result, void *data)
                 {
-                    ASSERTF(result >= 0, "[Network::PS3::Manager] Error with ticket request. (0x%x)\n", result);
+                    ASSERTF(result >= 0, "Error with ticket request. (0x%x)\n", result);
                         
                     switch (event)
                     {
@@ -522,21 +522,21 @@ namespace Network
                 void Initialize()
                 {
                     int res = sceNpMatching2Init2(0, 0, 0); // use default values for heap and queues
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not initialize matchmaking. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not initialize matchmaking. (0x%x)\n", res);
 
                     res = m_manager.TryGetLocalUser(m_local);
-                    ASSERTF(res == 1, "[Network::PS3::MatchMaker] Could not get local user. (0x%x)\n", res);
+                    ASSERTF(res == 1, "Could not get local user. (0x%x)\n", res);
 
                     int opt = SCE_NP_MATCHING2_CONTEXT_OPTION_USE_ONLINENAME | SCE_NP_MATCHING2_CONTEXT_OPTION_USE_AVATARURL; 
                     res = sceNpMatching2CreateContext(&m_local.info.userId, &Product::Id, &Product::Passphrase, &m_context, opt);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get matchmaking context. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not get matchmaking context. (0x%x)\n", res);
 
                     int timeout = 10 * 1000 * 1000; // wait for ten seconds
                     res = sceNpMatching2ContextStartAsync(m_context, timeout);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not start matchmaking context. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not start matchmaking context. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterContextCallback(m_context, context_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register context callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register context callback. (0x%x)\n", res);
 
                     SceNpMatching2RequestOptParam param;
                     memset(&param, 0, sizeof(param));
@@ -545,30 +545,23 @@ namespace Network
                     param.timeout = 20 * 1000 * 1000; // 20s
 
                     res = sceNpMatching2SetDefaultRequestOptParam(m_context, &param);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register request callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register request callback. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterSignalingCallback(m_context, signaling_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register signaling callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register signaling callback. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterRoomEventCallback(m_context, room_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register room callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register room callback. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterRoomMessageCallback(m_context, room_message_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register room message callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register room message callback. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterLobbyEventCallback (m_context, lobby_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register lobby callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register lobby callback. (0x%x)\n", res);
 
                     res = sceNpMatching2RegisterLobbyMessageCallback(m_context, lobby_message_event_cb, this);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not register lobby message callback. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not register lobby message callback. (0x%x)\n", res);
 
-                    res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get server list. (0x%x)\n", res);
-
-                    m_servers.Allocate(res);
-
-                    res = sceNpMatching2GetServerIdListLocal(m_context, m_servers.data, m_servers.size);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get server list. (0x%x)\n", res);
                 }
 
                 void Finalize()
@@ -583,19 +576,32 @@ namespace Network
                     SceNpMatching2RequestId reqid;
 
                     int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
-                    ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not request server info. (0x%x)\n", res);
+                    ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
 
                     m_request_queue.push_back(reqid);
                     m_updater_queue.push_back(Updater(&server));
                 }
 
             private:
+                void setup_server_id_list()
+                {
+                    int res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
+                    ASSERTF(res == 0, "Could not get number of servers. (0x%x)\n", res);
+
+                    m_servers.Allocate(res);
+
+                    res = sceNpMatching2GetServerIdListLocal(m_context, m_servers.data, m_servers.size);
+                    ASSERTF(res == 0, "Could not get server list. (0x%x)\n", res);
+                }
+
                 static void context_event_cb
                     (SceNpMatching2ContextId ctx, 
                      SceNpMatching2Event event, 
                      SceNpMatching2EventCause cause,
                      int error, void *arg)
                 {
+                    MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     if (error < 0)
                         return;
 
@@ -605,6 +611,7 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_CONTEXT_EVENT_Start:
+                            mm->setup_server_id_list();
                             break;
 
                         case SCE_NP_MATCHING2_CONTEXT_EVENT_Stop:
@@ -630,7 +637,7 @@ namespace Network
                     for (; ri != re; ++ri, ++updater)
                         if (*ri == req) break; 
 
-                    ASSERTF(updater != end, "[Network::PS3::MatchMaker] Count not find request id.");
+                    ASSERTF(updater != end, "Count not find request id.");
 
                     if (error < 0)
                     {
@@ -644,10 +651,10 @@ namespace Network
                         case SCE_NP_MATCHING2_REQUEST_EVENT_GetServerInfo:
                             {
                                 Server *obj = static_cast<Server *>(updater->object);
-                                ASSERTF(size == sizeof(obj->info), "[Network::PS3::MatchMaker] Event data wrong size.\n");
+                                ASSERTF(size == sizeof(obj->info), "Event data wrong size.\n");
 
                                 res = sceNpMatching2GetEventData(mm->m_context, key, &obj->info, size);
-                                ASSERTF(res == 0, "[Network::PS3::MatchMaker] Could not get event data. (0x%x)\n", res);
+                                ASSERTF(res == 0, "Could not get event data. (0x%x)\n", res);
                             }
                             break;
 
@@ -766,6 +773,8 @@ namespace Network
                      SceNpMatching2Event event, 
                      int error, void *arg)
                 {
+                    MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     if (error < 0)
                         return;
 
@@ -786,6 +795,8 @@ namespace Network
                      SceNpMatching2EventKey key,
                      int error, size_t size, void *arg)
                 {
+                    MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     if (error < 0)
                         return;
 
@@ -833,6 +844,8 @@ namespace Network
                      SceNpMatching2EventKey key,
                      int error, size_t size, void *arg)
                 {
+                    //MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     //if (error < 0)
                     //    return;
 
@@ -851,6 +864,8 @@ namespace Network
                      SceNpMatching2EventKey key,
                      int error, size_t size, void *arg)
                 {
+                    //MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     //if (error < 0)
                     //    return;
 
@@ -872,6 +887,8 @@ namespace Network
                      SceNpMatching2EventKey key,
                      int error, size_t size, void *arg)
                 {
+                    //MatchMaker *mm = static_cast<MatchMaker *>(arg);
+
                     //if (error < 0)
                     //    return;
 
