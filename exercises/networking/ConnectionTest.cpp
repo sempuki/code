@@ -5,7 +5,7 @@
 #include <cell/sysmodule.h>
 #include <netex/net.h>
 #include <netex/libnetctl.h>
-#include <sys/sys_time.h>
+#include <sys/timer.h>
 #include <sdk_version.h>
 #include <np.h>
 #include <np/basic.h>
@@ -326,7 +326,7 @@ namespace Network
                 return *this;
             }
 
-            SceNpMatching2GetServerInfoRequest info;
+            SceNpMatching2GetServerInfoResponse info;
         };
 
         class System
@@ -417,6 +417,8 @@ namespace Network
 
                 void Initialize()
                 {
+                    m_online = false;
+
                     int res = sceNpManagerInit();
                     ASSERTF(res == 0, "Could not initialize manager. (0x%x)\n", res);
 
@@ -426,8 +428,13 @@ namespace Network
                     res = sceNpManagerRegisterCallback(&Manager::manager_cb, this);
                     ASSERTF(res == 0, "Could not register callback. (0x%x)\n", res);
 
-                    res = TryGetLocalUser(m_local);
-                    ASSERTF(res == 1, "Could not get local user. (0x%x)\n", res);
+                    // must be online before we can get user info: try for 10 * 1 seconds
+                    for (int i=0, sec=10; i < sec; ++i)
+                        if (res = TryGetLocalUser(m_local)) 
+                            break;
+                        else cellSysutilCheckCallback(), sys_timer_sleep(1);
+                    
+                    ASSERTF(res == 1, "Could not get local user.\n");
 
                     res = sceNpLookupCreateTitleCtx(&Product::Id, &m_local.info.userId);
                     ASSERTF(res > 0, "Could not create lookup context. (0x%x)\n", res);
@@ -457,16 +464,23 @@ namespace Network
 
                 bool TryGetLocalUser(User &user) const
                 {
-                    int res = sceNpManagerGetNpId(&user.info.userId);
-                    ASSERTF(res >= 0, "Get NpId failed. (0x%x)\n", res);
+                    bool success = false;
 
-                    res = sceNpManagerGetOnlineId(&user.onlineId);
-                    ASSERTF(res >= 0, "Get OnlineId failed. (0x%x)\n", res);
+                    if (m_online)
+                    {
+                        int res = sceNpManagerGetNpId(&user.info.userId);
+                        ASSERTF(res >= 0, "Get NpId failed. (0x%x)\n", res);
 
-                    res = sceNpManagerGetOnlineName(&user.info.name);
-                    ASSERTF(res >= 0, "Get OnlineName failed. (0x%x)\n", res);
+                        res = sceNpManagerGetOnlineId(&user.onlineId);
+                        ASSERTF(res >= 0, "Get OnlineId failed. (0x%x)\n", res);
 
-                    return true;
+                        res = sceNpManagerGetOnlineName(&user.info.name);
+                        ASSERTF(res >= 0, "Get OnlineName failed. (0x%x)\n", res);
+
+                        success = true;
+                    }
+                    
+                    return success;
                 }
 
                 bool TryGetTicket(Ticket &ticket)
@@ -491,15 +505,31 @@ namespace Network
             private:
                 static void manager_cb(int event, int result, void *data)
                 {
+                    Manager *m = static_cast<Manager *> (data);
+
                     ASSERTF(result >= 0, "Error with ticket request. (0x%x)\n", result);
                         
                     switch (event)
                     {
+                        case SCE_NP_MANAGER_STATUS_OFFLINE:
+                            m->m_online = false;
+                            break;
+
+                        case SCE_NP_MANAGER_STATUS_GETTING_TICKET:
+                            break;
+
+                        case SCE_NP_MANAGER_STATUS_GETTING_PROFILE:
+                            break;
+
+                        case SCE_NP_MANAGER_STATUS_LOGGING_IN:
+                            break;
+
+                        case SCE_NP_MANAGER_STATUS_ONLINE:
+                            m->m_online = true;
+                            break;
+
                         case SCE_NP_MANAGER_EVENT_GOT_TICKET:
-                            {
-                                Manager *m = static_cast<Manager *>(data);
-                                m->m_updater(Status::READY);
-                            }
+                            m->m_updater(Status::READY);
                             break;
                     }
                 }
@@ -508,6 +538,7 @@ namespace Network
                 User        m_local;
                 Updater     m_updater;
                 int         m_context;
+                bool        m_online;
         };
 
         class MatchMaker
@@ -525,7 +556,7 @@ namespace Network
                     ASSERTF(res == 0, "Could not initialize matchmaking. (0x%x)\n", res);
 
                     res = m_manager.TryGetLocalUser(m_local);
-                    ASSERTF(res == 1, "Could not get local user. (0x%x)\n", res);
+                    ASSERTF(res == 1, "Could not get local user.\n");
 
                     int opt = SCE_NP_MATCHING2_CONTEXT_OPTION_USE_ONLINENAME | SCE_NP_MATCHING2_CONTEXT_OPTION_USE_AVATARURL; 
                     res = sceNpMatching2CreateContext(&m_local.info.userId, &Product::Id, &Product::Passphrase, &m_context, opt);
@@ -566,6 +597,11 @@ namespace Network
 
                 void Finalize()
                 {
+                    int res = sceNpMatching2ContextStop(m_context);
+                    ASSERTF(res == 0, "Could not stop matchmaking context. (0x%x)\n", res);
+
+                    res = sceNpMatching2Term2();
+                    ASSERTF(res == 0, "Could not terminate matchmaking. (0x%x)\n", res);
                 }
 
                 bool TryGetServerInfo(Server &server, int index = -1)
@@ -577,13 +613,14 @@ namespace Network
                         if (index < 0 || index > m_servers.size)
                             index = rand() % m_servers.size; // todo: seed
 
-                        SceNpMatching2RequestId reqid; // needed to track this request
-                        server.info.serverId = m_servers.data[index]; // convert index to id
+                        SceNpMatching2GetServerInfoRequest req;
+                        SceNpMatching2RequestId id; // needed to track this request
+                        req.serverId = m_servers.data[index]; // convert index to id
 
-                        int res = sceNpMatching2GetServerInfo(m_context, &server.info, 0, &reqid);
+                        int res = sceNpMatching2GetServerInfo(m_context, &req, 0, &id);
                         ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
 
-                        m_request_queue.push_back(reqid);
+                        m_request_queue.push_back(id);
                         m_updater_queue.push_back(Updater(&server));
 
                         success = true;
@@ -596,13 +633,13 @@ namespace Network
                 void setup_server_id_list()
                 {
                     int res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
-                    ASSERTF(res == 0, "Could not get number of servers. (0x%x)\n", res);
+                    ASSERTF(res >= 0, "Could not get number of servers. (0x%x)\n", res);
 
                     m_servers.Release();
                     m_servers.Allocate(res);
 
                     res = sceNpMatching2GetServerIdListLocal(m_context, m_servers.data, m_servers.size);
-                    ASSERTF(res == 0, "Could not get server list. (0x%x)\n", res);
+                    ASSERTF(res >= 0, "Could not get server list. (0x%x)\n", res);
                 }
 
                 static void context_event_cb
@@ -622,10 +659,14 @@ namespace Network
                             break;
 
                         case SCE_NP_MATCHING2_CONTEXT_EVENT_Start:
-                            mm->setup_server_id_list();
+                            if (cause == SCE_NP_MATCHING2_EVENT_CAUSE_CONTEXT_ACTION)
+                                mm->setup_server_id_list();
                             break;
 
                         case SCE_NP_MATCHING2_CONTEXT_EVENT_Stop:
+                            break;
+
+                        default:
                             break;
                     }
                 }
@@ -669,7 +710,8 @@ namespace Network
                                 ASSERTF(size == sizeof(obj->info), "Event data wrong size.\n");
 
                                 res = sceNpMatching2GetEventData(mm->m_context, key, &obj->info, size);
-                                ASSERTF(res == 0, "Could not get event data. (0x%x)\n", res);
+                                ASSERTF(res >= 0, "Could not get event data. (0x%x)\n", res);
+                                ASSERTF(res == size, "Could not get all event data. (0x%x)\n", res);
 
                                 updater(Status::READY);
                             }
@@ -922,6 +964,7 @@ namespace Network
                 User                            m_local;
 
                 SceNpMatching2ContextId         m_context;
+                //SceNpMatching2                  m_server_context;
                 Buffer<SceNpMatching2ServerId>  m_servers;
 
                 RequestIdQueue                  m_request_queue;
@@ -961,7 +1004,12 @@ class Application
 
                 case RUNNING:
                     if (server.state == Network::Status::READY)
+                    {
+                        if (server.info.server.status == SCE_NP_MATCHING2_SERVER_STATUS_AVAILABLE)
+                            printf("server is available");
+                        
                         state = STOP;
+                    }
                     break;
 
                 case STOP:
