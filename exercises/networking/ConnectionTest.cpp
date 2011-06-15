@@ -949,7 +949,8 @@ class Application
                     break;
 
                 case RUNNING:
-                    state = STOP;
+                    if (server->state == Status::READY)
+                        state = STOP;
                     break;
 
                 case STOP:
