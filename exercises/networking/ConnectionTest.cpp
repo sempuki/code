@@ -137,8 +137,8 @@ namespace Network
 
         struct Status
         {
-            enum { WAITING, ABORTED, READY, ERROR };
-            Status() : state(WAITING) {}
+            enum { NONE, WAITING, ABORTED, READY, ERROR };
+            Status() : state (NONE) {}
             int state;
         };
 
@@ -613,15 +613,15 @@ namespace Network
                         if (index < 0 || index > m_servers.size)
                             index = rand() % m_servers.size; // todo: seed
 
+                        SceNpMatching2RequestId id; 
                         SceNpMatching2GetServerInfoRequest req;
-                        SceNpMatching2RequestId id; // needed to track this request
                         req.serverId = m_servers.data[index]; // convert index to id
 
                         int res = sceNpMatching2GetServerInfo(m_context, &req, 0, &id);
                         ASSERTF(res == 0, "Could not request server info. (0x%x)\n", res);
 
-                        m_request_queue.push_back(id);
-                        m_updater_queue.push_back(Updater(&server));
+                        m_request_queue.push_back(id); // needed to track this request
+                        m_updater_queue.push_back(Updater(&server)); // update result when ready
 
                         success = true;
                     }
@@ -634,7 +634,7 @@ namespace Network
                 {
                     int res = sceNpMatching2GetServerIdListLocal(m_context, 0, 0); // get number of servers
                     ASSERTF(res >= 0, "Could not get number of servers. (0x%x)\n", res);
-
+                    
                     m_servers.Release();
                     m_servers.Allocate(res);
 
@@ -981,7 +981,7 @@ namespace Network
 
 class Application
 {
-    enum { START, RUNNING, STOP };
+    enum { START, RUNNING, SEARCHING, STOP };
 
     public:
         Application() : 
@@ -998,22 +998,43 @@ class Application
             switch (state)
             {
                 case START:
-                    if (matchmaker->TryGetServerInfo(server))
-                        state = RUNNING;
+                    {
+                        state = SEARCHING;
+                        server.state = Network::Status::NONE;
+                    }
+                    break;
+
+                case SEARCHING:
+                    if (server.state == Network::Status::NONE)
+                    {
+                        if (matchmaker->TryGetServerInfo(server))
+                            state = RUNNING;
+
+                        server.state == Network::Status::WAITING;
+                    }
                     break;
 
                 case RUNNING:
                     if (server.state == Network::Status::READY)
                     {
                         if (server.info.server.status == SCE_NP_MATCHING2_SERVER_STATUS_AVAILABLE)
-                            printf("server is available");
-                        
-                        state = STOP;
+                        {
+                            state = STOP;
+                            printf("found available server!");
+                        }
+                        else
+                        {
+                            state = SEARCHING;
+                            server.state = Network::Status::NONE;
+                        }
                     }
                     break;
 
                 case STOP:
-                    update = false;
+                    {
+                        update = false;
+                        server.state = Network::Status::NONE;
+                    }
                     break;
             }
 
