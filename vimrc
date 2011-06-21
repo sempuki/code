@@ -1,6 +1,5 @@
 " Plugins:
 " - a.vim                   "automatically switch header/impl files
-" - surround.vim            "surround text quotes
 " - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
 
@@ -120,14 +119,16 @@ let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 
 "text editing
 
+"list of file encodings to try
+set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
+
+nnoremap <Leader>k :setlocal spell<CR>
+nnoremap <Leader>K :setlocal nospell<CR>
+
 "set ignorecase              "only for smartcase below
 "set smartcase               "if no caps, case insensitive
 "set autochdir               "change CWD to file in the buffer
-"set spell                   "enable spell checking
 
 "add dictionary to ^N completion
 "set dictionary+=/usr/share/dict/words
 "set complete+=k
-
-"list of file encodings to try
-"set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
