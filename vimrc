@@ -1,5 +1,6 @@
 " Plugins:
 " - a.vim                   "automatically switch header/impl files
+" - gtags.vim               "GNU Global tags (with CTAGSFORCECPP)
 " - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
 
@@ -69,16 +70,27 @@ nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
 nnoremap <silent> <C-X> :bdelete!<CR>
 
-"ctag windows
-nnoremap <Leader>t :tselect 
-nnoremap ]t :tnext<CR>
-nnoremap [t :tprevious<CR>
+"ctag searching
+nnoremap <Leader>t :tjump 
+nnoremap t] :tnext 
+nnoremap t[ :tprev 
+
+"gtag searching
+nnoremap <Leader>g :Gtags 
+nnoremap <Leader>p :Gtags -P 
+nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
+nnoremap <Leader>s :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>f :Gtags -f %<CR>
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
 nnoremap <Leader>Q :cclose<CR>
 nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
+
+"window resizing
+nnoremap <C-u> :resize +10<CR>
+nnoremap <C-d> :resize -10<CR>
 
 "toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-A> :A<CR>
@@ -87,13 +99,13 @@ nnoremap <silent> <C-A> :A<CR>
 nnoremap <C-J> i<CR><Esc>==
 
 "search+replace word under cursor
-nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
+nnoremap <C-s> :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
-nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
+nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
-nnoremap <Leader>f :cgetexpr system(find."")
+nnoremap <C-f> :cgetexpr system(find."")
 
 "generate local C++ tags files
 nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f cpp.tags<CR>
