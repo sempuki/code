@@ -72,8 +72,6 @@ nnoremap <silent> <C-X> :bdelete!<CR>
 
 "ctag searching
 nnoremap <Leader>t :tjump 
-nnoremap t] :tnext 
-nnoremap t[ :tprev 
 
 "gtag searching
 nnoremap <Leader>g :Gtags 
