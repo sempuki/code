@@ -70,22 +70,6 @@ nnoremap <silent> <C-N> :bnext<CR>
 nnoremap <silent> <C-P> :bprevious<CR>
 nnoremap <silent> <C-X> :bdelete!<CR>
 
-"ctag searching
-nnoremap <Leader>t :tjump 
-
-"gtag searching
-nnoremap <Leader>g :Gtags 
-nnoremap <Leader>p :Gtags -P 
-nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>s :Gtags -s <C-R><C-W><CR>
-nnoremap <Leader>f :Gtags -f %<CR>
-
-"quickfix window
-nnoremap <Leader>q :copen<CR>
-nnoremap <Leader>Q :cclose<CR>
-nnoremap ]q :cnext<CR>
-nnoremap [q :cprevious<CR>
-
 "window resizing
 nnoremap <C-u> :resize +10<CR>
 nnoremap <C-d> :resize -10<CR>
@@ -96,11 +80,24 @@ nnoremap <silent> <C-A> :A<CR>
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
 
+"gtag searching
+nnoremap <Leader>t :Gtags 
+nnoremap <Leader>f :Gtags -P 
+nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
+nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>d :Gtags -f %<CR>
+
+"quickfix window
+nnoremap <Leader>q :copen<CR>
+nnoremap <Leader>Q :cclose<CR>
+nnoremap ]q :cnext<CR>
+nnoremap [q :cprevious<CR>
+
 "search+replace word under cursor
-nnoremap <C-s> :,$s/\<<C-R><C-W>\>/
+nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
-nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
+nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
