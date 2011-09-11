@@ -13,8 +13,38 @@
 
 #include <tr1/cstdint>
 #include <cctype>
+#include <climits>
+#include <cassert>
 
 using namespace std;
+
+int string_to_int (const char *str)
+{
+    bool leading = true;
+    int value = 0;
+    int sign = 1;
+
+    if (str)
+    {
+        for (char c; *str; ++str)
+        {
+            if (*str == '-' && leading)
+                sign = -1;
+
+            if (*str == ' ' || *str == '\t')
+                continue;
+            else
+                leading = false;
+
+            c = *str - '0';
+
+            if (c >= 0 && c < 10)
+                value *= 10, value += c;
+        }
+    }
+
+    return sign * value;
+}
 
 char most_frequent_char (char *buf)
 {
@@ -213,6 +243,9 @@ main (int argc, char** argv)
 
     copy (l.begin(), l.end(), ostream_iterator <string> (cout, " "));
     cout << endl;
+
+    cout << string_to_int("  1 234") << endl;
+    cout << string_to_int("-1 234 ") << endl;
 
     return 0;
 }
