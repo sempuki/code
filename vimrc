@@ -3,6 +3,7 @@
 " - gtags.vim               "GNU Global tags (with CTAGSFORCECPP)
 " - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
+" - eclim                   "Eclipse server
 
 "use VIM settings
 set nocompatible
@@ -49,7 +50,7 @@ endif
 " Windows GUI tweaks
 if has("gui_win32")
     autocmd GUIEnter * :simalt ~x
-    set guifont=DejaVu_Sans_Mono:h8
+    set guifont=DejaVu_Sans_Mono:h8:cANSI
     set guioptions-=tT
 endif
 
@@ -124,6 +125,15 @@ let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
 let OmniCpp_MayCompleteScope = 1    "autocomplete after ::
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 
+"Java eclim bindings
+nnoremap <Leader>ji :JavaImport<CR>
+nnoremap <Leader>jd :JavaDocSearch -x declarations<CR>
+nnoremap <Leader>js :JavaSearchContext<CR>
+nnoremap <Leader>ja :JavaGetSet <CR>
+nnoremap <Leader>jc :JavaConstructor <CR>
+nnoremap <Leader>jr :JavaRename
+nnoremap <Leader>jf :%JavaFormat <CR>
+
 "text editing
 
 "list of file encodings to try
@@ -139,3 +149,8 @@ nnoremap <Leader>K :setlocal nospell<CR>
 "add dictionary to ^N completion
 "set dictionary+=/usr/share/dict/words
 "set complete+=k
+
+"Perforce integration
+nnoremap <Leader>a :!p4 add %<CR>
+nnoremap <Leader>e :!p4 edit %<CR>
+
