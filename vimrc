@@ -50,7 +50,7 @@ endif
 " Windows GUI tweaks
 if has("gui_win32")
     autocmd GUIEnter * :simalt ~x
-    set guifont=DejaVu_Sans_Mono:h8:cANSI
+    set guifont=DejaVu_Sans_Mono:h9:cANSI
     set guioptions-=tT
 endif
 
@@ -108,8 +108,12 @@ nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+
 set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --c\#-kinds=cimnp --fields=+iamzS --extra=+fq -f cs.tags<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+iamzS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
+
+"generate local Java tags files
+nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+iamzS --extra=+fq -f java.tags<CR>
+set tags+=./java.tags,java.tags
 
 "look for global tags files
 if filereadable ("C:/Code/")
