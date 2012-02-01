@@ -82,7 +82,7 @@ nnoremap <silent> <C-A> :A<CR>
 nnoremap <C-J> i<CR><Esc>==
 
 "ctag searching
-nnoremap <Leader>t :tag
+nnoremap <Leader>t :tselect
 
 "gtag searching
 "nnoremap <Leader>t :Gtags 
