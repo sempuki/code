@@ -81,12 +81,15 @@ nnoremap <silent> <C-A> :A<CR>
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
 
+"ctag searching
+nnoremap <Leader>t :tag
+
 "gtag searching
-nnoremap <Leader>t :Gtags 
-nnoremap <Leader>f :Gtags -P 
-nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
-nnoremap <Leader>d :Gtags -f %<CR>
+"nnoremap <Leader>t :Gtags 
+"nnoremap <Leader>f :Gtags -P 
+"nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
+"nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
+"nnoremap <Leader>d :Gtags -f %<CR>
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
