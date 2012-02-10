@@ -1,6 +1,6 @@
 " Plugins:
 " - a.vim                   "automatically switch header/impl files
-" - gtags.vim               "GNU Global tags (with CTAGSFORCECPP)
+" - gtags.vim               "GNU Global tags (with GTAGSFORCECPP)
 " - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
 " - eclim                   "Eclipse server
@@ -52,6 +52,7 @@ if has("gui_win32")
     autocmd GUIEnter * :simalt ~x
     set guifont=DejaVu_Sans_Mono:h9:cANSI
     set guioptions-=tT
+    set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif
 
 "quit without saving
@@ -85,11 +86,10 @@ nnoremap <C-J> i<CR><Esc>==
 nnoremap <Leader>t :tjump 
 
 "gtag searching
-"nnoremap <Leader>t :Gtags 
-"nnoremap <Leader>f :Gtags -P 
-"nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-"nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
-"nnoremap <Leader>d :Gtags -f %<CR>
+nnoremap <Leader>f :Gtags -P 
+nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
+nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>d :Gtags -f %<CR>
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
