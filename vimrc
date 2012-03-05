@@ -99,7 +99,7 @@ nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
 
 "search+replace word under cursor
-nnoremap <C-s>s :,$s/\<<C-R><C-W>\>/
+nnoremap <C-s> :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
 nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
