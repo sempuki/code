@@ -83,13 +83,14 @@ nnoremap <silent> <C-A> :A<CR>
 nnoremap <C-J> i<CR><Esc>==
 
 "ctag searching
-nnoremap <Leader>t :tjump 
+nnoremap <Leader>t :tjump<Space>
 
 "gtag searching
-nnoremap <Leader>f :Gtags -P 
 nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
-nnoremap <Leader>d :Gtags -f %<CR>
+nnoremap <Leader>s :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>f :Gtags -f %<CR>
+nnoremap <Leader>p :Gtags -P 
+nnoremap <Leader>g :Gtags -g 
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
@@ -98,10 +99,10 @@ nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
 
 "search+replace word under cursor
-nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
+nnoremap <C-s>s :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
-nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
+nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
