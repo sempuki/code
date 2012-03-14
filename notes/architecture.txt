@@ -1,0 +1,18 @@
+* Reactive Data-flow Oriented Processing
+- "game map-reduce event processing"
+= input events are transient and held in stream buffer
+= game entities are scene persistent and composed of component arrays
+= entity controllers are continuous modifiers of component or controller state over time
+-- event map: incoming events from an input queue into a descending series of ever more specialized consumption queues
+--- filter, transform (flyweight/proxy/handle, copy, move, construct, destroy, etc.)
+--- can be done in parallel
+--- presumed that sum of sizes of each subqueue O(n)
+-- event reduce: the contents of each remaining queue are consumed entirely by a terminal process
+- end result of input stream processing is often a change of state of entity-components
+- dirty state is recorded in each entity or component
+-- controller: 
+-- component processing of entities proceeds similarly
+--- component map: for each processing routine, build a map of dirty or otherwise interesting components
+--- component reduce: for each interest map, queue and process components
+- each map/reduce step is scheduled in a central task-stealing concurrent framework
+-- no dependencies in mappings, but implicit dependencies may exist in reductions
