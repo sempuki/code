@@ -10,7 +10,8 @@
 -- event reduce: the contents of each remaining queue are consumed entirely by a terminal process
 - end result of input stream processing is often a change of state of entity-components
 - dirty state is recorded in each entity or component
--- controller: 
+-- controller: ?
+-- file streaming: ?
 -- component processing of entities proceeds similarly
 --- component map: for each processing routine, build a map of dirty or otherwise interesting components
 --- component reduce: for each interest map, queue and process components
