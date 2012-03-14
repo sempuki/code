@@ -1,8 +1,9 @@
 " Plugins:
 " - a.vim                   "automatically switch header/impl files
-" - gtags.vim               "GNU Global tags (with CTAGSFORCECPP)
+" - gtags.vim               "GNU Global tags (with GTAGSFORCECPP)
 " - matchit.vim             "extend vim's matching operator
 " - OmniCppComplete         "C++ omnifunc
+" - eclim                   "Eclipse server
 
 "use VIM settings
 set nocompatible
@@ -49,8 +50,9 @@ endif
 " Windows GUI tweaks
 if has("gui_win32")
     autocmd GUIEnter * :simalt ~x
-    set guifont=DejaVu_Sans_Mono:h8
+    set guifont=DejaVu_Sans_Mono:h9:cANSI
     set guioptions-=tT
+    set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif
 
 "quit without saving
@@ -80,12 +82,15 @@ nnoremap <silent> <C-A> :A<CR>
 "insert newline
 nnoremap <C-J> i<CR><Esc>==
 
+"ctag searching
+nnoremap <Leader>t :tjump<Space>
+
 "gtag searching
-nnoremap <Leader>t :Gtags 
-nnoremap <Leader>f :Gtags -P 
 nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>o :Gtags -s <C-R><C-W><CR>
-nnoremap <Leader>d :Gtags -f %<CR>
+nnoremap <Leader>s :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>f :Gtags -f %<CR>
+nnoremap <Leader>p :Gtags -P 
+nnoremap <Leader>g :Gtags -g 
 
 "quickfix window
 nnoremap <Leader>q :copen<CR>
@@ -94,10 +99,10 @@ nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
 
 "search+replace word under cursor
-nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
+nnoremap <C-s> :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
-nnoremap <Leader>g :vimgrep /\<<C-R><C-W>\>/gj %:h
+nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
@@ -107,8 +112,12 @@ nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+
 set tags+=./cpp.tags,cpp.tags
 
 "generate local C# tags files
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --c\#-kinds=cimnp --fields=+iamzS --extra=+fq -f cs.tags<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+iamzS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
+
+"generate local Java tags files
+nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+iamzS --extra=+fq -f java.tags<CR>
+set tags+=./java.tags,java.tags
 
 "look for global tags files
 if filereadable ("C:/Code/")
@@ -123,6 +132,15 @@ set completeopt-=preview            "disable annoying window
 let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
 let OmniCpp_MayCompleteScope = 1    "autocomplete after ::
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
+
+"Java eclim bindings
+nnoremap <Leader>ji :JavaImport<CR>
+nnoremap <Leader>jd :JavaDocSearch -x declarations<CR>
+nnoremap <Leader>js :JavaSearchContext<CR>
+nnoremap <Leader>ja :JavaGetSet <CR>
+nnoremap <Leader>jc :JavaConstructor <CR>
+nnoremap <Leader>jr :JavaRename
+nnoremap <Leader>jf :%JavaFormat <CR>
 
 "text editing
 
@@ -139,3 +157,8 @@ nnoremap <Leader>K :setlocal nospell<CR>
 "add dictionary to ^N completion
 "set dictionary+=/usr/share/dict/words
 "set complete+=k
+
+"Perforce integration
+nnoremap <Leader>a :!p4 add %<CR>
+nnoremap <Leader>e :!p4 edit %<CR>
+

@@ -40,6 +40,25 @@ moc_*.cxx_parameters
 qrc_*.cxx
 ui_*.h
 
+# Game asset files
+*.ma
+*.mel
+*.fbx
+*.ase
+*.psa
+*.psd
+*.PSK
+*.swf
+*.avi
+*.fla
+*.mpeg
+*.tga
+*.png
+*.wav
+*.don
+*.ztl
+*.cgfx
+
 # Python files
 *.pyc
 
