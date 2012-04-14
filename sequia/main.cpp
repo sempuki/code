@@ -1,7 +1,6 @@
 #include <iostream>
 #include <algorithm>
 #include <type_traits>
-#include <string>
 
 #include <cstdint>
 #include <cassert> // TODO: assertf
@@ -24,6 +23,15 @@ namespace traits
 
 namespace sequia
 {
+    template <typename T>
+    struct buffer
+    {
+        size_t  size;
+        T       *data;
+    
+        buffer (size_t s, T *b) : size (s), data (b) {}
+    };
+
     template <typename T>
     class stream
     {
@@ -57,12 +65,13 @@ namespace sequia
             {
                 E *ptr = reinterpret_cast<E *> (tail_);
                 E *begin = reinterpret_cast<E *> (begin_);
-                E *end = reinterpret_cast<E *> (end);
+                E *end = reinterpret_cast<E *> (end_);
 
-                *ptr++ = e; 
+                *ptr = e, ++ptr;
                 ptr = (ptr < end)? ptr : ptr - end + begin;
 
                 tail_ = reinterpret_cast<T *> (ptr);
+                assert(tail_ <= end_);
 
                 return true;
             }
@@ -72,12 +81,47 @@ namespace sequia
             {
                 E *ptr = reinterpret_cast<E *> (head_);
                 E *begin = reinterpret_cast<E *> (begin_);
-                E *end = reinterpret_cast<E *> (end);
+                E *end = reinterpret_cast<E *> (end_);
 
-                e = *ptr++;
+                e = *ptr, ++ptr;
                 ptr = (ptr < end)? ptr : ptr - end + begin;
 
                 head_ = reinterpret_cast<T *> (ptr);
+                assert(head_ <= end_);
+
+                return true;
+            }
+
+            template <typename U>
+            inline bool put (buffer<U> const &b, traits::default_serializable_tag)
+            {
+                U *ptr = reinterpret_cast<U *> (head_);
+                U *begin = reinterpret_cast<U *> (begin_);
+                U *end = reinterpret_cast<U *> (end_);
+
+                *ptr = b.size; ++ptr;
+                memcpy(ptr, b.data, b.size * sizeof(U)), ptr += b.size;
+                ptr = (ptr < end)? ptr : ptr - end + begin;
+
+                head_ = reinterpret_cast<T *> (ptr);
+                assert(head_ <= end_);
+
+                return true;
+            }
+
+            template <typename U>
+            inline bool get (buffer<U> &b, traits::default_serializable_tag)
+            {
+                U *ptr = reinterpret_cast<U *> (tail_);
+                U *begin = reinterpret_cast<U *> (begin_);
+                U *end = reinterpret_cast<U *> (end_);
+
+                b.size = *ptr, ++ptr;
+                memcpy(b.data, ptr, b.size * sizeof(U)), ptr += b.size;
+                ptr = (ptr < end)? ptr : ptr - end + begin;
+
+                tail_ = reinterpret_cast<T *> (ptr);
+                assert(tail_ <= end_);
 
                 return true;
             }
@@ -107,26 +151,25 @@ namespace App
     class Test
     {
         public:
-            Test(int a, float b, char c, string d)
-                : a_(a), b_(b), c_(c), d_(d) {}
+            Test(int a, float b, char c)
+                : a_(a), b_(b), c_(c) {}
 
             template <typename T>
             bool serialize (sequia::stream<T> *s) const
             {
-                s << a_ << b_ << c_ << d_;
+                *s << a_ << b_ << c_;
             }
 
             template <typename T>
             bool deserialize (sequia::stream<T> *s)
             {
-                s >> a_ >> b_ >> c_ >> d_;
+                *s >> a_ >> b_ >> c_;
             }
 
         private:
             int     a_;
             float   b_;
             char    c_;
-            string  d_;
     };
 }
 
@@ -146,9 +189,11 @@ int main(int argc, char **argv)
     uint8_t buf[N];
 
     sequia::stream<uint8_t> stream (buf, N);
-    App::Test test (1, 0.1, 'a', "test");
+    App::Test in (1, 0.1, 'a');
+    App::Test out (0, 0.0, 0);
     
-    stream << N;
+    stream << in;
+    stream >> out;
 
     return 0; 
 }
