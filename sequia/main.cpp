@@ -1,10 +1,10 @@
 #include <iostream>
-#include <vector>
 #include <algorithm>
 
 #include <cstdint>
 #include <cassert> // TODO: assertf
 
+#include "memory.hpp"
 #include "stream.hpp"
 #include "container.hpp"
 
@@ -59,8 +59,13 @@ int main(int argc, char **argv)
     stream << in;
     stream >> out;
 
-    sequia::null_allocator<int>
-    vector <int, > vec;
+    std::vector<int, sequia::stack_allocator<int, 10>> vec {sequia::stack_allocator<int, 10>()};
+
+    for (int i=0; i < 10; ++i)
+        vec.push_back (i);
+
+    for (int i=0; i < 10; ++i)
+        cout << vec[i] << endl;
 
     return 0; 
 }

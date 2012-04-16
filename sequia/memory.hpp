@@ -1,28 +1,38 @@
 #ifndef _MEMORY_HPP_
 #define _MEMORY_HPP_
 
+#include <cstddef>
+
 namespace sequia
 {
+    //=========================================================================
+    
     template <typename T>
     struct buffer
     {
         size_t  size;
-        T       *data;
-    
-        buffer (size_t s, T *b) : size (s), data (b) {}
+        T       *mem;
+
+        buffer () : size (0), mem (0) {}
+        buffer (size_t s, T *m) : size (s), mem (m) {}
+        buffer (size_t s, void *m) : size (s / sizeof(T)), mem (static_cast<T *>(m)) {}
     };
 
+    //=========================================================================
+    
     template <class T>
     class allocator_base 
     {
         public:
-            typedef T                value_type;
-            typedef T*               pointer;
-            typedef const T*         const_pointer;
-            typedef T&               reference;
-            typedef const T&         const_reference;
-            typedef std::size_t      size_type;
-            typedef std::ptrdiff_t   difference_type;
+            typedef T           value_type;
+            typedef T*          pointer;
+            typedef const T*    const_pointer;
+            typedef T&          reference;
+            typedef const T&    const_reference;
+            typedef size_t      size_type;
+            typedef ptrdiff_t   difference_type;
+
+            template <class U> struct rebind { typedef allocator_base<U> other; };
 
             pointer address (reference value) const { return &value; }
             const_pointer address (const_reference value) const { return &value; }
@@ -30,9 +40,6 @@ namespace sequia
             template<typename... Args>
             void construct (pointer p, Args&&... args) { new ((void *)p) T (std::forward<Args>(args)...); }
             void destroy (pointer p) { p->~T(); }
-
-            template <class U> struct rebind { typedef allocator_base<U> other; };
-            template <class U> allocator_base (allocator_base<U> const &) {}
 
             size_type max_size () const;
             pointer allocate (size_type num, const void* hint = 0);
@@ -58,66 +65,69 @@ namespace sequia
     // functional so long as one doesn't splice between node-based containers 
     // or swap whole containers.
 
+    //-------------------------------------------------------------------------
+
     template <typename T>
     class fixed_allocator : public allocator_base <T>
     {
         public:
-            template <class U> 
-            struct rebind { typedef allocator_base<U> other; };
+            typedef allocator_base <T>                      parent_type;
+            typedef typename parent_type::value_type        value_type;
+            typedef typename parent_type::pointer           pointer;
+            typedef typename parent_type::const_pointer     const_pointer;
+            typedef typename parent_type::reference         reference;
+            typedef typename parent_type::const_reference   const_reference;
+            typedef typename parent_type::size_type         size_type;
+            typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            fixed_allocator (fixed_allocator<U> const &r) : 
-                mem_ (r.mem_), size_ (r.size_) 
-            {}
+            struct rebind { typedef fixed_allocator<U> other; };
 
-            fixed_allocator (void *m, size_t s) : 
-                mem_ (m), size_ (s) {}
+            template <class U> 
+            fixed_allocator (fixed_allocator<U> const &r) : buf_ (r.buf_) {}
+            fixed_allocator (size_type size, void *mem) : buf_ (size, mem) {}
 
-            size_type max_size () const 
-            { 
-                return size_; 
-            }
-
-            pointer allocate (size_type num, const void* = 0) 
-            { 
-                return mem_ / sizeof(T); 
-            }
-
-            void deallocate (pointer p, size_type num) 
-            {
-            }
+            size_type max_size () const { return buf_.size; }
+            pointer allocate (size_type num, const void* = 0) { return buf_.mem; }
+            void deallocate (pointer p, size_type num) {}
 
         private:
-            void    *mem_;
-            size_t  size_;
+            buffer<T>   buf_;
     };
 
     template <class T1, class T2>
     bool operator== (fixed_allocator <T1> const &a, fixed_allocator <T2> const &b)
     {
-        return a.mem_ == b.mem_;
+        return a.buf_.mem == b.buf_.mem;
     }
 
     template <class T1, class T2>
     bool operator!= (fixed_allocator <T1> const &a, fixed_allocator <T2> const &b)
     {
-        return a.mem_ != b.mem_;
+        return a.buf_.mem != b.buf_.mem;
     }
+
+    //-------------------------------------------------------------------------
 
     template <typename T, size_t N>
     class stack_allocator : public fixed_allocator <T>
     {
         public:
-            template <class U> 
-            struct rebind { typedef allocator_base<U> other; };
+            typedef fixed_allocator <T>                     parent_type;
+            typedef typename parent_type::value_type        value_type;
+            typedef typename parent_type::pointer           pointer;
+            typedef typename parent_type::const_pointer     const_pointer;
+            typedef typename parent_type::reference         reference;
+            typedef typename parent_type::const_reference   const_reference;
+            typedef typename parent_type::size_type         size_type;
+            typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            allocator_base (stack_allocator<U> const &r) : 
-                mem_ (r.mem_), size_ (r.size_) {}
+            struct rebind { typedef stack_allocator<U, N> other; };
 
-            stack_allocator () : fixed_allocator (mem_, N) {}
-            stack_allocator (stack_allocator const &) = default;
-            ~stack_allocator () = default;
+            template <class U> 
+            stack_allocator (stack_allocator<U, N> const &r) : fixed_allocator <T> (r) {}
+            stack_allocator () : fixed_allocator <T> (N * sizeof(T), mem_) {}
         
         private:
             T   mem_[N];

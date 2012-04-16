@@ -1,6 +1,8 @@
 #ifndef _STREAM_HPP_
 #define _STREAM_HPP_
 
+#include "memory.hpp"
+
 namespace traits
 {
     struct default_serializable_tag {};
@@ -83,7 +85,7 @@ namespace sequia
                 U *end = reinterpret_cast<U *> (end_);
 
                 *ptr = b.size; ++ptr;
-                memcpy(ptr, b.data, b.size * sizeof(U)), ptr += b.size;
+                memcpy(ptr, b.mem, b.size * sizeof(U)), ptr += b.size;
                 ptr = (ptr < end)? ptr : ptr - end + begin;
 
                 head_ = reinterpret_cast<T *> (ptr);
@@ -100,7 +102,7 @@ namespace sequia
                 U *end = reinterpret_cast<U *> (end_);
 
                 b.size = *ptr, ++ptr;
-                memcpy(b.data, ptr, b.size * sizeof(U)), ptr += b.size;
+                memcpy(b.mem, ptr, b.size * sizeof(U)), ptr += b.size;
                 ptr = (ptr < end)? ptr : ptr - end + begin;
 
                 tail_ = reinterpret_cast<T *> (ptr);
