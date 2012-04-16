@@ -87,7 +87,7 @@ nnoremap <Leader>t :tjump<Space>
 
 "gtag searching
 nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>s :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
 nnoremap <Leader>f :Gtags -f %<CR>
 nnoremap <Leader>p :Gtags -P 
 nnoremap <Leader>g :Gtags -g 
@@ -99,7 +99,7 @@ nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
 
 "search+replace word under cursor
-nnoremap <C-s> :,$s/\<<C-R><C-W>\>/
+nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
 nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
