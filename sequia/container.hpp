@@ -5,9 +5,28 @@
 
 namespace sequia
 {
-    // TODO GCC 4.7
-    //template <typename T, size_t N> typedef std::vector<T, stack_allocator<T, N>> fixedvector;
-    //template <typename T, size_t N> fixedvector make_fixedvector() { return fixedvector {stack_allocator<T, N>()}; }
+    template <typename T, size_t N>
+    class fixedvector : 
+        private stack_identity_allocator<T, N>,
+        public std::vector<T, stack_identity_allocator<T, N>>
+    {
+        public:
+            typedef stack_identity_allocator<T, N>  allocator_type; 
+            typedef std::vector<T, allocator_type>  container_type;
+
+            explicit fixedvector () : 
+                container_type ((allocator_type) *this) {}
+            
+            explicit fixedvector (size_t n, const T &value = T()) : 
+                container_type (n, value, (allocator_type) *this) {}
+            
+            fixedvector (fixedvector const &copy) : 
+                container_type (copy, (allocator_type) *this) {}
+
+            template <class InIterator> 
+            fixedvector (InIterator first, InIterator last) : 
+                container_type (first, last, (allocator_type) *this) {}
+    };
 }
 
 #endif

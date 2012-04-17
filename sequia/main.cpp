@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     stream << in;
     stream >> out;
 
-    std::vector<int, sequia::stack_allocator<int, 10>> vec {sequia::stack_allocator<int, 10>()};
+    sequia::fixedvector<int, 10> vec;
 
     for (int i=0; i < 10; ++i)
         vec.push_back (i);

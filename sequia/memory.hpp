@@ -68,7 +68,7 @@ namespace sequia
     //-------------------------------------------------------------------------
 
     template <typename T>
-    class fixed_allocator : public allocator_base <T>
+    class identity_allocator : public allocator_base <T>
     {
         public:
             typedef allocator_base <T>                      parent_type;
@@ -81,39 +81,49 @@ namespace sequia
             typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            struct rebind { typedef fixed_allocator<U> other; };
+            struct rebind { typedef identity_allocator<U> other; };
 
             template <class U> 
-            fixed_allocator (fixed_allocator<U> const &r) : buf_ (r.buf_) {}
-            fixed_allocator (size_type size, void *mem) : buf_ (size, mem) {}
+            identity_allocator (identity_allocator<U> const &r) : buf_ (r.buf_) {}
+            identity_allocator (size_type size, pointer mem) : buf_ (size, mem) {}
 
-            size_type max_size () const { return buf_.size; }
-            pointer allocate (size_type num, const void* = 0) { return buf_.mem; }
-            void deallocate (pointer p, size_type num) {}
+            size_type max_size () const 
+            { 
+                return buf_.size;
+            }
+
+            pointer allocate (size_type num, const void* = 0) 
+            { 
+                assert (num <= max_size());
+                return buf_.mem; 
+            }
+
+            void deallocate (pointer p, size_type num) 
+            {}
 
         private:
             buffer<T>   buf_;
     };
 
     template <class T1, class T2>
-    bool operator== (fixed_allocator <T1> const &a, fixed_allocator <T2> const &b)
+    bool operator== (identity_allocator <T1> const &a, identity_allocator <T2> const &b)
     {
         return a.buf_.mem == b.buf_.mem;
     }
 
     template <class T1, class T2>
-    bool operator!= (fixed_allocator <T1> const &a, fixed_allocator <T2> const &b)
+    bool operator!= (identity_allocator <T1> const &a, identity_allocator <T2> const &b)
     {
         return a.buf_.mem != b.buf_.mem;
     }
 
     //-------------------------------------------------------------------------
 
-    template <typename T, size_t N>
-    class stack_allocator : public fixed_allocator <T>
+    template <typename T, typename identity_allocator<T>::size_type N>
+    class stack_identity_allocator : public identity_allocator <T>
     {
         public:
-            typedef fixed_allocator <T>                     parent_type;
+            typedef identity_allocator <T>                  parent_type;
             typedef typename parent_type::value_type        value_type;
             typedef typename parent_type::pointer           pointer;
             typedef typename parent_type::const_pointer     const_pointer;
@@ -123,14 +133,14 @@ namespace sequia
             typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            struct rebind { typedef stack_allocator<U, N> other; };
+            struct rebind { typedef stack_identity_allocator<U, N> other; };
 
             template <class U> 
-            stack_allocator (stack_allocator<U, N> const &r) : fixed_allocator <T> (r) {}
-            stack_allocator () : fixed_allocator <T> (N * sizeof(T), mem_) {}
+            stack_identity_allocator (stack_identity_allocator<U, N> const &r) : parent_type (r) {}
+            stack_identity_allocator () : parent_type (N, mem_) {}
         
         private:
-            T   mem_[N];
+            value_type  mem_[N];
     };
 
 }
