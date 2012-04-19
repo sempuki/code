@@ -216,10 +216,11 @@ namespace sequia
 
                 for (i = 0; i < size - 1; ++i)
                 {
-                    printf("0x%x\n", base + i);
+                    printf("0x%x <- %d\n", base + i, i + 1);
                     *(reinterpret_cast <index_type *> (base + i)) = i + 1;
                 }
 
+                printf("0x%x <- %d\n", base + i, 0);
                 *(reinterpret_cast <index_type *> (base + i)) = 0;
             }
 
@@ -233,6 +234,7 @@ namespace sequia
                 assert (num == 1);
 
                 index_type i = *(reinterpret_cast <index_type *> (pfree_));
+                printf("0x%x -> %d\n", pfree_, i);
                 assert (i < buf_.size);
 
                 pointer ptr = pfree_;
