@@ -60,6 +60,8 @@ int main(int argc, char **argv)
     stream >> out;
 
     sequia::fixedvector<10, int> vec;
+    cout << sizeof(std::vector<int>) << endl;
+    cout << sizeof(vec) << endl;
 
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -68,6 +70,8 @@ int main(int argc, char **argv)
         cout << vec[i] << endl;
 
     sequia::fixedmap<10, int, int> map;
+    cout << sizeof(std::map<int,int>) << endl;
+    cout << sizeof(map) << endl;
 
     for (int i=0; i < 10; i++)
         map[i] = i;

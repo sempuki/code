@@ -2,9 +2,42 @@
 #define _MEMORY_HPP_
 
 #include <cstddef>
+#include <cstdio>
 
 namespace sequia
 {
+    //=========================================================================
+
+    constexpr uint64_t one = 1;
+
+    constexpr size_t min_num_bytes (uint64_t value)
+    {
+       return 
+           (value < (one << 8))? 1 : 
+           (value < (one << 16) || 0 == (one << 16))? 2 : 
+           (value < (one << 32) || 0 == (one << 32))? 4 : 8;
+    }
+
+    constexpr size_t min_num_bytes (int64_t value)
+    {
+        return 
+            ((value > -(one << 7)) && (value < (one << 7)))? 1 :
+            ((value > -(one << 15)) && (value < (one << 15)))? 2 :
+            ((value > -(one << 31)) && (value < (one << 31)))? 4 : 8;
+    }
+
+    template <size_t N> struct min_word_type {};
+    template <> struct min_word_type <1u> { typedef uint8_t result; };
+    template <> struct min_word_type <2u> { typedef uint16_t result; };
+    template <> struct min_word_type <4u> { typedef uint32_t result; };
+    template <> struct min_word_type <8u> { typedef uint64_t result; };
+    
+    template <size_t N> 
+    struct min_word_size 
+    { 
+        typedef typename min_word_type<min_num_bytes(N)>::result type;
+    };
+
     //=========================================================================
     
     template <typename T>
@@ -20,6 +53,9 @@ namespace sequia
 
     //=========================================================================
     
+    //-------------------------------------------------------------------------
+    // Implements base allocator requirements
+
     template <class T>
     class allocator_base 
     {
@@ -58,6 +94,27 @@ namespace sequia
         return false;
     }
 
+    //-------------------------------------------------------------------------
+    // Used to pass a specifed allocator during rebind
+
+    template <typename T, typename AllocatorType>
+    class rebind_allocator : public allocator_base <T>
+    {
+        public:
+            typedef allocator_base <T>                      parent_type;
+
+            typedef typename parent_type::value_type        value_type;
+            typedef typename parent_type::pointer           pointer;
+            typedef typename parent_type::const_pointer     const_pointer;
+            typedef typename parent_type::reference         reference;
+            typedef typename parent_type::const_reference   const_reference;
+            typedef typename parent_type::size_type         size_type;
+            typedef typename parent_type::difference_type   difference_type;
+
+            template <class U> 
+            struct rebind { typedef AllocatorType other; };
+    };
+
     //=========================================================================
     // Stateful Allocators
     //
@@ -73,6 +130,7 @@ namespace sequia
     {
         public:
             typedef allocator_base <T>                      parent_type;
+
             typedef typename parent_type::value_type        value_type;
             typedef typename parent_type::pointer           pointer;
             typedef typename parent_type::const_pointer     const_pointer;
@@ -121,13 +179,15 @@ namespace sequia
 
 
     //-------------------------------------------------------------------------
-    // Only allocates single elements per call
+    // Only allocates single element per call
 
-    template <typename T>
+    template <typename T, typename IndexType>
     class unity_allocator : public allocator_base <T>
     {
         public:
             typedef allocator_base <T>                      parent_type;
+
+            typedef IndexType                               index_type;
             typedef typename parent_type::value_type        value_type;
             typedef typename parent_type::pointer           pointer;
             typedef typename parent_type::const_pointer     const_pointer;
@@ -136,22 +196,31 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
-            template <class U> 
-            struct rebind { typedef unity_allocator<U> other; };
+            static_assert (sizeof(value_type) >= sizeof(index_type), 
+                    "sizeof(T) too small for free list index.");
 
             template <class U> 
-            unity_allocator (unity_allocator<U> const &r) : 
+            struct rebind { typedef unity_allocator<U, index_type> other; };
+
+            template <class U> 
+            unity_allocator (unity_allocator<U, index_type> const &r) : 
                 buf_ (r.buf_) {}
     
             unity_allocator (size_type size, pointer mem) : 
                 buf_ (size, mem), nfree_ (size), pfree_ (mem)
             {
-                // build implicit linked free list
-                pointer ptr = mem; 
-                pointer end = mem + (size - 1);
-                for (; ptr < end; ++ptr)
-                    *(reinterpret_cast <pointer *> (ptr)) = ptr+1;
-                *(reinterpret_cast <pointer *> (ptr)) = 0;
+                assert (size < (one << (sizeof(index_type) * 8)));
+
+                index_type i;
+                pointer base = buf_.mem;
+
+                for (i = 0; i < size - 1; ++i)
+                {
+                    printf("0x%x\n", base + i);
+                    *(reinterpret_cast <index_type *> (base + i)) = i + 1;
+                }
+
+                *(reinterpret_cast <index_type *> (base + i)) = 0;
             }
 
             size_type max_size () const 
@@ -163,8 +232,11 @@ namespace sequia
             { 
                 assert (num == 1);
 
+                index_type i = *(reinterpret_cast <index_type *> (pfree_));
+                assert (i < buf_.size);
+
                 pointer ptr = pfree_;
-                pfree_ = *(reinterpret_cast <pointer *> (pfree_));
+                pfree_ = buf_.mem + i;
                 nfree_--;
 
                 return ptr;
@@ -174,7 +246,10 @@ namespace sequia
             {
                 assert (num == 1);
 
-                *(reinterpret_cast <pointer *> (ptr)) = pfree_;
+                index_type i = pfree_ - buf_.mem;
+                assert (i < buf_.size);
+
+                *(reinterpret_cast <index_type *> (ptr)) = i;
                 pfree_ = ptr;
                 nfree_++;
             }
@@ -185,14 +260,14 @@ namespace sequia
             pointer             pfree_;
     };
 
-    template <class T1, class T2>
-    bool operator== (unity_allocator <T1> const &a, unity_allocator <T2> const &b)
+    template <typename T1, typename I1, typename T2, typename I2>
+    bool operator== (unity_allocator <T1, I1> const &a, unity_allocator <T2, I2> const &b)
     {
         return a.buf_.mem == b.buf_.mem;
     }
 
-    template <class T1, class T2>
-    bool operator!= (unity_allocator <T1> const &a, unity_allocator <T2> const &b)
+    template <typename T1, typename I1, typename T2, typename I2>
+    bool operator!= (unity_allocator <T1, I2> const &a, unity_allocator <T2, I2> const &b)
     {
         return a.buf_.mem != b.buf_.mem;
     }
@@ -200,10 +275,11 @@ namespace sequia
     //-------------------------------------------------------------------------
 
     template <size_t N, typename T>
-    class stack_identity_allocator : public identity_allocator <T>
+    class fixed_identity_allocator : public identity_allocator <T>
     {
         public:
             typedef identity_allocator <T>                  parent_type;
+
             typedef typename parent_type::value_type        value_type;
             typedef typename parent_type::pointer           pointer;
             typedef typename parent_type::const_pointer     const_pointer;
@@ -213,11 +289,11 @@ namespace sequia
             typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            struct rebind { typedef stack_identity_allocator<N, U> other; };
+            struct rebind { typedef fixed_identity_allocator<N, U> other; };
 
             template <class U> 
-            stack_identity_allocator (stack_identity_allocator<N, U> const &r) : parent_type (N, mem_) {}
-            stack_identity_allocator () : parent_type (N, mem_) {}
+            fixed_identity_allocator (fixed_identity_allocator<N, U> const &r) : parent_type (N, mem_) {}
+            fixed_identity_allocator () : parent_type (N, mem_) {}
         
         private:
             value_type  mem_[N];
@@ -225,10 +301,12 @@ namespace sequia
 
 
     template <size_t N, typename T>
-    class stack_unity_allocator : public unity_allocator <T>
+    class fixed_unity_allocator : public unity_allocator <T, typename min_word_size<N>::type>
     {
         public:
-            typedef unity_allocator <T>                     parent_type;
+            typedef unity_allocator<T, typename min_word_size<N>::type> parent_type;
+
+            typedef typename parent_type::index_type        index_type;
             typedef typename parent_type::value_type        value_type;
             typedef typename parent_type::pointer           pointer;
             typedef typename parent_type::const_pointer     const_pointer;
@@ -238,11 +316,11 @@ namespace sequia
             typedef typename parent_type::difference_type   difference_type;
 
             template <class U> 
-            struct rebind { typedef stack_unity_allocator<N, U> other; };
+            struct rebind { typedef fixed_unity_allocator<N, U> other; };
 
             template <class U> 
-            stack_unity_allocator (stack_unity_allocator<N, U> const &r) : parent_type (N, mem_) {}
-            stack_unity_allocator () : parent_type (N, mem_) {}
+            fixed_unity_allocator (fixed_unity_allocator<N, U> const &r) : parent_type (N, mem_) {}
+            fixed_unity_allocator () : parent_type (N, mem_) {}
         
         private:
             value_type  mem_[N];
