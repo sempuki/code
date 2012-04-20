@@ -6,6 +6,8 @@
 
 namespace sequia
 {
+    // GCC 4.7 TODO template aliases
+    
     template <size_t N, typename T>
     class fixedvector : 
         public std::vector <T, fixed_identity_allocator <N, T>>

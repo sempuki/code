@@ -180,6 +180,7 @@ namespace sequia
 
     //-------------------------------------------------------------------------
     // Only allocates single element per call
+    // Uses an embedded index-based linked free list
 
     template <typename T, typename IndexType>
     class unity_allocator : public allocator_base <T>
@@ -214,14 +215,8 @@ namespace sequia
                 index_type i;
                 pointer base = buf_.mem;
 
-                for (i = 0; i < size - 1; ++i)
-                {
-                    printf("0x%x <- %d\n", base + i, i + 1);
+                for (i = 0; i < size; ++i)
                     *(reinterpret_cast <index_type *> (base + i)) = i + 1;
-                }
-
-                printf("0x%x <- %d\n", base + i, 0);
-                *(reinterpret_cast <index_type *> (base + i)) = 0;
             }
 
             size_type max_size () const 
@@ -232,11 +227,9 @@ namespace sequia
             pointer allocate (size_type num, const void* = 0) 
             { 
                 assert (num == 1);
+                assert ((pfree_ >= buf_.mem) && (pfree_ < buf_.mem + buf_.size));
 
                 index_type i = *(reinterpret_cast <index_type *> (pfree_));
-                printf("0x%x -> %d\n", pfree_, i);
-                assert (i < buf_.size);
-
                 pointer ptr = pfree_;
                 pfree_ = buf_.mem + i;
                 nfree_--;
@@ -247,10 +240,9 @@ namespace sequia
             void deallocate (pointer ptr, size_type num) 
             {
                 assert (num == 1);
+                assert ((ptr >= buf_.mem) && (ptr < buf_.mem + buf_.size));
 
                 index_type i = pfree_ - buf_.mem;
-                assert (i < buf_.size);
-
                 *(reinterpret_cast <index_type *> (ptr)) = i;
                 pfree_ = ptr;
                 nfree_++;
@@ -290,23 +282,28 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
+            static constexpr size_t mem_size = N * sizeof(value_type);
+
             template <class U> 
             struct rebind { typedef fixed_identity_allocator<N, U> other; };
 
             template <class U> 
-            fixed_identity_allocator (fixed_identity_allocator<N, U> const &r) : parent_type (N, mem_) {}
-            fixed_identity_allocator () : parent_type (N, mem_) {}
+            fixed_identity_allocator (fixed_identity_allocator<N, U> const &r) : 
+                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+
+            fixed_identity_allocator () : 
+                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
         
         private:
-            value_type  mem_[N];
+            uint8_t  mem_[mem_size]; // uninitialized memory
     };
 
 
     template <size_t N, typename T>
-    class fixed_unity_allocator : public unity_allocator <T, typename min_word_size<N>::type>
+    class fixed_unity_allocator : public unity_allocator <T, typename min_word_size<N-1>::type>
     {
         public:
-            typedef unity_allocator<T, typename min_word_size<N>::type> parent_type;
+            typedef unity_allocator<T, typename min_word_size<N-1>::type> parent_type;
 
             typedef typename parent_type::index_type        index_type;
             typedef typename parent_type::value_type        value_type;
@@ -317,15 +314,20 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
+            static constexpr size_t mem_size = N * sizeof(value_type);
+
             template <class U> 
             struct rebind { typedef fixed_unity_allocator<N, U> other; };
 
             template <class U> 
-            fixed_unity_allocator (fixed_unity_allocator<N, U> const &r) : parent_type (N, mem_) {}
-            fixed_unity_allocator () : parent_type (N, mem_) {}
+            fixed_unity_allocator (fixed_unity_allocator<N, U> const &r) : 
+                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+
+            fixed_unity_allocator () : 
+                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
         
         private:
-            value_type  mem_[N];
+            uint8_t  mem_[mem_size]; // uninitialized memory
     };
 
 }
