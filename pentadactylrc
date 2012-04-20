@@ -1,4 +1,0 @@
-set titlestring="browser"
-set guioptions+=m
-"set wildoptions=auto
-set hlsearch
