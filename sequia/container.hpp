@@ -16,7 +16,7 @@ namespace sequia
 
     template <size_t N, typename K, typename V, typename Compare = std::less<K>>
     class fixedmap : 
-        public std::map<K, V, Compare, rebind_allocator <std::pair<const K, V>, fixed_unity_allocator <N, std::pair <const K, V>>>>
+        public std::map<K, V, Compare, rebind_allocator <fixed_unity_allocator <N, std::pair <const K, V>>>>
     {
     };
 }
