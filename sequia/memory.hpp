@@ -1,62 +1,17 @@
 #ifndef _MEMORY_HPP_
 #define _MEMORY_HPP_
 
-#include <cstddef>
-#include <cstdio>
+#include <vector>
+#include "core.hpp"
 
 namespace sequia
 {
-    //=========================================================================
-
-    constexpr uint64_t one = 1;
-
-    constexpr size_t min_num_bytes (uint64_t value)
-    {
-       return 
-           (value < (one << 8))? 1 : 
-           (value < (one << 16) || 0 == (one << 16))? 2 : 
-           (value < (one << 32) || 0 == (one << 32))? 4 : 8;
-    }
-
-    constexpr size_t min_num_bytes (int64_t value)
-    {
-        return 
-            ((value > -(one << 7)) && (value < (one << 7)))? 1 :
-            ((value > -(one << 15)) && (value < (one << 15)))? 2 :
-            ((value > -(one << 31)) && (value < (one << 31)))? 4 : 8;
-    }
-
-    template <size_t N> struct min_word_type {};
-    template <> struct min_word_type <1u> { typedef uint8_t result; };
-    template <> struct min_word_type <2u> { typedef uint16_t result; };
-    template <> struct min_word_type <4u> { typedef uint32_t result; };
-    template <> struct min_word_type <8u> { typedef uint64_t result; };
-    
-    template <size_t N> 
-    struct min_word_size 
-    { 
-        typedef typename min_word_type<min_num_bytes(N)>::result type;
-    };
-
-    //=========================================================================
-    
-    template <typename T>
-    struct buffer
-    {
-        size_t  size;
-        T       *mem;
-
-        buffer () : size (0), mem (0) {}
-        buffer (size_t s, T *m) : size (s), mem (m) {}
-        buffer (size_t s, void *m) : size (s / sizeof(T)), mem (static_cast<T *>(m)) {}
-    };
-
     //=========================================================================
     
     //-------------------------------------------------------------------------
     // Implements base allocator requirements
 
-    template <class T>
+    template <typename T>
     class allocator_base 
     {
         public:
@@ -116,50 +71,38 @@ namespace sequia
     //-------------------------------------------------------------------------
     // Used to intercept allocator calls
 
-    //template <typename AllocatorType, typename Interceptor>
-    //class intercepting_allocator : public AllocatorType
-    //{
-    //    public:
-    //        typedef AllocatorType                           parent_type;
+    template <typename AllocatorType, typename Interceptor>
+    class intercepting_allocator : public AllocatorType, private Interceptor
+    {
+        public:
+            typedef AllocatorType                           parent_type;
 
-    //        typedef typename parent_type::value_type        value_type;
-    //        typedef typename parent_type::pointer           pointer;
-    //        typedef typename parent_type::const_pointer     const_pointer;
-    //        typedef typename parent_type::reference         reference;
-    //        typedef typename parent_type::const_reference   const_reference;
-    //        typedef typename parent_type::size_type         size_type;
-    //        typedef typename parent_type::difference_type   difference_type;
+            typedef typename parent_type::value_type        value_type;
+            typedef typename parent_type::pointer           pointer;
+            typedef typename parent_type::const_pointer     const_pointer;
+            typedef typename parent_type::reference         reference;
+            typedef typename parent_type::const_reference   const_reference;
+            typedef typename parent_type::size_type         size_type;
+            typedef typename parent_type::difference_type   difference_type;
 
-    //        using Allocator::rebind::other;
-    //        using Allocator::address;
+            using AllocatorType::rebind::other;
+            using AllocatorType::address;
+            using AllocatorType::max_size;
+            using AllocatorType::construct;
+            using AllocatorType::destroy;
 
-    //        pointer address (reference value) const { return &value; }
-    //        const_pointer address (const_reference value) const { return &value; }
+            pointer allocate (size_type num, const void* hint = 0)
+            {
+                pointer ptr = AllocatorType::allocate(num, hint);
+                return Interceptor::on_allocate(ptr, num, hint);
+            }
 
-    //        template<typename... Args>
-    //        void construct (pointer p, Args&&... args) { new ((void *)p) T (std::forward<Args>(args)...); }
-    //        void destroy (pointer p) { p->~T(); }
-
-    //        size_type max_size () const;
-    //        pointer allocate (size_type num, const void* hint = 0);
-    //        void deallocate (pointer ptr, size_type num);
-    //        template<typename... Args>
-    //        void construct (pointer p, Args&&... args) 
-    //        { 
-    //            preconstruct(p, args...);
-
-    //            postconstruct(p);
-    //        }
-
-    //        void destroy (pointer p) { p->~T(); }
-
-    //        size_type max_size () const;
-    //        pointer allocate (size_type num, const void* hint = 0);
-    //        void deallocate (pointer ptr, size_type num);
-
-    //    protected:
-    //        Interceptor intercept_;
-    //};
+            void deallocate (pointer ptr, size_type num)
+            {
+                AllocatorType::deallocate(ptr, num);
+                Interceptor::on_deallocate(ptr, num);
+            }
+    };
 
     //=========================================================================
     // Stateful Allocators
@@ -172,7 +115,7 @@ namespace sequia
     // base class for stateful allocators
     // TODO: C++11 constructor delegation for subclasses
 
-    template <class T>
+    template <typename T>
     class stateful_allocator_base : public allocator_base<T>, protected buffer<T>
     {
         public:
@@ -186,9 +129,10 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
-            template <typename U> struct rebind { typedef stateful_allocator_base<U> other; };
+            template <typename U> 
+            struct rebind { typedef stateful_allocator_base<U> other; };
 
-            template <class U> 
+            template <typename U> 
             stateful_allocator_base (stateful_allocator_base<U> const &r) : buffer<T> (r) {}
             stateful_allocator_base (size_type s, pointer p) : buffer<T> (s, p) {}
     };
@@ -222,10 +166,10 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
-            template <class U> 
+            template <typename U> 
             struct rebind { typedef identity_allocator<U> other; };
 
-            template <class U> 
+            template <typename U> 
             identity_allocator (identity_allocator<U> const &r) : parent_type (r) {}
             identity_allocator (size_type s, pointer p) : parent_type (s, p) {}
 
@@ -236,8 +180,6 @@ namespace sequia
 
             pointer allocate (size_type num, const void* = 0) 
             { 
-                assert (num <= max_size());
-
                 return mem; 
             }
 
@@ -270,7 +212,7 @@ namespace sequia
             typedef typename parent_type::difference_type   difference_type;
 
             static_assert (sizeof(value_type) >= sizeof(index_type), 
-                    "sizeof(T) too small for free list index.");
+                    "sizeof(T) too small for free list index");
 
             template <typename U> 
             struct rebind { typedef unity_allocator<U, index_type> other; };
@@ -282,7 +224,8 @@ namespace sequia
             unity_allocator (size_type s, pointer p) : 
                 parent_type (s, p), nfree_ (s), pfree_ (p)
             {
-                assert (size < (one << (sizeof(index_type) * 8)));
+                ASSERTF (size < (one << (sizeof(index_type) * 8)), 
+                        "too many objects for size of free list index type");
 
                 index_type i;
                 pointer base = mem;
@@ -298,8 +241,8 @@ namespace sequia
 
             pointer allocate (size_type num, const void* = 0) 
             { 
-                assert (num == 1);
-                assert ((pfree_ >= mem) && (pfree_ < mem + size));
+                ASSERTF (num == 1, "can only allocate one object per call");
+                ASSERTF ((pfree_ >= mem) && (pfree_ < mem + size), "free list is corrupt");
 
                 index_type i = *(reinterpret_cast <index_type *> (pfree_));
                 pointer ptr = pfree_;
@@ -311,8 +254,8 @@ namespace sequia
 
             void deallocate (pointer ptr, size_type num) 
             {
-                assert (num == 1);
-                assert ((ptr >= mem) && (ptr < mem + size));
+                ASSERTF (num == 1, "can only allocate one object per call");
+                ASSERTF ((ptr >= mem) && (ptr < mem + size), "pointer is not from this heap");
 
                 index_type i = pfree_ - mem;
                 *(reinterpret_cast <index_type *> (ptr)) = i;
@@ -329,6 +272,10 @@ namespace sequia
     };
 
     //-------------------------------------------------------------------------
+    // Does linear search of allocation descriptor vector on de/allocation
+    // Intended for a small number of variable-size allocations
+    // Note: least significant bit encodes whether the block is free or used
+    // which results in a minimum two-item allocation size
 
     template <typename T>
     class linear_allocator : public stateful_allocator_base<T>
@@ -344,6 +291,12 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
+            typedef identity_allocator<size_type> DescriptorAllocator;
+            typedef std::vector<size_type, DescriptorAllocator> DescriptorList;
+
+            static constexpr size_type flagused = 1;
+            static constexpr size_type flagfree = ~flagused;
+
             template <typename U> 
             struct rebind { typedef linear_allocator<U> other; };
 
@@ -351,9 +304,11 @@ namespace sequia
             linear_allocator (linear_allocator<U> const &r) : 
                 parent_type (r) {}
     
-            linear_allocator (size_type s, pointer p) : 
-                parent_type (s, p)
+            linear_allocator (size_type nitems, pointer pitems, size_type nallocs, pointer pallocs) : 
+                parent_type (nitems, pitems), 
+                descr_ (DescriptorAllocator (pallocs, nallocs * sizeof(size_type)))
             {
+                //descr_.push_back(nitems & freeflag);
             }
 
             size_type max_size () const 
@@ -369,6 +324,10 @@ namespace sequia
             }
 
         private:
+            using parent_type::size;
+            using parent_type::mem;
+
+            DescriptorList descr_;
     };
 
     //-------------------------------------------------------------------------

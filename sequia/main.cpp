@@ -2,7 +2,6 @@
 #include <algorithm>
 
 #include <cstdint>
-#include <cassert> // TODO: assertf
 
 #include "memory.hpp"
 #include "stream.hpp"
