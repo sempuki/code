@@ -1,7 +1,6 @@
 #ifndef _MEMORY_HPP_
 #define _MEMORY_HPP_
 
-#include <vector>
 #include "core.hpp"
 
 namespace sequia
@@ -272,10 +271,8 @@ namespace sequia
     };
 
     //-------------------------------------------------------------------------
-    // Does linear search of allocation descriptor vector on de/allocation
+    // Does linear first-fit search of allocation descriptor vector
     // Intended for a small number of variable-size allocations
-    // Note: least significant bit encodes whether the block is free or used
-    // which results in a minimum two-item allocation size
 
     template <typename T>
     class linear_allocator : public stateful_allocator_base<T>
@@ -291,11 +288,11 @@ namespace sequia
             typedef typename parent_type::size_type         size_type;
             typedef typename parent_type::difference_type   difference_type;
 
-            typedef identity_allocator<size_type> DescriptorAllocator;
-            typedef std::vector<size_type, DescriptorAllocator> DescriptorList;
+            typedef identity_allocator<size_type> descriptor_allocator;
+            typedef std::vector<size_type, descriptor_allocator> descriptor_list;
 
-            static constexpr size_type flagused = 1;
-            static constexpr size_type flagfree = ~flagused;
+            static constexpr size_type freebit = one << ((sizeof(size_type) * 8) - 1);
+            static constexpr size_type sizebits = ~freebit;
 
             template <typename U> 
             struct rebind { typedef linear_allocator<U> other; };
@@ -304,30 +301,102 @@ namespace sequia
             linear_allocator (linear_allocator<U> const &r) : 
                 parent_type (r) {}
     
-            linear_allocator (size_type nitems, pointer pitems, size_type nallocs, pointer pallocs) : 
-                parent_type (nitems, pitems), 
-                descr_ (DescriptorAllocator (pallocs, nallocs * sizeof(size_type)))
+            linear_allocator (size_type nitems, pointer pitems, size_type nallocs, size_type *pallocs) : 
+                parent_type (nitems, pitems),
+                list_ (descriptor_allocator (nallocs, pallocs)),
+                nfree_ (nitems)
             {
-                //descr_.push_back(nitems & freeflag);
+                list_.push_back(nitems | freebit);
             }
 
             size_type max_size () const 
             {
+                return nfree_;
             }
 
             pointer allocate (size_type num, const void* = 0) 
             {
+                ASSERTF (num < freebit, "allocation size impinges on free bit");
+                
+                nfree_ -= num;
+                
+                pointer ptr;
+                size_type free, size;
+                typename descriptor_list::iterator descr = begin(list_); 
+                typename descriptor_list::iterator end = end(list_); 
+
+                for (pointer p = mem; descr != end; ++descr, p += size)
+                {
+                    free = *descr & freebit;
+                    size = *descr & sizebits; 
+
+                    if (free && size >= num)
+                    {
+                        *descr = num;
+                        size -= num;
+
+                        if (size > 0)
+                            list_.insert (++descr, free | size);
+
+                        ptr = p;
+                        break;
+                    }
+                }
+
+                ASSERTF ((ptr >= mem) && (ptr < mem + size), "free list is corrupt");
+
+                return ptr;
             }
 
             void deallocate (pointer ptr, size_type num) 
             {
+                ASSERTF ((ptr >= mem) && (ptr < mem + size), "pointer is not from this heap");
+
+                using std::remove;
+
+                nfree_ += num;
+                
+                size_type free, size, merged;
+                typename descriptor_list::iterator i, descr = begin(list_); 
+                typename descriptor_list::iterator end = end(list_); 
+
+                for (pointer p = mem; descr != end; ++descr, p += size)
+                {
+                    free = *descr & freebit;
+                    size = *descr & sizebits; 
+
+                    if (ptr == p)
+                    {
+                        ASSERTF (!free, "pointer was double-freed");
+
+                        merged = size;
+
+                        for (i = descr+1; i != end; ++i)
+                        {
+                            free = *i & freebit;
+                            size = *i & sizebits; 
+
+                            if (!free) break;
+                                
+                            merged += size;
+                            *i = 0; // clear merged descr for removal
+                        }
+
+                        *descr = freebit | merged;
+
+                        break;
+                    }
+                }
+
+                list_.erase (remove (begin(list_), end(list_), 0), end(list_));
             }
 
         private:
             using parent_type::size;
             using parent_type::mem;
 
-            DescriptorList descr_;
+            descriptor_list list_;
+            size_type       nfree_;
     };
 
     //-------------------------------------------------------------------------

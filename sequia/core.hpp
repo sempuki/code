@@ -5,6 +5,9 @@
 #include <cstddef>
 #include <cassert>
 
+#include <vector>
+#include <algorithm>
+
 #if defined(__GNUC__)
 #define EXPECT_LIKELY(cond)    __builtin_expect((cond), 1)
 #define EXPECT_UNLIKELY(cond)  __builtin_expect((cond), 0)
