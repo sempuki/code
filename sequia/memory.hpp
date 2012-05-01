@@ -306,7 +306,7 @@ namespace sequia
                 list_ (descriptor_allocator (nallocs, pallocs)),
                 nfree_ (nitems)
             {
-                list_.push_back(nitems | freebit);
+                list_.push_back (nitems | freebit);
             }
 
             size_type max_size () const 
@@ -335,7 +335,7 @@ namespace sequia
                         *descr = num;
                         size -= num;
 
-                        if (size > 0)
+                        if (size > 0) // fragment descriptor
                             list_.insert (++descr, free | size);
 
                         ptr = p;
@@ -356,33 +356,41 @@ namespace sequia
 
                 nfree_ += num;
                 
-                size_type free, size, merged;
-                typename descriptor_list::iterator i, descr = begin(list_); 
+                size_type free, size;
+                typename descriptor_list::iterator begin = begin(list_); 
+                typename descriptor_list::iterator descr = begin;
                 typename descriptor_list::iterator end = end(list_); 
+                typename descriptor_list::iterator next;
 
                 for (pointer p = mem; descr != end; ++descr, p += size)
                 {
-                    free = *descr & freebit;
-                    size = *descr & sizebits; 
-
                     if (ptr == p)
                     {
-                        ASSERTF (!free, "pointer was double-freed");
+                        ASSERTF (!(*descr & freebit), "pointer was double-freed");
 
-                        merged = size;
+                        *descr |= freebit;
+                
+                        // merge neighboring descriptors
 
-                        for (i = descr+1; i != end; ++i)
+                        next = descr + 1;
+                        free = *next & freebit;
+                        size = *next & sizebits; 
+
+                        if (free && next != end)
                         {
-                            free = *i & freebit;
-                            size = *i & sizebits; 
-
-                            if (!free) break;
-                                
-                            merged += size;
-                            *i = 0; // clear merged descr for removal
+                            *descr += size;
+                            *next = 0; // clear for removal
                         }
 
-                        *descr = freebit | merged;
+                        next = descr--;
+                        free = *descr & freebit;
+                        size = *descr & sizebits; 
+
+                        if (free && next != begin)
+                        {
+                            *descr += size;
+                            *next = 0; // clear for removal
+                        }
 
                         break;
                     }
