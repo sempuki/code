@@ -8,15 +8,15 @@ namespace sequia
 {
     // GCC 4.7 TODO template aliases
     
-    template <size_t N, typename T>
+    template <typename T, size_t N>
     class fixedvector : 
-        public std::vector<T, fixed_identity_allocator<N, T>>
+        public std::vector<T, fixed_identity_allocator<T, N>>
     {
     };
 
-    template <size_t N, typename K, typename V, typename Compare = std::less<K>>
+    template <typename K, typename V, size_t N, typename Compare = std::less<K>>
     class fixedmap : 
-        public std::map<K, V, Compare, rebind_allocator<fixed_unity_allocator<N, std::pair<const K, V>>>>
+        public std::map<K, V, Compare, rebind_allocator<fixed_unity_allocator<std::pair<const K, V>, N>>>
     {
     };
 }

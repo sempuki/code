@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     stream << in;
     stream >> out;
 
-    sequia::fixedvector<10, int> vec;
+    sequia::fixedvector<int, 10> vec;
     
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    sequia::fixedmap<10, int, int> map;
+    sequia::fixedmap<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;

@@ -27,6 +27,8 @@ namespace sequia
         buffer (size_t s, void *m) : size (s / sizeof(T)), mem (static_cast<T *>(m)) {}
     };
 
+    //=========================================================================
+    
     //-------------------------------------------------------------------------
     // Implements base allocator requirements
 
@@ -240,7 +242,7 @@ namespace sequia
     template <typename T, typename IndexType>
         template <typename U> 
         unity_allocator<T,IndexType>::unity_allocator (unity_allocator<U, index_type> const &r) 
-        : parent_type (r) 
+        : parent_type (r), pfree_ (r.pfree_), nfree_ (r.nfree_)
         {}
 
     // Capacity
@@ -368,7 +370,7 @@ namespace sequia
                     area -= num;
 
                     if (area > 0) // fragment descriptor
-                        list_.insert (++descr, freebit | area);
+                        list_.insert (descr+1, freebit | area);
 
                     ptr = p;
                     break;
@@ -441,11 +443,13 @@ namespace sequia
     //-------------------------------------------------------------------------
     // TODO Heap Allocator
     
+
     //=========================================================================
     // Fixed Size Allocators
-    //
+    
+    //-------------------------------------------------------------------------
 
-    template <size_t N, typename T>
+    template <typename T, size_t N>
     class fixed_identity_allocator : public identity_allocator<T>
     {
         public:
@@ -455,10 +459,10 @@ namespace sequia
             static constexpr size_t mem_size = N * sizeof(value_type);
 
             template <typename U> 
-            struct rebind { typedef fixed_identity_allocator<N, U> other; };
+            struct rebind { typedef fixed_identity_allocator<U, N> other; };
 
             template <typename U> 
-            fixed_identity_allocator (fixed_identity_allocator<N, U> const &r) : 
+            fixed_identity_allocator (fixed_identity_allocator<U, N> const &r) : 
                 parent_type (reinterpret_cast <pointer> (mem_), N) {}
 
             fixed_identity_allocator () : 
@@ -470,7 +474,7 @@ namespace sequia
 
     //-------------------------------------------------------------------------
 
-    template <size_t N, typename T>
+    template <typename T, size_t N>
     class fixed_unity_allocator : public unity_allocator<T, typename min_word_size<N-1>::type>
     {
         public:
@@ -480,10 +484,10 @@ namespace sequia
             static constexpr size_t mem_size = N * sizeof(value_type);
 
             template <typename U> 
-            struct rebind { typedef fixed_unity_allocator<N, U> other; };
+            struct rebind { typedef fixed_unity_allocator<U, N> other; };
 
             template <typename U> 
-            fixed_unity_allocator (fixed_unity_allocator<N, U> const &r) : 
+            fixed_unity_allocator (fixed_unity_allocator<U, N> const &r) : 
                 parent_type (reinterpret_cast <pointer> (mem_), N) {}
 
             fixed_unity_allocator () : 
