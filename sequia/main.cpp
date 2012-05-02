@@ -74,5 +74,19 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
 
+    size_t  M = 10;
+    size_t  allocvec[M]; // 10 allocations
+    int     allocmem[M]; // 10 ints
+
+    sequia::linear_allocator<int> alloc (allocmem, M, allocvec, M);
+    int *p = alloc.allocate(5);
+    int *q = alloc.allocate(5);
+
+    for (int i=0; i < 5; ++i)
+        *p++ = *q++ = i;
+
+    for (int i=0; i < M; ++i)
+        cout << allocmem[i] << endl;
+
     return 0; 
 }

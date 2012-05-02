@@ -133,7 +133,7 @@ namespace sequia
 
             template <typename U> 
             stateful_allocator_base (stateful_allocator_base<U> const &r) : buffer<T> (r) {}
-            stateful_allocator_base (size_type s, pointer p) : buffer<T> (s, p) {}
+            stateful_allocator_base (pointer p, size_type s) : buffer<T> (s, p) {}
     };
 
     template <typename T1, typename T2>
@@ -163,7 +163,7 @@ namespace sequia
 
             template <typename U> 
             identity_allocator (identity_allocator<U> const &r) : parent_type (r) {}
-            identity_allocator (size_type s, pointer p) : parent_type (s, p) {}
+            identity_allocator (pointer p, size_type s) : parent_type (p, s) {}
 
             size_type max_size () const 
             { 
@@ -205,7 +205,7 @@ namespace sequia
 
             template <typename U> 
             unity_allocator (unity_allocator<U, index_type> const &r);
-            unity_allocator (size_type s, pointer p);
+            unity_allocator (pointer p, size_type s);
 
             size_type max_size () const;
             pointer allocate (size_type num, const void* = 0);
@@ -215,13 +215,15 @@ namespace sequia
             using parent_type::size;
             using parent_type::mem;
 
-            size_type   nfree_;
             pointer     pfree_;
+            size_type   nfree_;
     };
 
+    // Constructor
+
     template <typename T, typename IndexType>
-        unity_allocator<T,IndexType>::unity_allocator (size_type s, pointer p) 
-        : parent_type (s, p), nfree_ (s), pfree_ (p)
+        unity_allocator<T,IndexType>::unity_allocator (pointer p, size_type s) 
+        : parent_type (p, s), pfree_ (p), nfree_ (s)
         {
             ASSERTF (size < (one << (sizeof(index_type) * 8)), 
                     "too many objects for size of free list index type");
@@ -233,6 +235,7 @@ namespace sequia
                 *(reinterpret_cast <index_type *> (base + i)) = i + 1;
         }
 
+    // Copy Constructor
             
     template <typename T, typename IndexType>
         template <typename U> 
@@ -240,6 +243,7 @@ namespace sequia
         : parent_type (r) 
         {}
 
+    // Capacity
 
     template <typename T, typename IndexType>
         auto unity_allocator<T,IndexType>::max_size () const -> size_type 
@@ -247,6 +251,7 @@ namespace sequia
             return nfree_;
         }
 
+    // Allocate
 
     template <typename T, typename IndexType>
         auto unity_allocator<T,IndexType>::allocate (size_type num, const void*) -> pointer 
@@ -262,6 +267,7 @@ namespace sequia
             return ptr;
         }
 
+    // Deallocate
 
     template <typename T, typename IndexType>
         auto unity_allocator<T,IndexType>::deallocate (pointer ptr, size_type num) -> void
@@ -291,14 +297,14 @@ namespace sequia
             typedef std::vector<size_type, descriptor_allocator> descriptor_list;
 
             static constexpr size_type freebit = one << ((sizeof(size_type) * 8) - 1);
-            static constexpr size_type sizebits = ~freebit;
+            static constexpr size_type areabits = ~freebit;
 
             template <typename U> 
             struct rebind { typedef linear_allocator<U> other; };
 
             template <typename U> 
             linear_allocator (linear_allocator<U> const &r);
-            linear_allocator (size_type nitems, pointer pitems, size_type nallocs, size_type *pallocs);
+            linear_allocator (pointer pitems, size_type nitems, size_type *pallocs, size_type nallocs);
 
             size_type max_size () const;
             pointer allocate (size_type num, const void* = 0);
@@ -308,70 +314,77 @@ namespace sequia
             using parent_type::size;
             using parent_type::mem;
 
-            descriptor_list list_;
             size_type       nfree_;
+            descriptor_list list_;
     };
 
-    template <typename T>
-        template <typename U> 
-        linear_allocator<T>::linear_allocator (linear_allocator<U> const &r) 
-        : parent_type (r) 
-        {}
-    
+    // Constructor
 
     template <typename T>
-        linear_allocator<T>::linear_allocator (size_type nitems, pointer pitems, size_type nallocs, size_type *pallocs) 
-        : parent_type (nitems, pitems), list_ (descriptor_allocator (nallocs, pallocs)), nfree_ (nitems)
+        linear_allocator<T>::linear_allocator (pointer pitems, size_type nitems, size_type *pallocs, size_type nallocs) 
+        : parent_type (pitems, nitems), nfree_ (nitems), list_ (descriptor_allocator (pallocs, nallocs))
         {
             list_.push_back (nitems | freebit);
         }
 
+    // Copy Constructor
 
     template <typename T>
-        linear_allocator<T>::max_size () const -> size_type 
+        template <typename U> 
+        linear_allocator<T>::linear_allocator (linear_allocator<U> const &r) 
+        : parent_type (r), nfree_ (r.nfree_), list_ (r.list_)
+        {}
+    
+    // Capacity
+
+    template <typename T>
+        auto linear_allocator<T>::max_size () const -> size_type 
         {
             return nfree_;
         }
 
+    // Allocate
     
     template <typename T>
-        linear_allocator<T>::allocate (size_type num, const void*) -> pointer 
+        auto linear_allocator<T>::allocate (size_type num, const void*) -> pointer 
         {
             ASSERTF (num < freebit, "allocation size impinges on free bit");
 
             nfree_ -= num;
 
-            pointer ptr;
-            size_type free, size;
-            typename descriptor_list::iterator descr = begin(list_); 
-            typename descriptor_list::iterator end = end(list_); 
+            pointer ptr = 0;
+            size_type free, area;
+            typename descriptor_list::iterator descr = std::begin(list_); 
+            typename descriptor_list::iterator end = std::end(list_); 
 
-            for (pointer p = mem; descr != end; ++descr, p += size)
+            for (pointer p = mem; descr != end; ++descr, p += area)
             {
                 free = *descr & freebit;
-                size = *descr & sizebits; 
+                area = *descr & areabits; 
 
-                if (free && size >= num)
+                if (free && area >= num)
                 {
                     *descr = num;
-                    size -= num;
+                    area -= num;
 
-                    if (size > 0) // fragment descriptor
-                        list_.insert (++descr, freebit | size);
+                    if (area > 0) // fragment descriptor
+                        list_.insert (++descr, freebit | area);
 
                     ptr = p;
                     break;
                 }
             }
 
+            ASSERTF (descr != end, "unable to allocate pointer");
             ASSERTF ((ptr >= mem) && (ptr < mem + size), "free list is corrupt");
 
             return ptr;
         }
 
+    // Deallocate
 
     template <typename T>
-        linear_allocator<T>::deallocate (pointer ptr, size_type num) -> void
+        auto linear_allocator<T>::deallocate (pointer ptr, size_type num) -> void
         {
             ASSERTF ((ptr >= mem) && (ptr < mem + size), "pointer is not from this heap");
 
@@ -379,13 +392,13 @@ namespace sequia
 
             nfree_ += num;
 
-            size_type free, size;
-            typename descriptor_list::iterator begin = begin(list_); 
+            size_type free, area;
+            typename descriptor_list::iterator begin = std::begin(list_); 
             typename descriptor_list::iterator descr = begin;
-            typename descriptor_list::iterator end = end(list_); 
+            typename descriptor_list::iterator end = std::end(list_); 
             typename descriptor_list::iterator next;
 
-            for (pointer p = mem; descr != end; ++descr, p += size)
+            for (pointer p = mem; descr != end; ++descr, p += area)
             {
                 if (ptr == p)
                 {
@@ -397,21 +410,21 @@ namespace sequia
 
                     next = descr + 1;
                     free = *next & freebit;
-                    size = *next & sizebits; 
+                    area = *next & areabits; 
 
                     if (free && next != end)
                     {
-                        *descr += size;
+                        *descr += area;
                         *next = 0; // clear for removal
                     }
 
                     next = descr--;
                     free = *descr & freebit;
-                    size = *descr & sizebits; 
+                    area = *descr & areabits; 
 
                     if (free && next != begin)
                     {
-                        *descr += size;
+                        *descr += area;
                         *next = 0; // clear for removal
                     }
 
@@ -419,7 +432,7 @@ namespace sequia
                 }
             }
 
-            ASSERTF (descr != end, "unable to free pointer");
+            ASSERTF (descr != end, "unable to deallocate pointer");
 
             // remove any invalid descriptors due to merge
             list_.erase (remove (descr, descr+3, 0), end(list_));
@@ -446,10 +459,10 @@ namespace sequia
 
             template <typename U> 
             fixed_identity_allocator (fixed_identity_allocator<N, U> const &r) : 
-                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+                parent_type (reinterpret_cast <pointer> (mem_), N) {}
 
             fixed_identity_allocator () : 
-                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+                parent_type (reinterpret_cast <pointer> (mem_), N) {}
         
         private:
             uint8_t  mem_[mem_size]; // uninitialized memory
@@ -471,10 +484,10 @@ namespace sequia
 
             template <typename U> 
             fixed_unity_allocator (fixed_unity_allocator<N, U> const &r) : 
-                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+                parent_type (reinterpret_cast <pointer> (mem_), N) {}
 
             fixed_unity_allocator () : 
-                parent_type (N, reinterpret_cast <pointer> (mem_)) {}
+                parent_type (reinterpret_cast <pointer> (mem_), N) {}
         
         private:
             uint8_t  mem_[mem_size]; // uninitialized memory
