@@ -8,6 +8,7 @@
 #include "container.hpp"
 
 using namespace std;
+using namespace sequia;
 
 namespace App
 {
@@ -18,13 +19,13 @@ namespace App
                 : a_(a), b_(b), c_(c) {}
 
             template <typename T>
-            bool serialize (sequia::stream<T> *s) const
+            bool serialize (stream::stream<T> *s) const
             {
                 *s << a_ << b_ << c_;
             }
 
             template <typename T>
-            bool deserialize (sequia::stream<T> *s)
+            bool deserialize (stream::stream<T> *s)
             {
                 *s >> a_ >> b_ >> c_;
             }
@@ -38,11 +39,14 @@ namespace App
 
 namespace traits
 {
-    template <>
-    struct element <App::Test>
+    namespace stream
     {
-        typedef custom_serializable_tag serialization;
-    };
+        template <>
+        struct element <App::Test>
+        {
+            typedef custom_serializable_tag serialization;
+        };
+    }
 }
 
 
@@ -51,14 +55,14 @@ int main(int argc, char **argv)
     size_t N = sizeof(App::Test) * 10;
     uint8_t buf[N];
 
-    sequia::stream<uint8_t> stream (buf, N);
+    stream::stream<uint8_t> stream (buf, N);
     App::Test in (1, 0.1, 'a');
     App::Test out (0, 0.0, 0);
     
     stream << in;
     stream >> out;
 
-    sequia::fixedvector<int, 10> vec;
+    container::fixedvector<int, 10> vec;
     
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -66,7 +70,7 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    sequia::fixedmap<int, int, 10> map;
+    container::fixedmap<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;
@@ -78,7 +82,7 @@ int main(int argc, char **argv)
     size_t  allocvec[M]; // 10 allocations
     int     allocmem[M]; // 10 ints
 
-    sequia::linear_allocator<int> alloc (allocmem, M, allocvec, M);
+    memory::linear_allocator<int> alloc (allocmem, M, allocvec, M);
     int *p = alloc.allocate(5);
     int *q = alloc.allocate(5);
 
