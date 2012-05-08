@@ -78,7 +78,6 @@ namespace sequia
         { 
             return max (sizeof(T), max_type_size());
         }
-        
 
         template <size_t N> struct min_word_type {};
         template <> struct min_word_type <1u> { typedef uint8_t result; };
