@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cassert>
 
+#include <bitset>
 #include <vector>
 #include <algorithm>
 
@@ -60,6 +61,24 @@ namespace sequia
                 ((value > -(one << 15)) && (value < (one << 15)))? 2 :
                 ((value > -(one << 31)) && (value < (one << 31)))? 4 : 8;
         }
+
+        template <typename T>
+        constexpr T max (T a, T b)
+        {
+            return (a > b)? a : b;
+        }
+                
+        constexpr size_t max_type_size () 
+        { 
+            return 0; 
+        }
+
+        template <typename T, typename ...Ts>
+        constexpr size_t max_type_size () 
+        { 
+            return max (sizeof(T), max_type_size());
+        }
+        
 
         template <size_t N> struct min_word_type {};
         template <> struct min_word_type <1u> { typedef uint8_t result; };

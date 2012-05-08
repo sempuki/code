@@ -8,16 +8,11 @@ namespace sequia
 {
     namespace container
     {
-        // GCC 4.7 TODO template aliases
-
         template <typename T, size_t N>
-        class fixedvector : public std::vector<T, memory::fixed_identity_allocator<T, N>>
-        {};
+        using fixedvector = std::vector<T, memory::fixed_identity_allocator<T, N>>;
 
         template <typename K, typename V, size_t N, typename Compare = std::less<K>>
-        class fixedmap : public std::map<K, V, Compare, 
-            memory::rebind_allocator<memory::fixed_unity_allocator<std::pair<const K, V>, N>>>
-        {};
+        using fixedmap = std::map<K, V, Compare, memory::rebind_allocator<memory::fixed_unity_allocator<std::pair<const K, V>, N>>>;
     }
 }
 
