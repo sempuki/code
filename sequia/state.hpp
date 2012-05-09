@@ -32,6 +32,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
                 
@@ -40,11 +42,13 @@ namespace sequia
 
                 else start <BaseMachine> ();
             }
-
-            template <>
-            inline void start <traits::state:null> () {}
         };
+
+        template <typename RootMachine, typename TargetState>
+        inline void activator <RootMachine, TargetState>::start <traits::state::null> () {}
         
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename TargetState>
         struct deactivator
         {
@@ -56,6 +60,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
@@ -64,11 +70,14 @@ namespace sequia
 
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename TargetState>
+        template <>
+        inline void deactivator <RootMachine, TargetState>::start <traits::state::null> () {}
+
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename TargetState>
         struct default_constructor
         {
@@ -80,6 +89,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
@@ -88,11 +99,14 @@ namespace sequia
                 
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename TargetState>
+        template <>
+        inline void default_constructor <RootMachine, TargetState>::start <traits::state::null> () {}
+
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename TargetState, typename Event>
         struct constructor
         {
@@ -105,6 +119,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
@@ -113,11 +129,14 @@ namespace sequia
                 
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename TargetState, typename Event>
+        template <>
+        inline void constructor <RootMachine, TargetState, Event>::start <traits::state::null> () {}
+        
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename TargetState>
         struct destructor
         {
@@ -129,6 +148,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
@@ -137,11 +158,14 @@ namespace sequia
                 
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename TargetState>
+        template <>
+        inline void destructor <RootMachine, TargetState>::start <traits::state::null> () {}
+        
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename TargetState>
         struct active_destructor
         {
@@ -153,6 +177,8 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
+
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
@@ -161,11 +187,14 @@ namespace sequia
                 
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename TargetState>
+        template <>
+        inline void active_destructor <RootMachine, TargetState>::start <traits::state::null> () {}
+        
+        //---------------------------------------------------------------------
+
         template <typename RootMachine, typename Event>
         struct reactor
         {
@@ -178,7 +207,9 @@ namespace sequia
             template <typename CurrMachine>
             inline void start ()
             {
+                using std::is_same;
                 using traits::state;
+
                 typedef typename CurrMachine::state_type            CurrState;
                 typedef typename CurrMachine::base_type             BaseMachine;
                 typedef typename transition<CurrState, Event>::next NextState;
@@ -202,11 +233,11 @@ namespace sequia
                 }
                 else start <BaseMachine> ();
             }
-            
-            template <>
-            inline void start <traits::state:null> () {}
         };
         
+        template <typename RootMachine, typename Event>
+        template <>
+        inline void reactor <RootMachine, Event>::start <traits::state:null> () {}
 
         //=========================================================================
         
