@@ -1,17 +1,16 @@
 #ifndef _STATE_HPP_
 #define _STATE_HPP_
-
+        
 namespace traits
 {
     namespace state
     {
-        struct null_transition {};
+        struct null {};
 
         template <typename State, typename Event>
         struct transition
         {
-            constexpr static bool exists = false;
-            typedef null_transition next;
+            typedef null next;
         };
     }
 }
@@ -21,164 +20,280 @@ namespace sequia
     namespace state
     {
         //=========================================================================
+
+        template <typename RootMachine, typename TargetState>
+        struct activator
+        {
+            RootMachine &machine;
+
+            activator (RootMachine &m) 
+                : machine (m) {}
+
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+                
+                if (is_same <CurrState, TargetState>::value)
+                    machine.set_active (CurrMachine::stateid);
+
+                else start <BaseMachine> ();
+            }
+
+            template <>
+            inline void start <traits::state:null> () {}
+        };
         
-        class activator
+        template <typename RootMachine, typename TargetState>
+        struct deactivator
         {
-            public:
-                activator (uint8_t *mem)
-                    : mem_ (mem) {}
+            RootMachine &machine;
 
-                template <typename State>
-                inline void activate ()
-                { 
-                    new (mem_) State (); 
-                }
-                
-                template <typename State, typename Event>
-                inline void activate (Event const &event) 
-                { 
-                    new (mem_) State (event); 
-                }
-                
-                template <typename State>
-                inline void deactivate () 
-                { 
-                    mem_->~State(); 
-                }
+            deactivator (RootMachine &m) 
+                : machine (m) {}
 
-            private:
-                uint8_t *mem_;
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+
+                if (is_same <CurrState, TargetState>::value)
+                    machine.set_inactive (CurrMachine::stateid);
+
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
         };
-
-        //-------------------------------------------------------------------------
         
-        template <size_t N>
-        class singular_context : private activator
+        template <typename RootMachine, typename TargetState>
+        struct default_constructor
         {
-            public:
-                singular_context (uint8_t *mem)
-                    : activator (mem) {}
+            RootMachine &machine; 
 
-                bool is_active (size_t stateid) const
-                { 
-                    return stateid == active_; 
-                }
-                
-                template <typename State>
-                void activate (size_t stateid)
-                { 
-                    activator::activate <State> ();
-                    active_ = stateid;
-                }
-                
-                template <typename State, typename Event>
-                void activate (size_t stateid, Event const &event) 
-                { 
-                    activator::activate <State, Event> (event);
-                    active_ = stateid;
-                }
-                
-                template <typename State>
-                void deactivate (size_t stateid) 
-                { 
-                    activator::deactivate <State> ();
-                    active_ = N;
-                }
+            constructor (RootMachine &m)
+                : machine (m) {}
 
-            private:
-                size_t active_ = N;
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+
+                if (is_same <CurrState, TargetState>::value)
+                    new (machine.buffer()) CurrState (); 
+                
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
         };
-
-        //-------------------------------------------------------------------------
-
-        template <size_t N>
-        class parallel_context : private activator
+        
+        template <typename RootMachine, typename TargetState, typename Event>
+        struct constructor
         {
-            public:
-                parallel_context (uint8_t *mem)
-                    : activator (mem) {}
+            RootMachine &machine; 
+            Event const &event;
 
-                bool is_active (size_t stateid) const
-                { 
-                    return active_ [stateid]; 
-                }
+            constructor (RootMachine &m, Event const &e)
+                : machine (m), event (e) {}
 
-                template <typename State>
-                void activate (size_t stateid)
-                { 
-                    activator::activate <State> ();
-                    active_ = stateid;
-                }
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+
+                if (is_same <CurrState, TargetState>::value)
+                    new (machine.buffer()) CurrState (event);
                 
-                template <typename State, typename Event>
-                void activate (size_t stateid, Event const &event) 
-                { 
-                    activator::activate <State, Event> (event);
-                    active_.set (stateid);
-                }
-                
-                template <typename State>
-                void deactivate (size_t stateid) 
-                { 
-                    activator::deactivate <State> ();
-                    active_.reset (stateid);
-                }
-
-            private:
-                std::bitset<N> active_;
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
         };
+        
+        template <typename RootMachine, typename TargetState>
+        struct destructor
+        {
+            RootMachine &machine; 
+
+            destructor (RootMachine &m)
+                : machine (m) {}
+
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+
+                if (is_same <CurrState, TargetState>::value)
+                    static_cast <CurrState *> (machine.buffer())-> ~CurrState (); 
+                
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
+        };
+        
+        template <typename RootMachine, typename TargetState>
+        struct active_destructor
+        {
+            RootMachine &machine; 
+
+            active_destructor (RootMachine &m)
+                : machine (m) {}
+
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                typedef typename CurrMachine::state_type    CurrState;
+                typedef typename CurrMachine::base_type     BaseMachine;
+
+                if (machine.is_active (BaseMachine::stateid))
+                    static_cast <CurrState *> (machine.buffer())-> ~CurrState (); 
+                
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
+        };
+        
+        template <typename RootMachine, typename Event>
+        struct reactor
+        {
+            RootMachine &machine; 
+            Event const &event;
+
+            reactor (RootMachine &m, Event const &e)
+                : machine (m), event (e) {}
+
+            template <typename CurrMachine>
+            inline void start ()
+            {
+                using traits::state;
+                typedef typename CurrMachine::state_type            CurrState;
+                typedef typename CurrMachine::base_type             BaseMachine;
+                typedef typename transition<CurrState, Event>::next NextState;
+
+                if (!is_same <NextState, null>::value && 
+                    machine.is_active (BaseMachine::stateid))
+                {
+                    typedef typename RootMachine::base_type RootBase;
+
+                    deactivator <RootMachine, CurrState> {machine}.
+                        start <CurrMachine> ();
+
+                    destructor <RootMachine, CurrState> {machine}.
+                        start <CurrMachine> ();
+
+                    activator <RootMachine, NextState> {machine}.
+                        start <RootBase> ();
+
+                    constructor <RootMachine, NextState, Event> {machine, event}.
+                        start <RootBase> ();
+                }
+                else start <BaseMachine> ();
+            }
+            
+            template <>
+            inline void start <traits::state:null> () {}
+        };
+        
 
         //=========================================================================
-
-        template <int StateID, typename Context, typename ...States>
-        struct machine_base 
+        
+        template <typename ...States>
+        struct singular_context
         {
-            template <typename Event>
-            inline void react (Context &ctx, Event const &event) {}
+            size_t  active = sizeof...(States);
+            uint8_t buffer [core::max_type_size<States...>()];
         };
 
-        template <int StateID, typename Context, typename State, typename ...States>
-        struct machine_base <StateID, Context, State, States...> : 
-        public machine_base <StateID+1, Context, States...>
+        template <int StateID, typename ...States>
+        struct singular_machine_base
         {
-            typedef machine_base <StateID+1, Context, States...> parent_type;
+            typedef traits::state::null base_type;
+            typedef traits::state::null state_type;
+            
+            constexpr static int stateid = StateID;
+        };
 
-            template <typename Event>
-            inline void react (Context &ctx, Event const &event)
-            {
-                using traits::state::transition;
+        template <int StateID, typename State, typename ...States>
+        struct singular_machine_base : 
+            public singular_machine_base <StateID+1, States...>
+        {
+            typedef singular_machine_base <StateID+1, States...>    base_type;
+            typedef State                                           state_type;
+            
+            constexpr static int stateid = StateID;
+        };
 
-                if (transition<State, Event>::exists && ctx.is_active (StateID))
-                {
-                    typedef typename transition<State, Event>::next Next;
+        template <typename Initial, typename ...States>
+        class singular_machine : 
+            private singular_machine_base <0, Initial, States...>
+        {
+            typedef singular_machine_base <0, Initial, States...>   base_type;
+            typedef singular_machine                                this_type;
 
-                    ctx.deactivate <State> (StateID);
-                    ctx.activate <Next, Event> (StateID, event);
+            public:
+                singular_machine () 
+                { 
+                    default_constructor <this_type, Initial> {*this}.
+                        start <base_type> ();
                 }
-                else
+
+                ~singular_machine () 
                 {
-                    parent_type::react (ctx, event);
+                    active_destructor <this_type> {*this}.
+                        start <base_type> ();
                 }
-            }
+
+                void *buffer () { return ctx_.buffer; }
+                void is_active (int stateid) { return ctx_.active == stateid; }
+                void set_active (int stateid) { return ctx_.active = stateid; }
+                void set_inactive (int stateid) {}
+
+                template <typename Event>
+                void react (Event const &event)
+                {
+                    reactor <this_type, Event> {*this, event}.
+                        start <base_type> ();
+                }
+
+            private:
+                singular_context ctx_;
         };
 
         //-------------------------------------------------------------------------
         
-        template <typename Context, typename Initial, typename ...States>
-        class machine : public machine_base <0, Context, Initial, States...>
-        {
-            typedef machine_base <0, Context, Initial, States...> parent_type;
+        //template <typename ...States>
+        //struct parallel_context
+        //{
+        //    std::tuple <States...> states;
+        //};
 
-            public:
-                machine () : ctx_ (mem_) { ctx_.activate <Initial> (0); }
+        //template <int StateID, typename ...States>
+        //struct parallel_machine_base;
 
-                template <typename Event>
-                void react (Event const &event) { parent_type::react (ctx_, event); }
+        //template <int StateID, typename State, typename ...States>
+        //struct parallel_machine_base <StateID, State, States...> : 
+        //public parallel_machine_base <StateID+1, States...>
+        //{
+        //};
 
-            private:
-                Context ctx_;
-                uint8_t mem_ [core::max_type_size<States...>()];
-        };
+        //template <int StateID, typename State, typename ...States>
+        //struct parallel_machine <StateID, State, States...> : 
+        //public parallel_machine <StateID+1, States...>
+        //{
+        //};
     }
 }
 

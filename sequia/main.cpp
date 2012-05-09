@@ -3,10 +3,11 @@
 
 #include <cstdint>
 
+#include "core.hpp"
 #include "memory.hpp"
 #include "stream.hpp"
-#include "state.hpp"
 #include "container.hpp"
+#include "state.hpp"
 
 using namespace std;
 using namespace sequia;
@@ -52,18 +53,21 @@ namespace traits
 
 struct State1 
 {
-    State1 (int i) { cout << "entered " << typeid(State1).name() << " on event " << i << endl; }
+    State1 () { cout << "entered " << typeid(State1).name() << " as default " << endl; }
+    State1 (int i) { cout << "entered " << typeid(State1).name() << " one event " << i << endl; }
     ~State1 () { cout << "exited " << typeid(State1).name() << endl; }
 };
 
 struct State2 
 {
+    State2 () { cout << "entered " << typeid(State2).name() << " as default " << endl; }
     State2 (int i) { cout << "entered " << typeid(State2).name() << " on event " << i << endl; }
     ~State2 () { cout << "exited " << typeid(State2).name() << endl; }
 };
 
 struct State3 
 {
+    State3 () { cout << "entered " << typeid(State3).name() << " as default " << endl; }
     State3 (int i) { cout << "entered " << typeid(State3).name() << " on event " << i << endl; }
     ~State3 () { cout << "exited " << typeid(State3).name() << endl; }
 };
@@ -75,14 +79,12 @@ namespace traits
         template <>
         struct transition <State1, int>
         {
-            constexpr static bool exists = true;
             typedef State2 next;
         };
 
         template <>
         struct transition <State2, int>
         {
-            constexpr static bool exists = true;
             typedef State3 next;
         };
     }
@@ -90,7 +92,7 @@ namespace traits
 
 int main(int argc, char **argv)
 {
-    state::machine <state::singular_context<3>, State1, State2, State3> m;
+    state::singular_machine <State1, State2, State3> m;
     m.react (1);
     m.react (2);
 

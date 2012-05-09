@@ -5,9 +5,11 @@
 #include <cstddef>
 #include <cassert>
 
+#include <tuple>
 #include <bitset>
 #include <vector>
 #include <algorithm>
+#include <type_traits>
 
 #if defined(__GNUC__)
 #define EXPECT_LIKELY(cond)    __builtin_expect((cond), 1)
@@ -62,6 +64,9 @@ namespace sequia
                 ((value > -(one << 31)) && (value < (one << 31)))? 4 : 8;
         }
 
+        //---------------------------------------------------------------------
+        // TODO alignment
+
         template <typename T>
         constexpr T max (T a, T b)
         {
@@ -76,8 +81,24 @@ namespace sequia
         template <typename T, typename ...Ts>
         constexpr size_t max_type_size () 
         { 
-            return max (sizeof(T), max_type_size());
+            return max (sizeof(T), max_type_size <Ts...>());
         }
+
+        //---------------------------------------------------------------------
+        // TODO alignment
+
+        constexpr size_t sum_type_size () 
+        { 
+            return 0; 
+        }
+
+        template <typename T, typename ...Ts>
+        constexpr size_t sum_type_size () 
+        { 
+            return sizeof(T) + sum_type_size <Ts...>();
+        }
+
+        //---------------------------------------------------------------------
 
         template <size_t N> struct min_word_type {};
         template <> struct min_word_type <1u> { typedef uint8_t result; };
