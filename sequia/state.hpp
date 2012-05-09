@@ -34,19 +34,17 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
                 
                 if (is_same <CurrState, TargetState>::value)
                     machine.set_active (CurrMachine::stateid);
 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
-
-        template <>
-        template <typename RootMachine, typename TargetState>
-        inline void activator <RootMachine, TargetState>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
 
@@ -63,20 +61,18 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
                 if (is_same <CurrState, TargetState>::value)
                     machine.set_inactive (CurrMachine::stateid);
 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
         
-        template <>
-        template <typename RootMachine, typename TargetState>
-        inline void deactivator <RootMachine, TargetState>::start <traits::state::null> () {}
-
         //---------------------------------------------------------------------
 
         template <typename RootMachine, typename TargetState>
@@ -92,20 +88,18 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
                 if (is_same <CurrState, TargetState>::value)
                     new (machine.buffer()) CurrState (); 
                 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
         
-        template <>
-        template <typename RootMachine, typename TargetState>
-        inline void default_constructor <RootMachine, TargetState>::start <traits::state::null> () {}
-
         //---------------------------------------------------------------------
 
         template <typename RootMachine, typename TargetState, typename Event>
@@ -122,19 +116,17 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
                 if (is_same <CurrState, TargetState>::value)
                     new (machine.buffer()) CurrState (event);
                 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
-        
-        template <>
-        template <typename RootMachine, typename TargetState, typename Event>
-        inline void constructor <RootMachine, TargetState, Event>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
 
@@ -151,19 +143,17 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
                 if (is_same <CurrState, TargetState>::value)
                     static_cast <CurrState *> (machine.buffer())-> ~CurrState (); 
                 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
-        
-        template <>
-        template <typename RootMachine, typename TargetState>
-        inline void destructor <RootMachine, TargetState>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
 
@@ -180,19 +170,17 @@ namespace sequia
             {
                 using std::is_same;
 
+                typedef typename traits::state::null        Null;
                 typedef typename CurrMachine::state_type    CurrState;
                 typedef typename CurrMachine::base_type     BaseMachine;
 
                 if (machine.is_active (BaseMachine::stateid))
                     static_cast <CurrState *> (machine.buffer())-> ~CurrState (); 
                 
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
-        
-        template <>
-        template <typename RootMachine, typename TargetState>
-        inline void active_destructor <RootMachine, TargetState>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
 
@@ -211,12 +199,12 @@ namespace sequia
                 using std::is_same;
                 using traits::state::transition;
 
-                typedef typename traits::state::null                NullState;
+                typedef typename traits::state::null                Null;
                 typedef typename CurrMachine::state_type            CurrState;
                 typedef typename CurrMachine::base_type             BaseMachine;
                 typedef typename transition<CurrState, Event>::next NextState;
 
-                if (!is_same <NextState, NullState>::value && 
+                if (!is_same <NextState, Null>::value && 
                     machine.is_active (BaseMachine::stateid))
                 {
                     typedef typename RootMachine::base_type RootBase;
@@ -233,14 +221,11 @@ namespace sequia
                     constructor <RootMachine, NextState, Event> {machine, event}.
                         start <RootBase> ();
                 }
-                else start <BaseMachine> ();
+                else if (!is_same <BaseMachine, Null>::value)
+                    start <BaseMachine> ();
             }
         };
         
-        template <>
-        template <typename RootMachine, typename Event>
-        inline void reactor <RootMachine, Event>::start <traits::state::null> () {}
-
         //=========================================================================
         
         template <typename ...States>
