@@ -81,7 +81,7 @@ namespace sequia
         template <typename T, typename ...Ts>
         constexpr size_t max_type_size () 
         { 
-            return max (sizeof(T), max_type_size <Ts...>());
+            return max (sizeof(T), max_type_size());
         }
 
         //---------------------------------------------------------------------
@@ -95,7 +95,7 @@ namespace sequia
         template <typename T, typename ...Ts>
         constexpr size_t sum_type_size () 
         { 
-            return sizeof(T) + sum_type_size <Ts...>();
+            return sizeof(T) + sum_type_size();
         }
 
         //---------------------------------------------------------------------

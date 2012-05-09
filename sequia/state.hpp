@@ -44,6 +44,7 @@ namespace sequia
             }
         };
 
+        template <>
         template <typename RootMachine, typename TargetState>
         inline void activator <RootMachine, TargetState>::start <traits::state::null> () {}
         
@@ -72,8 +73,8 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename TargetState>
         template <>
+        template <typename RootMachine, typename TargetState>
         inline void deactivator <RootMachine, TargetState>::start <traits::state::null> () {}
 
         //---------------------------------------------------------------------
@@ -83,7 +84,7 @@ namespace sequia
         {
             RootMachine &machine; 
 
-            constructor (RootMachine &m)
+            default_constructor (RootMachine &m)
                 : machine (m) {}
 
             template <typename CurrMachine>
@@ -101,8 +102,8 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename TargetState>
         template <>
+        template <typename RootMachine, typename TargetState>
         inline void default_constructor <RootMachine, TargetState>::start <traits::state::null> () {}
 
         //---------------------------------------------------------------------
@@ -131,8 +132,8 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename TargetState, typename Event>
         template <>
+        template <typename RootMachine, typename TargetState, typename Event>
         inline void constructor <RootMachine, TargetState, Event>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
@@ -160,8 +161,8 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename TargetState>
         template <>
+        template <typename RootMachine, typename TargetState>
         inline void destructor <RootMachine, TargetState>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
@@ -189,8 +190,8 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename TargetState>
         template <>
+        template <typename RootMachine, typename TargetState>
         inline void active_destructor <RootMachine, TargetState>::start <traits::state::null> () {}
         
         //---------------------------------------------------------------------
@@ -208,13 +209,14 @@ namespace sequia
             inline void start ()
             {
                 using std::is_same;
-                using traits::state;
+                using traits::state::transition;
 
+                typedef typename traits::state::null                NullState;
                 typedef typename CurrMachine::state_type            CurrState;
                 typedef typename CurrMachine::base_type             BaseMachine;
                 typedef typename transition<CurrState, Event>::next NextState;
 
-                if (!is_same <NextState, null>::value && 
+                if (!is_same <NextState, NullState>::value && 
                     machine.is_active (BaseMachine::stateid))
                 {
                     typedef typename RootMachine::base_type RootBase;
@@ -235,16 +237,18 @@ namespace sequia
             }
         };
         
-        template <typename RootMachine, typename Event>
         template <>
-        inline void reactor <RootMachine, Event>::start <traits::state:null> () {}
+        template <typename RootMachine, typename Event>
+        inline void reactor <RootMachine, Event>::start <traits::state::null> () {}
 
         //=========================================================================
         
         template <typename ...States>
         struct singular_context
         {
-            size_t  active = sizeof...(States);
+            constexpr static size_t N = sizeof...(States);
+
+            size_t  active = N;
             uint8_t buffer [core::max_type_size<States...>()];
         };
 
@@ -258,8 +262,8 @@ namespace sequia
         };
 
         template <int StateID, typename State, typename ...States>
-        struct singular_machine_base : 
-            public singular_machine_base <StateID+1, States...>
+        struct singular_machine_base <StateID, State, States...> : 
+        public singular_machine_base <StateID+1, States...>
         {
             typedef singular_machine_base <StateID+1, States...>    base_type;
             typedef State                                           state_type;
@@ -300,7 +304,7 @@ namespace sequia
                 }
 
             private:
-                singular_context ctx_;
+                singular_context <Initial, States...> ctx_;
         };
 
         //-------------------------------------------------------------------------
