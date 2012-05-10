@@ -92,9 +92,9 @@ namespace traits
 
 int main(int argc, char **argv)
 {
-    state::singular_machine <State1, State2, State3> m;
-    m.react (1);
-    m.react (2);
+    state::singular_machine <State1, State2, State3> machine;
+    machine.react (1);
+    machine.react (2);
 
     //size_t N = sizeof(App::Test) * 10;
     //uint8_t buf[N];

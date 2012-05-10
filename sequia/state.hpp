@@ -33,6 +33,11 @@ namespace sequia
         template <typename Context, int StateID, typename ...States>
         struct state_enumerator 
         {
+            inline void deactivate (Context &ctx, traits::state::null *) {}
+
+            template <typename Event> 
+            inline void activate (Context &ctx, Event const &event, traits::state::null *) {}
+
             template <typename Event> 
             inline void react (Context &ctx, Event const &event) {}
         };
@@ -42,6 +47,10 @@ namespace sequia
         public state_enumerator <Context, StateID+1, States...>
         {
             typedef state_enumerator <Context, StateID+1, States...> base_type;
+
+            using base_type::deactivate;
+            using base_type::activate;
+            using base_type::react;
 
             inline void deactivate (Context &ctx, State *)
             {
@@ -71,7 +80,7 @@ namespace sequia
                     activate (ctx, event, (NextState *)0);  // used for overload dispatch only
                 }
 
-                else base_type::react (ctx, event);
+                base_type::react (ctx, event);
             }
         };
 
