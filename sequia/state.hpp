@@ -84,9 +84,9 @@ namespace sequia
                 using std::is_same;
 
                 if (is_same <TargetState, State>::value)
-                    activate (ctx, (TargetState *)0);       // used for overload dispatch only
+                    activate (ctx, (State *)0);             // used for overload dispatch only
 
-                base_type::template initialize <TargetState> (ctx);  // recurse through all base types
+                base_type::template initialize <State> (ctx);
             }
 
             inline void terminate (Context &ctx)
@@ -94,7 +94,7 @@ namespace sequia
                 if (ctx.template is_active <state_descriptor <StateID, State>> ())
                     deactivate (ctx, (State *)0);           // used for overload dispatch only
 
-                base_type::terminate (ctx);     // recurse through all base types
+                base_type::terminate (ctx);
             }
 
             template <typename Event> 
@@ -114,7 +114,7 @@ namespace sequia
                     activate (ctx, event, (NextState *)0);  // used for overload dispatch only
                 }
 
-                base_type::react (ctx, event);  // recurse through all base types
+                base_type::react (ctx, event);
             }
         };
 
