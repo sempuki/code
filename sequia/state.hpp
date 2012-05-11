@@ -114,7 +114,7 @@ namespace sequia
                     activate (ctx, event, (NextState *)0);  // used for overload dispatch only
                 }
 
-                base_type::react (ctx, event);
+                base_type::template react <Event> (ctx, event);
             }
         };
 
@@ -129,7 +129,7 @@ namespace sequia
                 template <typename StateDescriptor>
                 inline bool is_active () const
                 {
-                    return active == StateDescriptor::state_id;
+                    return curr_active == StateDescriptor::state_id;
                 }
 
                 template <typename StateDescriptor>
@@ -138,7 +138,7 @@ namespace sequia
                     typedef typename StateDescriptor::state_type State;
                     new (reinterpret_cast <void *> (buffer)) State ();
                     
-                    active = StateDescriptor::state_id;
+                    next_active = StateDescriptor::state_id;
                 }
 
                 template <typename StateDescriptor, typename Event>
@@ -147,7 +147,7 @@ namespace sequia
                     typedef typename StateDescriptor::state_type State;
                     new (reinterpret_cast <void *> (buffer)) State (event);
                     
-                    active = StateDescriptor::state_id;
+                    next_active = StateDescriptor::state_id;
                 }
 
                 template <typename StateDescriptor>
@@ -157,8 +157,16 @@ namespace sequia
                     reinterpret_cast <State *> (buffer)-> ~State();
                 }
 
+                void flip ()
+                {
+                    using std::swap;
+
+                    swap (curr_active, next_active);
+                }
+
             private:
-                size_t  active = nstates;
+                size_t  curr_active = nstates;
+                size_t  next_active = nstates;
                 uint8_t buffer [core::max_type_size<States...>()];
         };
 
@@ -170,11 +178,22 @@ namespace sequia
             public:
                 typedef singular_context <Default, States...> context_type;
 
-                singular_machine () { states_.template initialize <Default> (context_); }
-                ~singular_machine () { states_.terminate (context_); }
+                singular_machine () 
+                { 
+                    states_.template initialize <Default> (context_); 
+                }
+
+                ~singular_machine () 
+                { 
+                    states_.terminate (context_); 
+                }
 
                 template <typename Event> 
-                void react (Event const &event) { states_.react (context_, event); }
+                void react (Event const &event) 
+                { 
+                    context_.flip ();
+                    states_.template react <Event> (context_, event); 
+                }
 
             private:
                 context_type                                            context_;
