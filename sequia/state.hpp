@@ -33,10 +33,14 @@ namespace sequia
         template <typename Context, int StateID, typename ...States>
         struct state_enumerator 
         {
-            inline void deactivate (Context &ctx, traits::state::null *) {}
-
             template <typename Event> 
-            inline void activate (Context &ctx, Event const &event, traits::state::null *) {}
+            inline void activate (Context &ctx, Event const &event, void *) {}
+            inline void activate (Context &ctx, void *) {}
+            inline void deactivate (Context &ctx, void *) {}
+
+            template <typename TargetState> 
+            inline void initialize (Context &ctx) {}
+            inline void terminate (Context &ctx) {}
 
             template <typename Event> 
             inline void react (Context &ctx, Event const &event) {}
@@ -48,19 +52,49 @@ namespace sequia
         {
             typedef state_enumerator <Context, StateID+1, States...> base_type;
 
-            using base_type::deactivate;
+            // introduce base type overloads into this namespace
             using base_type::activate;
+            using base_type::deactivate;    
+            using base_type::initialize;
+            using base_type::terminate;
             using base_type::react;
-
-            inline void deactivate (Context &ctx, State *)
-            {
-                ctx.template deactivate <state_descriptor <StateID, State>> ();
-            }
 
             template <typename Event> 
             inline void activate (Context &ctx, Event const &event, State *)
             {
+                // dispatch trick uses overload lookup to find needed state descriptor
                 ctx.template activate <state_descriptor <StateID, State>> (event);
+            }
+
+            inline void activate (Context &ctx, State *)
+            {
+                // dispatch trick uses overload lookup to find needed state descriptor
+                ctx.template activate <state_descriptor <StateID, State>> ();
+            }
+
+            inline void deactivate (Context &ctx, State *)
+            {
+                // dispatch trick uses overload lookup to find needed state descriptor
+                ctx.template deactivate <state_descriptor <StateID, State>> ();
+            }
+
+            template <typename TargetState> 
+            inline void initialize (Context &ctx)
+            {
+                using std::is_same;
+
+                if (is_same <TargetState, State>::value)
+                    activate (ctx, (TargetState *)0);       // used for overload dispatch only
+
+                base_type::template initialize <TargetState> (ctx);  // recurse through all base types
+            }
+
+            inline void terminate (Context &ctx)
+            {
+                if (ctx.template is_active <state_descriptor <StateID, State>> ())
+                    deactivate (ctx, (State *)0);           // used for overload dispatch only
+
+                base_type::terminate (ctx);     // recurse through all base types
             }
 
             template <typename Event> 
@@ -80,7 +114,7 @@ namespace sequia
                     activate (ctx, event, (NextState *)0);  // used for overload dispatch only
                 }
 
-                base_type::react (ctx, event);
+                base_type::react (ctx, event);  // recurse through all base types
             }
         };
 
@@ -93,10 +127,9 @@ namespace sequia
                 constexpr static size_t nstates = sizeof...(States);
 
                 template <typename StateDescriptor>
-                inline void deactivate ()
+                inline bool is_active () const
                 {
-                    typedef typename StateDescriptor::state_type State;
-                    reinterpret_cast <State *> (buffer)-> ~State();
+                    return active == StateDescriptor::state_id;
                 }
 
                 template <typename StateDescriptor>
@@ -118,9 +151,10 @@ namespace sequia
                 }
 
                 template <typename StateDescriptor>
-                inline bool is_active () const
+                inline void deactivate ()
                 {
-                    return active == StateDescriptor::state_id;
+                    typedef typename StateDescriptor::state_type State;
+                    reinterpret_cast <State *> (buffer)-> ~State();
                 }
 
             private:
@@ -130,18 +164,21 @@ namespace sequia
 
         //---------------------------------------------------------------------
 
-        template <typename Initial, typename ...States>
+        template <typename Default, typename ...States>
         class singular_machine
         {
             public:
-                typedef singular_context <Initial, States...> context_type;
+                typedef singular_context <Default, States...> context_type;
+
+                singular_machine () { states_.template initialize <Default> (context_); }
+                ~singular_machine () { states_.terminate (context_); }
 
                 template <typename Event> 
-                void react (Event const &event) { states_.react (ctx_, event); }
+                void react (Event const &event) { states_.react (context_, event); }
 
             private:
-                context_type ctx_;
-                state_enumerator <context_type, 0, Initial, States...> states_;
+                context_type                                            context_;
+                state_enumerator <context_type, 0, Default, States...>  states_;
         };
 
         //-------------------------------------------------------------------------
