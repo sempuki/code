@@ -95,6 +95,8 @@ int main(int argc, char **argv)
     state::singular_machine <State1, State2, State3> machine;
     machine.react (1);
     machine.react (2);
+    machine.react (3);
+    machine.react (4);
 
     //size_t N = sizeof(App::Test) * 10;
     //uint8_t buf[N];

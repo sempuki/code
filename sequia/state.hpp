@@ -162,6 +162,7 @@ namespace sequia
                     using std::swap;
 
                     swap (curr_active, next_active);
+                    next_active = curr_active;
                 }
 
             private:
