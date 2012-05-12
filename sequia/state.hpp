@@ -1,6 +1,8 @@
 #ifndef _STATE_HPP_
 #define _STATE_HPP_
         
+#include <typeindex>
+
 namespace traits
 {
     namespace state
@@ -19,7 +21,7 @@ namespace sequia
 {
     namespace state
     {
-        //=========================================================================
+        //=====================================================================
         
         template <int StateID, typename State>
         struct state_descriptor
@@ -34,16 +36,16 @@ namespace sequia
         struct state_enumerator 
         {
             template <typename Event> 
-            inline void activate (Context &ctx, Event const &event, void *) {}
-            inline void activate (Context &ctx, void *) {}
-            inline void deactivate (Context &ctx, void *) {}
+            inline void activate (Context &, Event const &, core::dispatch_tag <traits::state::null>) {}
+            inline void activate (Context &, core::dispatch_tag <traits::state::null>) {}
+            inline void deactivate (Context &, core::dispatch_tag <traits::state::null>) {}
 
-            template <typename TargetState> 
-            inline void initialize (Context &ctx) {}
-            inline void terminate (Context &ctx) {}
+            template <typename InitState> 
+            inline void initialize (Context &) {}
+            inline void terminate (Context &) {}
 
             template <typename Event> 
-            inline void react (Context &ctx, Event const &event) {}
+            inline void react (Context &, Event const &) {}
         };
 
         template <typename Context, int StateID, typename State, typename ...States>
@@ -60,39 +62,42 @@ namespace sequia
             using base_type::react;
 
             template <typename Event> 
-            inline void activate (Context &ctx, Event const &event, State *)
+            inline void activate (Context &ctx, Event const &event, core::dispatch_tag<State>)
             {
                 // dispatch trick uses overload lookup to find needed state descriptor
                 ctx.template activate <state_descriptor <StateID, State>> (event);
             }
 
-            inline void activate (Context &ctx, State *)
+            inline void activate (Context &ctx, core::dispatch_tag<State>)
             {
                 // dispatch trick uses overload lookup to find needed state descriptor
                 ctx.template activate <state_descriptor <StateID, State>> ();
             }
 
-            inline void deactivate (Context &ctx, State *)
+            inline void deactivate (Context &ctx, core::dispatch_tag<State>)
             {
                 // dispatch trick uses overload lookup to find needed state descriptor
                 ctx.template deactivate <state_descriptor <StateID, State>> ();
             }
 
-            template <typename TargetState> 
+            template <typename InitState> 
             inline void initialize (Context &ctx)
             {
                 using std::is_same;
+                using core::dispatch_tag;
 
-                if (is_same <TargetState, State>::value)
-                    activate (ctx, (State *)0);             // used for overload dispatch only
+                if (is_same <InitState, State>::value)
+                    activate (ctx, dispatch_tag <State>());
 
                 base_type::template initialize <State> (ctx);
             }
 
             inline void terminate (Context &ctx)
             {
+                using core::dispatch_tag;
+
                 if (ctx.template is_active <state_descriptor <StateID, State>> ())
-                    deactivate (ctx, (State *)0);           // used for overload dispatch only
+                    deactivate (ctx, dispatch_tag <State>());
 
                 base_type::terminate (ctx);
             }
@@ -101,6 +106,7 @@ namespace sequia
             inline void react (Context &ctx, Event const &event)
             {
                 using std::is_same;
+                using core::dispatch_tag;
                 using traits::state::transition;
 
                 typedef State                                   CurrState;
@@ -110,8 +116,8 @@ namespace sequia
                 if (!is_same <NextState, NullState>::value && 
                     ctx.template is_active <state_descriptor <StateID, State>> ())
                 {
-                    deactivate (ctx, (CurrState *)0);       // used for overload dispatch only
-                    activate (ctx, event, (NextState *)0);  // used for overload dispatch only
+                    deactivate (ctx, dispatch_tag <CurrState>());
+                    activate (ctx, event, dispatch_tag <NextState>());
                 }
 
                 base_type::template react <Event> (ctx, event);
@@ -201,7 +207,7 @@ namespace sequia
                 state_enumerator <context_type, 0, Default, States...>  states_;
         };
 
-        //-------------------------------------------------------------------------
+        //---------------------------------------------------------------------
         
         //template <typename ...States>
         //struct parallel_context
