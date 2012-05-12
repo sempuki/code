@@ -123,7 +123,7 @@ namespace traits
     {
         template <> struct transition <State1, int> { typedef State2 next; };
         template <> struct transition <State2, int> { typedef State3 next; };
-        template <> struct transition <State3, int> { typedef State1 next; };
+        //template <> struct transition <State3, int> { typedef State1 next; };
     }
 }
 
