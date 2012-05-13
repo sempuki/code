@@ -64,7 +64,7 @@ struct State1
 
     virtual void on_enter (int i) 
     { 
-        cout << "entered " << typeid(State1).name() << " one event " << i << endl; 
+        cout << "entered " << typeid(State1).name() << " on event " << i << endl; 
     }
 
     virtual void on_exit () 
@@ -86,7 +86,7 @@ struct State2
 
     virtual void on_enter (int i) 
     { 
-        cout << "entered " << typeid(State2).name() << " one event " << i << endl; 
+        cout << "entered " << typeid(State2).name() << " on event " << i << endl; 
     }
 
     virtual void on_exit () 
@@ -108,7 +108,7 @@ struct State3
 
     virtual void on_enter (int i) 
     { 
-        cout << "entered " << typeid(State3).name() << " one event " << i << endl; 
+        cout << "entered " << typeid(State3).name() << " on event " << i << endl; 
     }
 
     virtual void on_exit () 
@@ -123,7 +123,7 @@ namespace traits
     {
         template <> struct transition <State1, int> { typedef State2 next; };
         template <> struct transition <State2, int> { typedef State3 next; };
-        //template <> struct transition <State3, int> { typedef State1 next; };
+        template <> struct transition <State3, int> { typedef State1 next; };
     }
 }
 
@@ -175,6 +175,7 @@ int main(int argc, char **argv)
     machine.react (3);
     machine.react (4);
     machine.react (5);
+    machine.react (6);
 
     return 0; 
 }

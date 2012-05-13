@@ -39,30 +39,33 @@ namespace sequia
         template <int StateID, typename ...States>
         struct state_enumerator 
         {
-            typedef traits::state::null base_type;
             typedef traits::state::null descriptor_type;
+            typedef traits::state::null next_type;
         };
 
         template <int StateID, typename State, typename ...States>
         struct state_enumerator <StateID, State, States...> : 
         public state_enumerator <StateID+1, States...>
         {
-            typedef state_enumerator <StateID+1, States...> base_type;
             typedef state_descriptor <StateID, State>       descriptor_type;
+            typedef state_enumerator <StateID+1, States...> next_type;
         };
 
         //---------------------------------------------------------------------
         // Recursively creates a single class with per-state overloaded state 
         // de/activation methods; dependent objects must pre-declare before using
             
-        template <typename Context, typename Enumerator, typename Next = typename Enumerator::base_type>
-        struct state_machine_activator : 
-        public state_machine_activator <Context, Next>
-        {
-            typedef state_machine_activator <Context, Next, typename Next::base_type> base;
+        template <typename Context, 
+                 typename CurrEnum,
+                 typename NextEnum = typename CurrEnum::next_type>
 
-            typedef typename Enumerator::descriptor_type   Descriptor;
-            typedef typename Descriptor::state_type        State;
+        struct state_machine_activator : 
+        public state_machine_activator <Context, NextEnum>
+        {
+            typedef state_machine_activator <Context, NextEnum> base;
+
+            typedef typename CurrEnum::descriptor_type          Descriptor;
+            typedef typename Descriptor::state_type             State;
 
             // introduce base type overloads into this namespace
             using base::activate;
@@ -88,8 +91,8 @@ namespace sequia
             }
         };
         
-        template <typename Context, typename Enumerator>
-        struct state_machine_activator <Context, Enumerator, traits::state::null>
+        template <typename Context, typename CurrEnum>
+        struct state_machine_activator <Context, CurrEnum, traits::state::null>
         {
             template <typename Event> 
             inline void activate (Context &, Event const &, core::dispatch_tag <traits::state::null>) {}
@@ -98,23 +101,25 @@ namespace sequia
         };
 
         //---------------------------------------------------------------------
-        // Uses activator class to implement init/termination and state reactions 
+        // Uses activator class to implement state init/term and event-reactions 
             
-        template <typename Context, typename Enumerator, typename Next = typename Enumerator::base_type>
+        template <typename Context, 
+                 typename BaseEnum, 
+                 typename CurrEnum = BaseEnum, 
+                 typename NextEnum = typename CurrEnum::next_type>
+
         struct state_machine_reactor : 
-        public state_machine_reactor <Context, Next>,
-        public state_machine_activator <Context, Enumerator>
+        public state_machine_reactor <Context, BaseEnum, NextEnum>
         {
-            typedef state_machine_reactor <Context, Next>           base;
-            typedef state_machine_activator <Context, Enumerator>   activator;
+            typedef state_machine_reactor <Context, BaseEnum, NextEnum> base;
+            typedef state_machine_activator <Context, BaseEnum> activator;
 
-            typedef typename Enumerator::descriptor_type    Descriptor;
-            typedef typename Descriptor::state_type         State;
+            // introduce base type overloads into this namespace
+            using base::activate;
+            using base::deactivate;    
 
-            // introduce parent/base type overloads into this namespace
-            using base::initialize;
-            using base::terminate;
-            using base::react;
+            typedef typename CurrEnum::descriptor_type  Descriptor;
+            typedef typename Descriptor::state_type     State;
 
             template <typename InitialState> 
             inline void initialize (Context &ctx)
@@ -123,7 +128,7 @@ namespace sequia
                 using core::dispatch_tag;
 
                 if (is_same <InitialState, State>::value)
-                    activator::activate (ctx, dispatch_tag <State> ());
+                    activate (ctx, dispatch_tag <State> ());
 
                 base::template initialize <State> (ctx);
             }
@@ -133,7 +138,7 @@ namespace sequia
                 using core::dispatch_tag;
 
                 if (ctx.template is_active <Descriptor> ())
-                    activator::deactivate (ctx, dispatch_tag <State> ());
+                    deactivate (ctx, dispatch_tag <State> ());
 
                 base::terminate (ctx);
             }
@@ -152,17 +157,24 @@ namespace sequia
                 if (!is_same <NextState, NullState>::value && 
                     ctx.template is_active <Descriptor> ())
                 {
-                    activator::deactivate (ctx, dispatch_tag <CurrState> ());
-                    activator::activate (ctx, event, dispatch_tag <NextState> ());
+                    deactivate (ctx, dispatch_tag <CurrState> ());
+                    activate (ctx, event, dispatch_tag <NextState> ());
                 }
 
                 base::template react <Event> (ctx, event);
             }
         };
 
-        template <typename Context, typename Enumerator>
-        struct state_machine_reactor <Context, Enumerator, traits::state::null>
+        template <typename Context, typename BaseEnum, typename CurrEnum>
+        struct state_machine_reactor <Context, BaseEnum, CurrEnum, traits::state::null> :
+        public state_machine_activator <Context, BaseEnum>
         {
+            typedef state_machine_activator <Context, BaseEnum> base;
+
+            // introduce base type overloads into this namespace
+            using base::activate;
+            using base::deactivate;    
+
             template <typename InitState> 
             inline void initialize (Context &) {}
             inline void terminate (Context &) {}
@@ -210,7 +222,7 @@ namespace sequia
                     reinterpret_cast <State *> (buffer)-> ~State();
                 }
 
-                void flip ()
+                void commit ()
                 {
                     using std::swap;
 
@@ -231,12 +243,13 @@ namespace sequia
         {
             public:
                 typedef singular_context <Default, States...>           Context;
-                typedef state_enumerator <0, Default, States...>        Enumerator;
-                typedef state_machine_reactor <Context, Enumerator>     Reactor;
+                typedef state_enumerator <0, Default, States...>        Enumeration;
+                typedef state_machine_reactor <Context, Enumeration>    Reactor;
 
                 singular_machine () 
                 { 
                     reactor_.template initialize <Default> (context_); 
+                    context_.commit ();
                 }
 
                 ~singular_machine () 
@@ -247,8 +260,8 @@ namespace sequia
                 template <typename Event> 
                 void react (Event const &event) 
                 { 
-                    context_.flip ();
                     reactor_.template react <Event> (context_, event); 
+                    context_.commit ();
                 }
 
             private:
