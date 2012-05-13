@@ -14,6 +14,21 @@ namespace traits
         {
             typedef null next;
         };
+
+
+        // To implement state transitions specialize transition template 
+        // within the implemented translation unit:
+        //
+        // namespace traits
+        // {
+        //     namespace state
+        //     {
+        //         template <> struct transition <State1, Event1> { typedef State2 next; };
+        //         template <> struct transition <State2, Event2> { typedef State3 next; };
+        //         template <> struct transition <State3, Event3> { typedef State1 next; };
+        //     }
+        // }
+
     }
 }
 
@@ -184,6 +199,7 @@ namespace sequia
         };
             
         //---------------------------------------------------------------------
+        // holds all dynamic state context: active state id and state object itself
 
         template <typename ...States>
         class singular_context
@@ -224,10 +240,7 @@ namespace sequia
 
                 void commit ()
                 {
-                    using std::swap;
-
-                    swap (curr_active, next_active);
-                    next_active = curr_active;
+                    curr_active = next_active;
                 }
 
             private:
