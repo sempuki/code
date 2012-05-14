@@ -1,13 +1,10 @@
 #include <iostream>
-#include <algorithm>
 
-#include <cstdint>
-
-#include "core.hpp"
-#include "memory.hpp"
-#include "stream.hpp"
-#include "container.hpp"
-#include "state.hpp"
+#include <core/debug.hpp>
+#include <core/standard.hpp>
+#include <core/stream.hpp>
+#include <core/container.hpp>
+#include <state/state.hpp>
 
 using namespace std;
 using namespace sequia;
@@ -132,14 +129,14 @@ int main(int argc, char **argv)
     size_t N = sizeof(App::Test) * 10;
     uint8_t buf[N];
 
-    stream::stream<uint8_t> stream (buf, N);
+    core::stream<uint8_t> stream (buf, N);
     App::Test in (1, 0.1, 'a');
     App::Test out (0, 0.0, 0);
     
     stream << in;
     stream >> out;
 
-    container::fixedvector<int, 10> vec;
+    core::fixedvector<int, 10> vec;
     
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -147,27 +144,13 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    container::fixedmap<int, int, 10> map;
+    core::fixedmap<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;
 
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
-
-    size_t  M = 10;
-    size_t  allocvec[M]; // 10 allocations
-    int     allocmem[M]; // 10 ints
-
-    memory::linear_allocator<int> alloc (allocmem, M, allocvec, M);
-    int *p = alloc.allocate(5);
-    int *q = alloc.allocate(5);
-
-    for (int i=0; i < 5; ++i)
-        *p++ = *q++ = i;
-
-    for (int i=0; i < M; ++i)
-        cout << allocmem[i] << endl;
 
     state::singular_machine <State1, State2, State3> machine;
     machine.react (1);

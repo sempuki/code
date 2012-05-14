@@ -1,45 +1,6 @@
-#ifndef _CORE_HPP_
-#define _CORE_HPP_
+#ifndef _TYPES_HPP_
+#define _TYPES_HPP_
 
-#include <cstdio>
-#include <cstddef>
-#include <cassert>
-
-#include <tuple>
-#include <bitset>
-#include <vector>
-#include <algorithm>
-#include <type_traits>
-
-#if defined(__GNUC__)
-#define EXPECT_LIKELY(cond)    __builtin_expect((cond), 1)
-#define EXPECT_UNLIKELY(cond)  __builtin_expect((cond), 0)
-#else
-#define EXPECT_LIKELY(cond)    (cond)
-#define EXPECT_UNLIKELY(cond)  (cond)
-#endif
-
-#if ((defined DEBUG || defined _DEBUG) && !defined DISABLE_ASSERTS)
-#define ASSUMEF(cond, ...) \
-    if (EXPECT_UNLIKELY(!(cond))) \
-    { \
-        printf("--- ASSUMPTION FAILED: "); \
-        printf(__VA_ARGS__); \
-        printf("\n"); \
-    }
-#define ASSERTF(cond, ...) \
-    if (EXPECT_UNLIKELY(!(cond))) \
-    { \
-        printf("*** ASSERTION FAILED: "); \
-        printf(__VA_ARGS__); \
-        printf("\n"); \
-        assert(cond); \
-    }
-#else
-#define ASSUMEF(cond, ...) ((void) 0)
-#define ASSERTF(cond, ...) ((void) 0)
-#endif
-    
 namespace sequia
 {
     namespace core
@@ -53,6 +14,7 @@ namespace sequia
         struct dispatch_tag {};
 
         //---------------------------------------------------------------------
+        // Compile-time constants
 
         constexpr uint64_t one = 1;
 

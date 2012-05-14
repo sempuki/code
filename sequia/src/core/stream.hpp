@@ -1,7 +1,7 @@
 #ifndef _STREAM_HPP_
 #define _STREAM_HPP_
 
-#include "memory.hpp"
+#include <memory/core.hpp>
 
 namespace traits
 {

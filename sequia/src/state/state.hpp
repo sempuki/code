@@ -17,7 +17,7 @@ namespace traits
 
 
         // To implement state transitions specialize transition template 
-        // within the implemented translation unit:
+        // within the implemented translation unit as follows:
         //
         // namespace traits
         // {
@@ -163,11 +163,12 @@ namespace sequia
             {
                 using std::is_same;
                 using core::dispatch_tag;
+                using traits::state::null;
                 using traits::state::transition;
 
+                typedef null                                        NullState;
                 typedef State                                       CurrState;
                 typedef typename transition <State, Event>::next    NextState;
-                typedef traits::state::null                         NullState;
 
                 if (!is_same <NextState, NullState>::value && 
                     ctx.template is_active <Descriptor> ())
