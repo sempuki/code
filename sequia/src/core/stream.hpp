@@ -20,7 +20,7 @@ namespace traits
 
 namespace sequia
 {
-    namespace stream
+    namespace core
     {
         template <typename T>
         class stream

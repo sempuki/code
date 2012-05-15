@@ -18,13 +18,13 @@ namespace App
                 : a_(a), b_(b), c_(c) {}
 
             template <typename T>
-            bool serialize (stream::stream<T> *s) const
+            bool serialize (core::stream<T> *s) const
             {
                 *s << a_ << b_ << c_;
             }
 
             template <typename T>
-            bool deserialize (stream::stream<T> *s)
+            bool deserialize (core::stream<T> *s)
             {
                 *s >> a_ >> b_ >> c_;
             }

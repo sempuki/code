@@ -4,9 +4,12 @@
 #include <vector>
 #include <map>
 
+#include <memory/fixed_allocators.hpp>
+#include <memory/utility_allocators.hpp>
+
 namespace sequia
 {
-    namespace container
+    namespace core
     {
         template <typename T, size_t N>
         using fixedvector = std::vector<T, memory::fixed_identity_allocator<T, N>>;
