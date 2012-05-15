@@ -29,10 +29,10 @@ namespace sequia
 
                 template <typename U> 
                 fixed_identity_allocator (fixed_identity_allocator<U, N> const &r) : 
-                    parent_type (reinterpret_cast <pointer> (mem_), N) {}
+                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
 
                 fixed_identity_allocator () : 
-                    parent_type (reinterpret_cast <pointer> (mem_), N) {}
+                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
 
             private:
                 uint8_t  mem_[mem_size]; // uninitialized memory
@@ -54,10 +54,10 @@ namespace sequia
 
                 template <typename U> 
                 fixed_unity_allocator (fixed_unity_allocator<U, N> const &r) : 
-                    parent_type (reinterpret_cast <pointer> (mem_), N) {}
+                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
 
                 fixed_unity_allocator () : 
-                    parent_type (reinterpret_cast <pointer> (mem_), N) {}
+                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
 
             private:
                 uint8_t  mem_[mem_size]; // uninitialized memory

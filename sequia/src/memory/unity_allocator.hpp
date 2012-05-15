@@ -47,7 +47,9 @@ namespace sequia
 
         template <typename T, typename IndexType>
         unity_allocator<T,IndexType>::unity_allocator (pointer p, size_type s) : 
-            parent_type (p, s), pfree_ (p), nfree_ (s)
+            parent_type {p, s}, 
+            pfree_ {p}, 
+            nfree_ {s}
         {
             ASSERTF (size < (core::one << (sizeof(index_type) * 8)), 
                     "too many objects for size of free list index type");
@@ -64,7 +66,9 @@ namespace sequia
         template <typename T, typename IndexType>
         template <typename U> 
         unity_allocator<T,IndexType>::unity_allocator (unity_allocator<U, index_type> const &r) : 
-            parent_type (r), pfree_ (r.pfree_), nfree_ (r.nfree_)
+            parent_type {r}, 
+            pfree_ {r.pfree_}, 
+            nfree_ {r.nfree_}
         {}
 
         // Capacity

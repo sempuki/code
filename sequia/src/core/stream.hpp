@@ -27,7 +27,7 @@ namespace sequia
         {
             public:
                 stream (T *buf, size_t len) 
-                    : head_(buf), tail_(buf), begin_(buf), end_(buf+len) {}
+                    : head_ {buf}, tail_ {buf}, begin_ {buf}, end_ {buf+len} {}
 
                 template <typename E>
                 stream &operator<< (E const &e)

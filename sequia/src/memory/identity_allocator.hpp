@@ -21,8 +21,11 @@ namespace sequia
                 struct rebind { typedef identity_allocator<U> other; };
 
                 template <typename U> 
-                identity_allocator (identity_allocator<U> const &r) : parent_type (r) {}
-                identity_allocator (pointer p, size_type s) : parent_type (p, s) {}
+                identity_allocator (identity_allocator<U> const &r) : 
+                    parent_type {r} {}
+
+                identity_allocator (pointer p, size_type s) : 
+                    parent_type {p, s} {}
 
                 size_type max_size () const 
                 { 

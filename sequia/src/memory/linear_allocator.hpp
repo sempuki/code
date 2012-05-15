@@ -49,9 +49,9 @@ namespace sequia
         template <typename T>
         linear_allocator<T>::linear_allocator 
             (pointer pitems, size_type nitems, size_type *pallocs, size_type nallocs) : 
-                parent_type (pitems, nitems), 
-                nfree_ (nitems), 
-                list_ (descriptor_allocator (pallocs, nallocs))
+                parent_type {pitems, nitems}, 
+                nfree_ {nitems}, 
+                list_ {descriptor_allocator {pallocs, nallocs}}
         {
             list_.push_back (nitems | freebit);
         }
@@ -61,9 +61,9 @@ namespace sequia
         template <typename T>
         template <typename U> 
         linear_allocator<T>::linear_allocator (linear_allocator<U> const &r) : 
-            parent_type (r), 
-            nfree_ (r.nfree_), 
-            list_ (r.list_)
+            parent_type {r}, 
+            nfree_ {r.nfree_}, 
+            list_ {r.list_}
         {}
 
         // Capacity

@@ -12,15 +12,16 @@ namespace sequia
             T       *mem;
 
             buffer () : 
-                size (0), mem (0) {}
+                size {0}, 
+                mem {0} {}
 
             buffer (size_t s, T *m) : 
                 size (s), 
                 mem (m) {}
 
             buffer (size_t s, void *m) : 
-                size (s / sizeof(T)), 
-                mem (static_cast<T *>(m)) {}
+                size {s / sizeof(T)}, 
+                mem {static_cast<T *>(m)} {}
         };
     }
 }
