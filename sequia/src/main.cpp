@@ -164,8 +164,10 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    uint8_t buf1[memory::linear_allocator<int>::calc_size(10, 10)];
-    memory::linear_allocator<int> alloc (buf1, 10, 10);
+    size_t size = memory::linear_allocator<int>::calc_size(10, 10);
+    uint8_t mem[size];
+
+    memory::linear_allocator<int> alloc (mem, size, 10);
 
     return 0; 
 }
