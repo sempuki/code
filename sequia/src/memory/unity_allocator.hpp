@@ -29,13 +29,13 @@ namespace sequia
 
                 template <typename U> 
                 unity_allocator (unity_allocator<U, IndexType> const &r);
-                unity_allocator (pointer p, size_type s);
+                unity_allocator (void *p, size_type s);
 
                 size_type max_size () const;
                 pointer allocate (size_type num, const void* = 0);
                 void deallocate (pointer ptr, size_type num);
 
-                static size_type calc_size (pointer p, size_type s);
+                static size_type calc_size (size_type s);
 
             private:
                 pointer     pfree_;
@@ -47,10 +47,10 @@ namespace sequia
 
         template <typename T, typename IndexType>
         unity_allocator<T, IndexType>::
-        unity_allocator (pointer p, size_type s) : 
+        unity_allocator (void *p, size_type s) : 
             parent_type {p, s}, 
-            pfree_ {p}, 
-            nfree_ {s}
+            pfree_ {buffer<T>::mem}, 
+            nfree_ {buffer<T>::size}
         {
             ASSERTF (buffer<T>::size < (core::one << (sizeof(index_type) * 8)), 
                     "too many objects for size of free list index type");
@@ -118,9 +118,11 @@ namespace sequia
             nfree_++;
         }
                 
+        // Pre-allocation size calculator
+
         template <typename T, typename IndexType>
         auto unity_allocator<T, IndexType>::
-        calc_size (pointer p, size_type n) -> size_type 
+        calc_size (size_type n) -> size_type 
         { 
             return sizeof(this_type) + sizeof(T) * n;
         }

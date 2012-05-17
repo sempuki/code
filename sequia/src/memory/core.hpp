@@ -8,26 +8,26 @@ namespace sequia
         template <typename T>
         struct buffer
         {
-            size_t  size;   
             T       *mem;
+            size_t  size;   
 
             buffer () : 
-                size {0}, 
-                mem {0} {}
+                mem {0},
+                size {0} {}
 
-            buffer (size_t s, T *m) : 
-                size {s}, 
-                mem {m} {}
+            buffer (T *m, size_t s) : 
+                mem {m},
+                size {s} {}
 
-            buffer (size_t s, void *m) : 
-                size {s / sizeof(T)}, 
-                mem {static_cast<T *>(m)} {}
+            buffer (void *m, size_t s) : 
+                mem {reinterpret_cast <T *> (m)},
+                size {s / sizeof(T)} {}
         };
 
         template <typename T, typename U>
         auto reserve (void *ptr, size_t space) -> T *
         {
-            return reinterpret_cast <T *> (ptr + (sizeof(U) * space));
+            return (T *) ((uint8_t *) (ptr) + (sizeof(U) * space));
         }
     }
 }

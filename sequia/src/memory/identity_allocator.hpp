@@ -25,7 +25,7 @@ namespace sequia
                 identity_allocator (identity_allocator<U> const &r) : 
                     parent_type {r} {}
 
-                identity_allocator (pointer p, size_type s) : 
+                identity_allocator (void *p, size_type s) : 
                     parent_type {p, s} {}
 
                 size_type max_size () const 
@@ -42,7 +42,7 @@ namespace sequia
                 {
                 }
 
-                static size_type calc_size (pointer p, size_type n)
+                static size_type calc_size (size_type n)
                 {
                     return sizeof(this_type) + sizeof(T) * n;
                 }

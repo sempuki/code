@@ -19,7 +19,7 @@ namespace sequia
                 typedef stateful_allocator_base<T>  parent_type;
                 DECLARE_INHERITED_ALLOCATOR_TYPES_ (parent_type);
 
-                typedef fixedvector<size_type>                      descriptor_list;
+                typedef core::fixedvector<size_type>                descriptor_list;
                 typedef typename descriptor_list::allocator_type    descriptor_alloc;
 
                 static constexpr size_type freebit = core::one << ((sizeof(size_type) * 8) - 1);
@@ -30,13 +30,13 @@ namespace sequia
 
                 template <typename U> 
                 linear_allocator (linear_allocator<U> const &r);
-                linear_allocator (pointer pitems, size_type nitems, size_type nallocs);
+                linear_allocator (void *pitems, size_type nitems, size_type nallocs);
 
                 size_type max_size () const;
                 pointer allocate (size_type num, const void* = 0);
                 void deallocate (pointer ptr, size_type num);
         
-                static size_type calc_size (pointer p, size_type n, size_type nallocs);
+                static size_type calc_size (size_type n, size_type nallocs);
 
             private:
                 descriptor_list list_;
@@ -48,9 +48,9 @@ namespace sequia
 
         template <typename T>
         linear_allocator<T>::
-        linear_allocator (pointer pitems, size_type nitems, size_type nallocs) :
+        linear_allocator (void *pitems, size_type nitems, size_type nallocs) :
             parent_type {reserve <T, size_type> (pitems, nallocs), nitems}, 
-            list_ {descriptor_alloc {buffer<T>::mem, nallocs}},
+            list_ {descriptor_alloc (buffer<T>::mem, nallocs)},
             nfree_ {nitems}
         {
             list_.push_back (nitems | freebit);
@@ -177,9 +177,11 @@ namespace sequia
             list_.erase (remove (descr, descr+3, 0), end(list_));
         }
 
+        // Pre-allocation size calculator
+
         template <typename T>
         auto linear_allocator<T>::
-        calc_size (pointer p, size_type n, size_type nallocs) -> size_type
+        calc_size (size_type n, size_type nallocs) -> size_type
         {
             return sizeof(this_type) + sizeof(T) * n + sizeof(size_type) * nallocs;
         }

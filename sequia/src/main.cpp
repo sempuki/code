@@ -6,7 +6,8 @@
 #include <core/container.hpp>
 #include <state/state.hpp>
 
-#include "memory/pyramid_allocator.hpp"
+//#include "memory/pyramid_allocator.hpp"
+#include "memory/linear_allocator.hpp"
 
 using namespace std;
 using namespace sequia;
@@ -162,6 +163,9 @@ int main(int argc, char **argv)
     machine.react (4);
     machine.react (5);
     machine.react (6);
+
+    uint8_t buf1[memory::linear_allocator<int>::calc_size(10, 10)];
+    memory::linear_allocator<int> alloc (buf1, 10, 10);
 
     return 0; 
 }

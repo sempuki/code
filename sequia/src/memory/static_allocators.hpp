@@ -30,10 +30,10 @@ namespace sequia
 
                 template <typename U> 
                 static_identity_allocator (static_identity_allocator<U, N> const &r) : 
-                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
+                    parent_type {mem_, N} {}
 
                 static_identity_allocator () : 
-                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
+                    parent_type {mem_, N} {}
 
                 static size_type calc_size () { return sizeof(this_type); }
 
@@ -58,10 +58,10 @@ namespace sequia
 
                 template <typename U> 
                 static_unity_allocator (static_unity_allocator<U, N> const &r) : 
-                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
+                    parent_type {mem_, N} {}
 
                 static_unity_allocator () : 
-                    parent_type {reinterpret_cast <pointer> (mem_), N} {}
+                    parent_type {mem_, N} {}
 
                 static size_type calc_size () { return sizeof(this_type); }
 
