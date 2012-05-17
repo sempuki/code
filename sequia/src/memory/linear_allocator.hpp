@@ -15,11 +15,12 @@ namespace sequia
         class linear_allocator : public stateful_allocator_base<T>
         {
             public:
+                typedef linear_allocator<T>         this_type;
                 typedef stateful_allocator_base<T>  parent_type;
                 DECLARE_INHERITED_ALLOCATOR_TYPES_ (parent_type);
 
-                typedef identity_allocator<size_type> descriptor_allocator;
-                typedef std::vector<size_type, descriptor_allocator> descriptor_list;
+                typedef fixedvector<size_type>                      descriptor_list;
+                typedef typename descriptor_list::allocator_type    descriptor_alloc;
 
                 static constexpr size_type freebit = core::one << ((sizeof(size_type) * 8) - 1);
                 static constexpr size_type areabits = ~freebit;
@@ -29,47 +30,48 @@ namespace sequia
 
                 template <typename U> 
                 linear_allocator (linear_allocator<U> const &r);
-                linear_allocator (pointer pitems, size_type nitems, size_type *pallocs, size_type nallocs);
+                linear_allocator (pointer pitems, size_type nitems, size_type nallocs);
 
                 size_type max_size () const;
                 pointer allocate (size_type num, const void* = 0);
                 void deallocate (pointer ptr, size_type num);
+        
+                static size_type calc_size (pointer p, size_type n, size_type nallocs);
 
             private:
-                using parent_type::size;
-                using parent_type::mem;
-
-                size_type       nfree_;
                 descriptor_list list_;
+                size_type       nfree_;
         };
 
         //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
         // Constructor
 
         template <typename T>
-        linear_allocator<T>::linear_allocator 
-            (pointer pitems, size_type nitems, size_type *pallocs, size_type nallocs) : 
-                parent_type {pitems, nitems}, 
-                nfree_ {nitems}, 
-                list_ {descriptor_allocator {pallocs, nallocs}}
+        linear_allocator<T>::
+        linear_allocator (pointer pitems, size_type nitems, size_type nallocs) :
+            parent_type {reserve <T, size_type> (pitems, nallocs), nitems}, 
+            list_ {descriptor_alloc {buffer<T>::mem, nallocs}},
+            nfree_ {nitems}
         {
             list_.push_back (nitems | freebit);
         }
 
-        // Copy Constructor
+        // Rebind Copy Constructor
 
         template <typename T>
         template <typename U> 
-        linear_allocator<T>::linear_allocator (linear_allocator<U> const &r) : 
+        linear_allocator<T>::
+        linear_allocator (linear_allocator<U> const &r) : 
             parent_type {r}, 
-            nfree_ {r.nfree_}, 
-            list_ {r.list_}
+            list_ {r.list_},
+            nfree_ {r.nfree_} 
         {}
 
         // Capacity
 
         template <typename T>
-        auto linear_allocator<T>::max_size () const -> size_type 
+        auto linear_allocator<T>::
+        max_size () const -> size_type 
         {
             return nfree_;
         }
@@ -77,7 +79,8 @@ namespace sequia
         // Allocate
 
         template <typename T>
-        auto linear_allocator<T>::allocate (size_type num, const void*) -> pointer 
+        auto linear_allocator<T>::
+        allocate (size_type num, const void*) -> pointer 
         {
             ASSERTF (num < freebit, "allocation size impinges on free bit");
 
@@ -88,7 +91,7 @@ namespace sequia
             typename descriptor_list::iterator descr = std::begin(list_); 
             typename descriptor_list::iterator end = std::end(list_); 
 
-            for (pointer p = mem; descr != end; ++descr, p += area)
+            for (pointer p = buffer<T>::mem; descr != end; ++descr, p += area)
             {
                 free = *descr & freebit;
                 area = *descr & areabits; 
@@ -107,7 +110,9 @@ namespace sequia
             }
 
             ASSERTF (descr != end, "unable to allocate pointer");
-            ASSERTF ((ptr >= mem) && (ptr < mem + size), "free list is corrupt");
+            ASSERTF ((ptr >= buffer<T>::mem) && 
+                    (ptr < buffer<T>::mem + buffer<T>::size), 
+                    "free list is corrupt");
 
             return ptr;
         }
@@ -115,9 +120,12 @@ namespace sequia
         // Deallocate
 
         template <typename T>
-        auto linear_allocator<T>::deallocate (pointer ptr, size_type num) -> void
+        auto linear_allocator<T>::
+        deallocate (pointer ptr, size_type num) -> void
         {
-            ASSERTF ((ptr >= mem) && (ptr < mem + size), "pointer is not from this heap");
+            ASSERTF ((ptr >= buffer<T>::mem) && 
+                    (ptr < buffer<T>::mem + buffer<T>::size), 
+                    "pointer is not from this heap");
 
             using std::remove;
 
@@ -129,7 +137,7 @@ namespace sequia
             typename descriptor_list::iterator end = std::end(list_); 
             typename descriptor_list::iterator next;
 
-            for (pointer p = mem; descr != end; ++descr, p += area)
+            for (pointer p = buffer<T>::mem; descr != end; ++descr, p += area)
             {
                 if (ptr == p)
                 {
@@ -167,6 +175,13 @@ namespace sequia
 
             // remove any invalid descriptors due to merge
             list_.erase (remove (descr, descr+3, 0), end(list_));
+        }
+
+        template <typename T>
+        auto linear_allocator<T>::
+        calc_size (pointer p, size_type n, size_type nallocs) -> size_type
+        {
+            return sizeof(this_type) + sizeof(T) * n + sizeof(size_type) * nallocs;
         }
     }
 }

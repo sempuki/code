@@ -14,6 +14,7 @@ namespace sequia
         class identity_allocator : public stateful_allocator_base<T>
         {
             public:
+                typedef identity_allocator<T>       this_type;
                 typedef stateful_allocator_base<T>  parent_type;
                 DECLARE_INHERITED_ALLOCATOR_TYPES_ (parent_type);
 
@@ -29,20 +30,22 @@ namespace sequia
 
                 size_type max_size () const 
                 { 
-                    return size;
+                    return buffer<T>::size;
                 }
 
                 pointer allocate (size_type num, const void* = 0) 
                 { 
-                    return mem; 
+                    return buffer<T>::mem; 
                 }
 
                 void deallocate (pointer ptr, size_type num) 
-                {}
+                {
+                }
 
-            private:
-                using parent_type::size;
-                using parent_type::mem;
+                static size_type calc_size (pointer p, size_type n)
+                {
+                    return sizeof(this_type) + sizeof(T) * n;
+                }
         };
     }
 }

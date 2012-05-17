@@ -6,6 +6,8 @@
 #include <core/container.hpp>
 #include <state/state.hpp>
 
+#include "memory/pyramid_allocator.hpp"
+
 using namespace std;
 using namespace sequia;
 
@@ -118,6 +120,7 @@ namespace traits
 {
     namespace state
     {
+        // use argument depended lookup
         template <> struct transition <State1, int> { typedef State2 next; };
         template <> struct transition <State2, int> { typedef State3 next; };
         template <> struct transition <State3, int> { typedef State1 next; };
@@ -136,7 +139,7 @@ int main(int argc, char **argv)
     stream << in;
     stream >> out;
 
-    core::fixedvector<int, 10> vec;
+    core::staticvector<int, 10> vec;
     
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -144,7 +147,7 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    core::fixedmap<int, int, 10> map;
+    core::staticmap<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;

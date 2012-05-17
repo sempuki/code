@@ -30,6 +30,8 @@ namespace sequia
                 template <typename U> 
                 stateful_allocator_base (stateful_allocator_base<U> const &r) : buffer<T> (r) {}
                 stateful_allocator_base (pointer p, size_type s) : buffer<T> (s, p) {}
+
+                static size_type calc_size (pointer p, size_type n);
         };
 
         //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
