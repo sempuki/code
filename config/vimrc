@@ -5,11 +5,11 @@
 " - OmniCppComplete         "C++ omnifunc
 " - eclim                   "Eclipse server
 
-"use VIM settings
-set nocompatible
 colorscheme slate
 
 filetype plugin indent on   "autoguess by file extension
+set nocompatible            "use VIM settings
+set autowriteall            "write buffer to file when switching
 set undofile                "persistent undo
 set tabstop=4               "number of spaces in a tab, used in expandtab
 set softtabstop=4           "number of spaces in a tab, used in smarttab
@@ -19,25 +19,27 @@ set smarttab                "somewhat smarter tab control
 set cindent                 "C indenting
 "set cinwords                "indent after words
 "set cinkeys                 "indent after keys
+set ruler                   "show the cursor
 set number                  "print line numbers
 set incsearch               "incremental search
 set hlsearch                "highlight search matches
-set ruler                   "show the cursor
 set wildmenu                "print menu completions
-set autowriteall            "write buffer to file when switching
 set scrolloff=5             "keep lines of context when scrolling
 set foldmethod=syntax       "fold according to syntax hl rules
 set foldlevel=99            "default to all open
 set matchpairs+=<:>         "match angle brackets
 set splitright              "split in empty space to the right
 set diffopt+=context:999    "turn off folding context in diffs
+set guioptions-=tT          "turn off annoying toolbars
 set noerrorbells            "turn off annoying bells
 set t_vb=                   "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
-"syntax highlighting always on
-if !exists ("syntax_on")
-    syntax on
+" Windows GUI tweaks
+if has("gui_win32")
+    autocmd GUIEnter * :simalt ~x
+    set guifont=DejaVu_Sans_Mono:h9:cANSI
+    set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif
 
 "multi-platform support
@@ -47,12 +49,9 @@ else
     let find="dir /b /s "
 endif
 
-" Windows GUI tweaks
-if has("gui_win32")
-    autocmd GUIEnter * :simalt ~x
-    set guifont=DejaVu_Sans_Mono:h9:cANSI
-    set guioptions-=tT
-    set shellslash          "unify shell path seperator handling (eg. Cygwin)
+"syntax highlighting always on
+if !exists ("syntax_on")
+    syntax on
 endif
 
 "quit without saving
