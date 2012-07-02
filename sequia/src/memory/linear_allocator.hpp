@@ -30,7 +30,7 @@ namespace sequia
 
                 template <typename U> 
                 linear_allocator (linear_allocator<U> const &r);
-                linear_allocator (void *pitems, size_type nitems, size_type nallocs);
+                linear_allocator (void *mem, size_type nitems, size_type nallocs);
 
                 size_type max_size () const;
                 pointer allocate (size_type num, const void* = 0);
@@ -48,9 +48,9 @@ namespace sequia
 
         template <typename T>
         linear_allocator<T>::
-        linear_allocator (void *pitems, size_type nitems, size_type nallocs) :
-            parent_type {reserve <T, size_type> (pitems, nallocs), nitems}, 
-            list_ {descriptor_alloc (buffer<T>::mem, nallocs)},
+        linear_allocator (void *mem, size_type nitems, size_type nallocs) :
+            parent_type {, }, 
+            list_ {descriptor_alloc (, )},
             nfree_ {nitems}
         {
             list_.push_back (nitems | freebit);
@@ -91,7 +91,7 @@ namespace sequia
             typename descriptor_list::iterator descr = std::begin(list_); 
             typename descriptor_list::iterator end = std::end(list_); 
 
-            for (pointer p = buffer<T>::mem; descr != end; ++descr, p += area)
+            for (pointer p = buffer<T>::memory; descr != end; ++descr, p += area)
             {
                 free = *descr & freebit;
                 area = *descr & areabits; 
@@ -110,8 +110,8 @@ namespace sequia
             }
 
             ASSERTF (descr != end, "unable to allocate pointer");
-            ASSERTF ((ptr >= buffer<T>::mem) && 
-                    (ptr < buffer<T>::mem + buffer<T>::size), 
+            ASSERTF ((ptr >= buffer<T>::memory) && 
+                    (ptr < buffer<T>::memory + buffer<T>::size), 
                     "free list is corrupt");
 
             return ptr;
@@ -123,8 +123,8 @@ namespace sequia
         auto linear_allocator<T>::
         deallocate (pointer ptr, size_type num) -> void
         {
-            ASSERTF ((ptr >= buffer<T>::mem) && 
-                    (ptr < buffer<T>::mem + buffer<T>::size), 
+            ASSERTF ((ptr >= buffer<T>::memory) && 
+                    (ptr < buffer<T>::memory + buffer<T>::size), 
                     "pointer is not from this heap");
 
             using std::remove;
@@ -137,7 +137,7 @@ namespace sequia
             typename descriptor_list::iterator end = std::end(list_); 
             typename descriptor_list::iterator next;
 
-            for (pointer p = buffer<T>::mem; descr != end; ++descr, p += area)
+            for (pointer p = buffer<T>::memory; descr != end; ++descr, p += area)
             {
                 if (ptr == p)
                 {

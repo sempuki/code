@@ -1,7 +1,7 @@
 #ifndef _UNITY_ALLOCATOR_HPP_
 #define _UNITY_ALLOCATOR_HPP_
 
-#include <memory/stateful_allocator_base.hpp>
+#include <memory/fixed_allocator_base.hpp>
 
 namespace sequia
 {
@@ -11,122 +11,111 @@ namespace sequia
         // Only allocates single element per call
         // Uses an embedded index-based linked free list
 
-        template <typename T, typename IndexType>
-        class unity_allocator : public stateful_allocator_base<T>
+        template <typename T, typename IndexType, typename ParentAllocator = std::allocator<T>>
+        using unity_parent_allocator = 
+        typename ParentAllocator::rebind<block<T, IndexType>>::other;
+
+        template <typename T, typename IndexType, typename ParentAllocator = std::allocator<T>>
+        using unity_allocator_base = 
+        fixed_allocator_base<block<T, IndexType>, unity_parent_allocator<T, IndexType, ParentAllocator>>
+
+        template <typename T, typename IndexType, typename ParentAllocator = std::allocator<T>>
+        class unity_allocator : 
+            public unity_allocator_base<T, IndexType, ParentAllocator>
         {
             public:
-                typedef unity_allocator<T, IndexType> this_type;
-                typedef stateful_allocator_base<T>  parent_type;
+                typedef ParentAllocator                                     parent_type;
+                typedef unity_allocator_base<T, IndexType, ParentAllocator> base_type;
+
                 DECLARE_INHERITED_ALLOCATOR_TYPES_ (parent_type);
 
-                typedef IndexType                   index_type;
+                typedef IndexType                                           index_type;
+                typedef typename base_type::value_type                      block_type;
+                typedef typename base_type::pointer                         block_pointer;
+                typedef typename base_type::size_type                       block_size_type;
 
-                static_assert (sizeof(value_type) >= sizeof(index_type), 
-                        "sizeof(T) too small for free list index");
-
+                // rebind type
                 template <typename U> 
-                struct rebind { typedef unity_allocator<U, IndexType> other; };
+                struct rebind { typedef unity_allocator<U, IndexType, ParentAllocator> other; };
 
+                // rebind constructor
                 template <typename U> 
-                unity_allocator (unity_allocator<U, IndexType> const &r);
-                unity_allocator (void *p, size_type s);
+                unity_allocator (unity_allocator<U, IndexType, ParentAllocator> const &copy) :
+                    base_type {copy} {}
 
-                size_type max_size () const;
-                pointer allocate (size_type num, const void* = 0);
-                void deallocate (pointer ptr, size_type num);
+                // default constructor
+                unity_allocator () = delete;
 
-                static size_type calc_size (size_type s);
+                // copy constructor
+                unity_allocator (unity_allocator const &copy) :
+                    base_type {copy} 
+                { 
+                    init_memory_blocks (state().allocation); 
+                }
+
+                // stateful constructor
+                explicit unity_allocator (State const &state) :
+                    base_type {state} 
+                { 
+                    init_memory_blocks (state().allocation); 
+                }
+
+                // capacity
+                size_type max_size () const
+                { 
+                    return nfree_;
+                }
+
+                // allocate
+                pointer allocate (size_type num, const void*)
+                {
+                    ASSERTF (num == 1, "can only allocate one object per call");
+                    ASSERTF (state().allocation.contains (pfree_), "free list is corrupt");
+
+                    block_pointer block = pfree_;
+                    block_pointer items = state().allocation.items;
+
+                    pfree_ = items + pfree_->index;
+                    nfree_--;
+
+                    return reinterpret_cast <pointer> (block);
+                }
+
+                // deallocate
+                void deallocate (pointer ptr, size_type num)
+                {
+                    ASSERTF (num == 1, "can only allocate one object per call");
+                    ASSERTF (state().allocation.contains (ptr), "pointer is not from this heap");
+
+                    block_pointer block = reinterpret_cast <block_pointer> (ptr);
+                    block_pointer items = state().allocation.items;
+
+                    block->index = pfree_ - items;
+                    pfree_ = block;
+                    nfree_++;
+                }
 
             private:
-                pointer     pfree_;
-                size_type   nfree_;
+                void init_memory_blocks (buffer<block_type> &buf);
+                {
+                    ASSERTF (buf.size < (core::one << (sizeof(index_type) * 8)), 
+                            "too many objects for size of free list index type");
+
+                    pfree_ = buf.items;
+                    nfree_ = buf.size;
+
+                    index_type index = 0;
+                    pointer block = buf.items;
+                    pointer end   = buf.items + buf.size;
+
+                    for (; block < end; ++block)
+                        block->index = index++;
+                }
+
+            private:
+                block_pointer       pfree_;
+                block_size_type     nfree_;
         };
-
-        //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        // Constructor
-
-        template <typename T, typename IndexType>
-        unity_allocator<T, IndexType>::
-        unity_allocator (void *p, size_type s) : 
-            parent_type {p, s}, 
-            pfree_ {buffer<T>::mem}, 
-            nfree_ {buffer<T>::size}
-        {
-            ASSERTF (buffer<T>::size < (core::one << (sizeof(index_type) * 8)), 
-                    "too many objects for size of free list index type");
-
-            index_type i;
-            pointer base = buffer<T>::mem;
-
-            for (i = 0; i < buffer<T>::size; ++i)
-                *(reinterpret_cast <index_type *> (base + i)) = i + 1;
-        }
-
-        // Rebind Copy Constructor
-
-        template <typename T, typename IndexType>
-        template <typename U> 
-        unity_allocator<T, IndexType>::
-        unity_allocator (unity_allocator<U, index_type> const &r) : 
-            parent_type {r}, 
-            pfree_ {r.pfree_}, 
-            nfree_ {r.nfree_}
-        {}
-
-        // Capacity
-
-        template <typename T, typename IndexType>
-        auto unity_allocator<T, IndexType>::
-        max_size () const -> size_type 
-        { 
-            return nfree_;
-        }
-
-        // Allocate
-
-        template <typename T, typename IndexType>
-        auto unity_allocator<T, IndexType>::
-        allocate (size_type num, const void*) -> pointer 
-        { 
-            ASSERTF (num == 1, "can only allocate one object per call");
-            ASSERTF ((pfree_ >= buffer<T>::mem) && 
-                    (pfree_ < buffer<T>::mem + buffer<T>::size), 
-                    "free list is corrupt");
-
-            index_type i = *(reinterpret_cast <index_type *> (pfree_));
-            pointer ptr = pfree_;
-            pfree_ = buffer<T>::mem + i;
-            nfree_--;
-
-            return ptr;
-        }
-
-        // Deallocate
-
-        template <typename T, typename IndexType>
-        auto unity_allocator<T, IndexType>::
-        deallocate (pointer ptr, size_type num) -> void
-        {
-            ASSERTF (num == 1, "can only allocate one object per call");
-            ASSERTF ((ptr >= buffer<T>::mem) && 
-                    (ptr < buffer<T>::mem + buffer<T>::size), 
-                    "pointer is not from this heap");
-
-            index_type i = pfree_ - buffer<T>::mem;
-            *(reinterpret_cast <index_type *> (ptr)) = i;
-            pfree_ = ptr;
-            nfree_++;
-        }
-                
-        // Pre-allocation size calculator
-
-        template <typename T, typename IndexType>
-        auto unity_allocator<T, IndexType>::
-        calc_size (size_type n) -> size_type 
-        { 
-            return sizeof(this_type) + sizeof(T) * n;
-        }
-
     }
 }
 

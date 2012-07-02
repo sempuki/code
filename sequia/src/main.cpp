@@ -3,11 +3,15 @@
 #include <core/debug.hpp>
 #include <core/standard.hpp>
 #include <core/stream.hpp>
-#include <core/container.hpp>
+#include <core/types.hpp>
+//#include <core/container.hpp>
 #include <state/state.hpp>
 
-//#include "memory/pyramid_allocator.hpp"
-#include "memory/linear_allocator.hpp"
+#include "memory/allocator/core.hpp"
+#include "memory/allocator/fixed_buffer.hpp"
+#include "memory/allocator/scoped.hpp"
+//#include "memory/allocator/identity.hpp"
+//#include "memory/allocator/constant.hpp"
 
 using namespace std;
 using namespace sequia;
@@ -121,7 +125,7 @@ namespace traits
 {
     namespace state
     {
-        // use argument depended lookup
+        // use argument depended lookup?
         template <> struct transition <State1, int> { typedef State2 next; };
         template <> struct transition <State2, int> { typedef State3 next; };
         template <> struct transition <State3, int> { typedef State1 next; };
@@ -140,22 +144,6 @@ int main(int argc, char **argv)
     stream << in;
     stream >> out;
 
-    core::staticvector<int, 10> vec;
-    
-    for (int i=0; i < 10; ++i)
-        vec.push_back (i);
-
-    for (int i=0; i < 10; ++i)
-        cout << vec[i] << endl;
-
-    core::staticmap<int, int, 10> map;
-
-    for (int i=0; i < 10; i++)
-        map[i] = i;
-
-    for (int i=0; i < 10; i++)
-        cout << map[i] << endl;
-
     state::singular_machine <State1, State2, State3> machine;
     machine.react (1);
     machine.react (2);
@@ -164,10 +152,27 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    size_t size = memory::linear_allocator<int>::calc_size(10, 10);
-    uint8_t mem[size];
+    //memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10> alloc;
+    memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>> alloc {memory::allocator::base_state<int> {10}};
+    //memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>> alloc;
+    //memory::allocator::constant<10, memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>>> alloc;
 
-    memory::linear_allocator<int> alloc (mem, size, 10);
+    //core::fixedvector<int, 10> vec;
+    //core::staticvector<int, 10> vec;
+    
+    //for (int i=0; i < 10; ++i)
+    //    vec.push_back (i);
+
+    //for (int i=0; i < 10; ++i)
+    //    cout << vec[i] << endl;
+
+    //core::staticmap<int, int, 10> map;
+
+    //for (int i=0; i < 10; i++)
+    //    map[i] = i;
+
+    //for (int i=0; i < 10; i++)
+    //    cout << map[i] << endl;
 
     return 0; 
 }

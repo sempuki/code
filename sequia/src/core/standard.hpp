@@ -5,9 +5,11 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <map>
 #include <vector>
 #include <algorithm>
 #include <type_traits>
 #include <utility>
+#include <memory>
 
 #endif
