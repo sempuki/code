@@ -12,16 +12,18 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills terminal allocator concept
 
-            template <typename State, size_t N>
+            template <typename T, size_t N>
             class fixed_buffer
             {
                 public:
-                    typedef State                           state_type;
-                    typedef typename state_type::value_type value_type;
+                    using value_type = T;
+                    using state_type = base_state<T>;
 
-                    typedef std::false_type propagate_on_container_copy_assignment;
-                    typedef std::false_type propagate_on_container_move_assignment;
-                    typedef std::false_type propagate_on_container_swap;
+                    using propagate_on_container_copy_assignment = std::false_type;
+                    using propagate_on_container_move_assignment = std::false_type;
+                    using propagate_on_container_swap = std::false_type;
+
+                    //using pointer = typename std::allocator_traits<value_type>::pointer;
 
                 public:
                     // default constructor

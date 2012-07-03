@@ -15,12 +15,12 @@ namespace sequia
             class scoped : public Delegator
             {
                 public:
-                    typedef typename Delegator::state_type  state_type;
-                    typedef typename Delegator::value_type  value_type;
+                    using value_type = typename Delegator::value_type;
+                    using state_type = typename Delegator::state_type;
 
-                    typedef std::true_type propagate_on_container_copy_assignment;
-                    typedef std::true_type propagate_on_container_move_assignment;
-                    typedef std::true_type propagate_on_container_swap;
+                    using propagate_on_container_copy_assignment = std::true_type;
+                    using propagate_on_container_move_assignment = std::true_type;
+                    using propagate_on_container_swap = std::true_type;
 
                 public:
                     // default constructor

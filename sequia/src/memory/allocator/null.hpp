@@ -12,16 +12,16 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills terminal allocator concept
 
-            template <typename State>
+            template <typename T>
             class null
             {
                 public:
-                    typedef State                           state_type;
-                    typedef typename state_type::value_type value_type;
+                    using value_type = T;
+                    using state_type = base_state<T>;
 
-                    typedef std::false_type propagate_on_container_copy_assignment;
-                    typedef std::false_type propagate_on_container_move_assignment;
-                    typedef std::false_type propagate_on_container_swap;
+                    using propagate_on_container_copy_assignment = std::false_type;
+                    using propagate_on_container_move_assignment = std::false_type;
+                    using propagate_on_container_swap = std::false_type;
 
                 public:
                     // default constructor
@@ -33,7 +33,7 @@ namespace sequia
                         null {copy.state()} {}
 
                     // stateful constructor
-                    explicit null (State const &state) :
+                    explicit null (state_type const &state) :
                         state_ {state} {}
 
                     // destructor
@@ -44,7 +44,7 @@ namespace sequia
                     size_t max_size () const { return 0; }
 
                     // allocation is a null operation
-                    T *allocate (size_t num, const void* = 0) {}
+                    value_type *allocate (size_t num, const void* = 0) {}
 
                     // deallocation is a null operation
                     void deallocate (T *ptr, size_t num) {}

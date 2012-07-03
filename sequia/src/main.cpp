@@ -10,8 +10,8 @@
 #include "memory/allocator/core.hpp"
 #include "memory/allocator/fixed_buffer.hpp"
 #include "memory/allocator/scoped.hpp"
-//#include "memory/allocator/identity.hpp"
-//#include "memory/allocator/constant.hpp"
+#include "memory/allocator/identity.hpp"
+#include "memory/allocator/constant.hpp"
 
 using namespace std;
 using namespace sequia;
@@ -153,9 +153,9 @@ int main(int argc, char **argv)
     machine.react (6);
 
     //memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10> alloc;
-    memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>> alloc {memory::allocator::base_state<int> {10}};
-    //memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>> alloc;
-    //memory::allocator::constant<10, memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>>> alloc;
+    //memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>> alloc {memory::allocator::base_state<int> {10}};
+    //memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>> alloc {memory::allocator::base_state<int> {10}};
+    memory::allocator::constant<10, memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<int, 10>>>> alloc;
 
     //core::fixedvector<int, 10> vec;
     //core::staticvector<int, 10> vec;

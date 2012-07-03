@@ -10,7 +10,7 @@ namespace sequia
             template <typename T>
             struct base_state 
             {
-                typedef T   value_type;
+                using value_type = T;
 
                 base_state (size_t size) :
                     arena {size} {}
