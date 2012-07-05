@@ -10,6 +10,7 @@ namespace sequia
             //=========================================================================
             // Implements null-operation semantics
             // Fulfills stateful allocator concept
+            // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
             template <typename T>
@@ -22,6 +23,11 @@ namespace sequia
                     using propagate_on_container_copy_assignment = std::false_type;
                     using propagate_on_container_move_assignment = std::false_type;
                     using propagate_on_container_swap = std::false_type;
+
+                public:
+                    // rebind type
+                    template <typename U> 
+                    struct rebind { using other = null<U>; };
 
                 public:
                     // default constructor

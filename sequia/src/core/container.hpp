@@ -1,10 +1,11 @@
 #ifndef _CONTAINER_HPP_
 #define _CONTAINER_HPP_
 
-#include <memory/core.hpp>
-#include <memory/identity_static_allocator.hpp>
-#include <memory/fixed_allocator.hpp>
-#include <memory/null_allocator.hpp>
+#include <memory/allocator/core.hpp>
+#include <memory/allocator/constant.hpp>
+#include <memory/allocator/identity.hpp>
+#include <memory/allocator/scoped.hpp>
+#include <memory/allocator/fixed_buffer.hpp>
 
 #define DECLARE_INHERITED_CONTAINER_TYPES(ContainerType) \
     typedef typename ContainerType::value_type              value_type; \
@@ -27,21 +28,14 @@ namespace sequia
     {
         template <typename T, size_t N>
         using fixed_vector_allocator = 
-        memory::identity_static_allocator<T, memory::fixed_allocator<T, N>>;
+            memory::allocator::constant<N, 
+                memory::allocator::identity<
+                    memory::allocator::scoped<
+                        memory::allocator::fixed_buffer<T, N>>>>;
 
         template <typename T, size_t N>
-        class fixedvector : public std::vector<T, fixed_vector_allocator<T, N>>
-        {
-            public:
-                typedef std::vector<T, fixed_vector_allocator<T, N>> parent_type;
-                DECLARE_INHERITED_CONTAINER_TYPES (parent_type);
+        using fixed_vector = std::vector<T, fixed_vector_allocator<T, N>>;
 
-                explicit fixedvector () : 
-                    parent_type {memory::null_allocator<T, memory::allocator::state<T>> {memory::allocator::state<T> {N}}} {}
-
-                // TODO: inheriting constructors
-        };
-    
         //template <typename K, typename V>
         //using fixedmap_allocator = 
         //memory::rebind_allocator<memory::unity_allocator<std::pair<const K, V>, uint16_t>>;

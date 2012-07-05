@@ -12,6 +12,8 @@ namespace sequia
             {
                 using value_type = T;
 
+                base_state () = default;
+
                 base_state (size_t size) :
                     arena {size} {}
 

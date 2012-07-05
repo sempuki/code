@@ -4,14 +4,8 @@
 #include <core/standard.hpp>
 #include <core/stream.hpp>
 #include <core/types.hpp>
-//#include <core/container.hpp>
+#include <core/container.hpp>
 #include <state/state.hpp>
-
-#include "memory/allocator/core.hpp"
-#include "memory/allocator/fixed_buffer.hpp"
-#include "memory/allocator/scoped.hpp"
-#include "memory/allocator/identity.hpp"
-#include "memory/allocator/constant.hpp"
 
 using namespace std;
 using namespace sequia;
@@ -152,19 +146,14 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    //memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10> alloc;
-    //memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>> alloc {memory::allocator::base_state<int> {10}};
-    //memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<memory::allocator::base_state<int>, 10>>> alloc {memory::allocator::base_state<int> {10}};
-    memory::allocator::constant<10, memory::allocator::identity<memory::allocator::scoped<memory::allocator::fixed_buffer<int, 10>>>> alloc;
-
-    //core::fixedvector<int, 10> vec;
+    core::fixed_vector<int, 10> vec;
     //core::staticvector<int, 10> vec;
     
-    //for (int i=0; i < 10; ++i)
-    //    vec.push_back (i);
+    for (int i=0; i < 10; ++i)
+        vec.push_back (i);
 
-    //for (int i=0; i < 10; ++i)
-    //    cout << vec[i] << endl;
+    for (int i=0; i < 10; ++i)
+        cout << vec[i] << endl;
 
     //core::staticmap<int, int, 10> map;
 

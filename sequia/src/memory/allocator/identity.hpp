@@ -9,7 +9,8 @@ namespace sequia
         {
             //=====================================================================
             // Only allocates the same memory arena for each call
-            // Fulfills stateful allocator Concept
+            // Fulfills stateful allocator concept
+            // Fulfills rebindable allocator concept
 
             template <typename Delegator>
             class identity : public Delegator
@@ -21,6 +22,15 @@ namespace sequia
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
+
+                public:
+                    // rebind type
+                    template <typename U> 
+                    struct rebind 
+                    { 
+                        using other = identity
+                            <typename Delegator::template rebind<U>::other>;
+                    };
 
                 public:
                     // default constructor
