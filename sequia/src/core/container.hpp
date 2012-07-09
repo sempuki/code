@@ -31,7 +31,7 @@ namespace sequia
             memory::allocator::constant<N, 
                 memory::allocator::identity<
                     memory::allocator::scoped<
-                        memory::allocator::fixed_buffer<T, N>>>>;
+                        memory::allocator::fixed_buffer<N, T>>>>;
 
         template <typename T, size_t N>
         using fixed_vector = std::vector<T, fixed_vector_allocator<T, N>>;

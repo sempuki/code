@@ -79,15 +79,6 @@ namespace sequia
 
         //--------------------------------------------------------------------
 
-        template <typename ValueType, typename IndexType>
-        union block
-        {
-            ValueType   value;
-            IndexType   index;
-        };
-
-        //--------------------------------------------------------------------
-
         template <typename T>
         using aligned_storage = typename std::aligned_storage 
             <sizeof(T), std::alignment_of<T>::value>::type;

@@ -12,30 +12,32 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
 
-            template <typename Delegator>
+            template <typename Delegator,
+                     typename Value = typename Delegator::value_type,
+                     typename State = typename Delegator::state_type> 
+
             class scoped : public Delegator
             {
+                protected:
+                    using base_type = Delegator;
+
                 public:
-                    using value_type = typename Delegator::value_type;
-                    using state_type = typename Delegator::state_type;
+                    using value_type = Value;
+                    using state_type = State;
 
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
 
                 public:
-                    // rebind type
                     template <typename U> 
                     struct rebind 
                     { 
                         using other = scoped
-                            <typename Delegator::template rebind<U>::other>;
+                            <typename base_type::template rebind<U>::other>;
                     };
 
                 public:
-                    // default constructor
-                    scoped () = delete;
-
                     // stateful copy constructor
                     template <typename Allocator>
                     scoped (Allocator const &copy) :
@@ -43,11 +45,11 @@ namespace sequia
 
                     // stateful constructor
                     explicit scoped (state_type const &state) :
-                        Delegator {state}, state_ {state}
+                        base_type {state}, state_ {state}
                     {
                         buffer<value_type> &mem = state_.arena;
 
-                        mem.items = Delegator::allocate (mem.size);
+                        mem.items = base_type::allocate (mem.size);
                     }
 
                     // destructor
@@ -55,7 +57,7 @@ namespace sequia
                     {
                         buffer<value_type> &mem = state_.arena;
 
-                        Delegator::deallocate (mem.items, mem.size);
+                        base_type::deallocate (mem.items, mem.size);
                     }
 
                 public:

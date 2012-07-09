@@ -1,5 +1,5 @@
-#ifndef _NULL_ALLOCATOR_HPP_
-#define _NULL_ALLOCATOR_HPP_
+#ifndef _STANDARD_ALLOCATOR_HPP_
+#define _STANDARD_ALLOCATOR_HPP_
 
 namespace sequia
 {
@@ -8,13 +8,13 @@ namespace sequia
         namespace allocator
         {
             //=========================================================================
-            // Implements null-operation semantics
+            // Implements fixed-buffer semantics
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
             template <typename T, typename State = base_state<T>>
-            class null
+            class standard : public std::allocator<T>
             {
                 protected:
                     using base_type = std::false_type;
@@ -28,34 +28,24 @@ namespace sequia
                     using propagate_on_container_swap = std::false_type;
 
                 public:
-                    template <typename U> 
+                    template <typename U>
                     struct rebind 
                     { 
-                        using other = null<U>; 
+                        using other = standard<U>; 
                     };
 
                 public:
                     // stateful copy constructor
                     template <typename Allocator>
-                    null (Allocator const &copy) :
-                        null {copy.state()} {}
+                    standard (Allocator const &copy) :
+                        standard {copy.state()} {}
 
                     // stateful constructor
-                    explicit null (state_type const &state) :
+                    explicit standard (state_type const &state) :
                         state_ {state} {}
 
                     // destructor
-                    ~null () = default;
-
-                public:
-                    // return max allocation of zero
-                    size_t max_size () const { return 0; }
-
-                    // allocation is a null operation
-                    T *allocate (size_t num, const void* = 0) {}
-
-                    // deallocation is a null operation
-                    void deallocate (T *ptr, size_t num) {}
+                    ~standard () = default;
 
                 public:
                     state_type const &state() const { return state_; }

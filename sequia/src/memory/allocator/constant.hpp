@@ -12,29 +12,35 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
 
-            template <size_t N, typename Delegator>
+            template <size_t N, 
+                     typename Delegator, 
+                     typename Value = typename Delegator::value_type,
+                     typename State = typename Delegator::state_type> 
+
             class constant : public Delegator
             {
+                protected:
+                    using base_type = Delegator;
+
                 public:
-                    using value_type = typename Delegator::value_type;
-                    using state_type = typename Delegator::state_type;
+                    using value_type = Value;
+                    using state_type = State;
 
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
 
                 public:
-                    // rebind type
                     template <typename U> 
                     struct rebind 
                     { 
                         using other = constant
-                            <N, typename Delegator::template rebind<U>::other>;
+                            <N, typename base_type::template rebind<U>::other>;
                     };
 
                 public:
                     // default (stateful) constructor
-                    constant () : Delegator {state_type {N}} {} 
+                    constant () : base_type {state_type {N}} {} 
 
                     // stateful copy constructor
                     template <typename Allocator>
@@ -45,7 +51,7 @@ namespace sequia
                     ~constant () = default;
 
                 public:
-                    using Delegator::state;
+                    using base_type::state;
             };
         }
     }
