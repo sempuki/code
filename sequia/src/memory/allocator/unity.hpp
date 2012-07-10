@@ -38,6 +38,8 @@ namespace sequia
 
                     index_type  index;
                     value_type  value;
+
+                    block() : index {0} {}
                 };
 
 
@@ -86,11 +88,11 @@ namespace sequia
 
                     // indexed state constructor
                     explicit unity (state_type const &state) :
-                        unity {state} {}
+                        unity {static_cast <base_state const &> (state)} {}
 
                     // base state constructor
                     explicit unity (base_state const &state) :
-                        base_type {state}, state_ {state} 
+                        base_type {state}, state_ {base_type::state()} 
                     {
                         block_type *&free = state_.head;
                         buffer<block_type> const &mem = state_.base.arena;
@@ -114,7 +116,7 @@ namespace sequia
 
                 public:
                     // allocate
-                    value_type *allocate (size_t num, const void*)
+                    value_type *allocate (size_t num, const void* = 0)
                     {
                         block_type *&free = state_.head;
                         buffer<block_type> const &mem = state_.base.arena;

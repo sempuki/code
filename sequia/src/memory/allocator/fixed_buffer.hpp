@@ -43,7 +43,7 @@ namespace sequia
 
                     // stateful constructor
                     explicit fixed_buffer (State const &state) :
-                        state_ {state} 
+                        state_ {buffer_} 
                     {
                         buffer<T> &mem = state_.arena;
                         

@@ -1,6 +1,7 @@
 #ifndef _ALLOCATOR_CORE_HPP_
 #define _ALLOCATOR_CORE_HPP_
 
+
 namespace sequia
 {
     namespace memory
@@ -17,11 +18,11 @@ namespace sequia
                 base_state (size_t size) :
                     arena {size} {}
 
-                base_state (buffer<T> const &buf) :
+                base_state (buffer<T> &buf) :
                     arena {buf} {}
 
                 template <size_t N>
-                base_state (static_buffer<T, N> const &buf) :
+                base_state (static_buffer<T, N> &buf) :
                     arena {buf} {}
 
                 template <typename U>

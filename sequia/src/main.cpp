@@ -7,8 +7,6 @@
 #include <core/container.hpp>
 #include <state/state.hpp>
 
-#include "memory/allocator/unity.hpp"
-
 using namespace std;
 using namespace sequia;
 
@@ -148,14 +146,7 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    memory::allocator::constant <10, 
-        memory::allocator::unity <
-            memory::allocator::scoped <
-                memory::allocator::fixed_buffer <10, int>>, 
-        typename core::min_word_size<9>::type>> alloc;
-
-    core::fixed_vector<int, 10> vec;
-    //core::staticvector<int, 10> vec;
+    core::fixed_vector<10, int> vec;
     
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -163,10 +154,10 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    //core::staticmap<int, int, 10> map;
+    core::fixed_map<10, int, int> map;
 
-    //for (int i=0; i < 10; i++)
-    //    map[i] = i;
+    for (int i=0; i < 10; i++)
+        map[i] = i;
 
     //for (int i=0; i < 10; i++)
     //    cout << map[i] << endl;

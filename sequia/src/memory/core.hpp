@@ -18,6 +18,8 @@ namespace sequia
                 void    *memory;
             };
 
+            static_buffer () : memory {nullptr} {}
+
             constexpr size_t nitems () { return N; }
             constexpr size_t nbytes () { return N * sizeof(T); }
 
@@ -42,7 +44,7 @@ namespace sequia
             size_t  size;
 
             buffer () : 
-                bytes {}, size {} {}
+                memory {nullptr}, size {0} {}
 
             buffer (size_t num) : 
                 items {nullptr}, size {num} {}
@@ -54,7 +56,7 @@ namespace sequia
                 memory {data}, size {bytes / sizeof(T)} {}
 
             template <size_t N>
-            buffer (static_buffer<T, N> const &copy) :
+            buffer (static_buffer<T, N> &copy) :
                 items {copy.items}, size {N} {}
 
             inline bool valid () const { items != nullptr; }

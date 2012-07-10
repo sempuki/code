@@ -45,7 +45,7 @@ namespace sequia
 
                     // stateful constructor
                     explicit scoped (state_type const &state) :
-                        base_type {state}, state_ {state}
+                        base_type {state}, state_ {base_type::state()}
                     {
                         buffer<value_type> &mem = state_.arena;
 
