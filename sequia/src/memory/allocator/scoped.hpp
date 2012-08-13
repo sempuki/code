@@ -10,6 +10,7 @@ namespace sequia
             //=========================================================================
             // Implements scoped allocate-on-construction semantics
             // Fulfills stateful allocator concept
+            // Fulfills composable allocator concept
             // Fulfills rebindable allocator concept
 
             template <typename Delegator, 

@@ -11,16 +11,20 @@ namespace sequia
             // Implements scoped allocate-on-construction semantics
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
+            // Fulfills concrete allocator concept
 
-            template <typename Delegator, size_t N, typename T>
+            template <typename Delegator, typename T, size_t N>
+
             class constant : 
                 public detail::base<Delegator, T>
             {
                 public:
                     using base_type = detail::base<Delegator, T>;
-                    using state_type = detail::basestate<Delegator, T>;
                     using value_type = T;
                     
+                    struct state_type : 
+                        core::rebinder<Delegator, T>::state_type {};
+
                 public:
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
@@ -32,13 +36,15 @@ namespace sequia
 
                 public:
                     // default (stateful) constructor
-                    constant () : base_type {state_type {N}} {} 
+                    constant () : 
+                        base_type {state_type {N}} {} 
 
                     // copy constructor
                     constant (constant const &copy) = default;
 
                     // stateful constructor
-                    explicit constant (state_type const &state) {}
+                    explicit constant (state_type const &state) :
+                        base_type {state} {}
 
                     // destructor
                     ~constant () = default;

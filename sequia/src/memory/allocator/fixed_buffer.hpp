@@ -10,6 +10,7 @@ namespace sequia
             //=========================================================================
             // Implements fixed-buffer semantics
             // Fulfills stateful allocator concept
+            // Fulfills composable allocator concept
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 

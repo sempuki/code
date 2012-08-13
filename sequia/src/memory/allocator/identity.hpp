@@ -10,6 +10,7 @@ namespace sequia
             //=====================================================================
             // Only allocates the same memory arena for each call
             // Fulfills stateful allocator concept
+            // Fulfills composable allocator concept
             // Fulfills rebindable allocator concept
 
             template <typename Delegator, 

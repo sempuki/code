@@ -10,17 +10,20 @@ namespace sequia
             //=========================================================================
             // Implements null-operation semantics
             // Fulfills stateful allocator concept
+            // Fulfills composable allocator concept
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
-            template <typename T>
-            class null
+            template <typename ConcreteValue = std::false_type, 
+                     typename ConcreteState = std::false_type>
+
+            class null :
+                public terminal<ConcreteState>
             {
                 public:
-                    using base_type = std::false_type;
-                    
-                    using value_type = T;
-                    using state_type = base_state<T>;
+                    using base_type = terminal<std::false_type>;
+                    using state_type = std::false_type;
+                    using value_type = ConcreteValue;
 
                 public:
                     using propagate_on_container_copy_assignment = std::false_type;
@@ -29,10 +32,10 @@ namespace sequia
 
                 public:
                     template <typename U> 
-                    struct rebind 
-                    { 
-                        using other = null<U>; 
-                    };
+                    struct rebind { using other = null<U>; };
+
+                    template <typename U, typename S>
+                    struct reify { using other = null<U, S>; };
 
                 public:
                     // default constructor
@@ -56,10 +59,6 @@ namespace sequia
 
                     // deallocation is a null operation
                     void deallocate (T *ptr, size_t num) {}
-                
-                public:
-                    // state accessor
-                    virtual state_type const &state() const = 0;
             };
         }
     }
