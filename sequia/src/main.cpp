@@ -5,15 +5,8 @@
 #include <core/standard.hpp>
 #include <core/stream.hpp>
 #include <core/types.hpp>
-//#include <core/container.hpp>
+#include <core/container.hpp>
 #include <state/state.hpp>
-
-#include <memory/allocator/core.hpp>
-#include <memory/allocator/concrete.hpp>
-#include <memory/allocator/terminal.hpp>
-#include <memory/allocator/scoped.hpp>
-#include <memory/allocator/identity.hpp>
-#include <memory/allocator/fixed_buffer.hpp>
 
 using namespace std;
 using namespace sequia;
@@ -30,12 +23,14 @@ namespace App
             bool serialize (core::stream<T> *s) const
             {
                 *s << a_ << b_ << c_;
+                return true;
             }
 
             template <typename T>
             bool deserialize (core::stream<T> *s)
             {
                 *s >> a_ >> b_ >> c_;
+                return true;
             }
 
         private:
@@ -154,16 +149,13 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    //core::fixed_vector<10, int> vec;
-    
-    core::fixed_vector_allocator <10, int> alloc;
-    cout << std::hex << alloc.allocate(10) << endl;
+    core::fixed_vector<10, int> vec;
 
-    //for (int i=0; i < 10; ++i)
-    //    vec.push_back (i);
+    for (int i=0; i < 10; ++i)
+        vec.push_back (i);
 
-    //for (int i=0; i < 10; ++i)
-    //    cout << vec[i] << endl;
+    for (int i=0; i < 10; ++i)
+        cout << vec[i] << endl;
 
     //core::fixed_map<10, int, int> map;
 
