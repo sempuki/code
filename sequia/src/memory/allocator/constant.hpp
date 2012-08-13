@@ -12,46 +12,36 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
 
-            template <size_t N, 
-                     typename Delegator, 
-                     typename Value = typename Delegator::value_type,
-                     typename State = typename Delegator::state_type> 
-
-            class constant : public Delegator
+            template <typename Delegator, size_t N, typename T>
+            class constant : 
+                public detail::base<Delegator, T>
             {
-                protected:
-                    using base_type = Delegator;
-
                 public:
-                    using value_type = Value;
-                    using state_type = State;
-
+                    using base_type = detail::base<Delegator, T>;
+                    using state_type = detail::basestate<Delegator, T>;
+                    using value_type = T;
+                    
+                public:
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
 
                 public:
                     template <typename U> 
-                    struct rebind 
-                    { 
-                        using other = constant
-                            <N, typename base_type::template rebind<U>::other>;
-                    };
+                    struct rebind { using other = constant<Delegator, N, U>; };
 
                 public:
                     // default (stateful) constructor
                     constant () : base_type {state_type {N}} {} 
 
-                    // stateful copy constructor
-                    template <typename Allocator>
-                    constant (Allocator const &copy) :
-                        constant {copy.state()} {}
+                    // copy constructor
+                    constant (constant const &copy) = default;
+
+                    // stateful constructor
+                    explicit constant (state_type const &state) {}
 
                     // destructor
                     ~constant () = default;
-
-                public:
-                    using base_type::state;
             };
         }
     }

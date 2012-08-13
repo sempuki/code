@@ -7,6 +7,13 @@ namespace sequia
     {
         //=====================================================================
 
+
+        //---------------------------------------------------------------------
+        // Convenience alias for rebindable types
+
+        template <typename Type, typename T>
+        using rebinder = typename Type::template rebind<T>::other;
+
         //---------------------------------------------------------------------
         // Type used solely to disambiguate overloads introduced by the CRTP
 

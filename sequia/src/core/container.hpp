@@ -16,10 +16,11 @@ namespace sequia
     {
         template <size_t N, typename T>
         using fixed_vector_allocator = 
-            memory::allocator::constant<N, 
-                memory::allocator::identity<
-                    memory::allocator::scoped<
-                        memory::allocator::fixed_buffer<N, T>>>>;
+            memory::allocator::constant< 
+                memory::allocator::concrete<
+                    memory::allocator::identity<
+                        memory::allocator::scoped<
+                            memory::allocator::fixed_buffer<N, T>>>>, N>;
 
         template <size_t N, typename T>
         using fixed_vector = std::vector<T, fixed_vector_allocator<N, T>>;
@@ -28,11 +29,12 @@ namespace sequia
         template <size_t N, typename K, typename V>
         using fixed_map_allocator = 
             memory::allocator::compat< 
-                memory::allocator::constant<N, 
-                    memory::allocator::unity<
-                        memory::allocator::scoped<
-                            memory::allocator::fixed_buffer<N, std::pair<const K, V>>>, 
-                    typename core::min_word_size<N-1>::type>>>;
+                memory::allocator::constant<
+                    memory::allocator::concrete<
+                        memory::allocator::unity<
+                            memory::allocator::scoped<
+                                memory::allocator::fixed_buffer<N, std::pair<const K, V>>>, 
+                        typename core::min_word_size<N-1>::type>, N>>>;
 
         template <size_t N, typename K, typename V, typename Compare = std::less<K>>
         using fixed_map = std::map<K, V, Compare, fixed_map_allocator<N, K, V>>;

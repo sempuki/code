@@ -59,6 +59,21 @@ namespace sequia
             buffer (static_buffer<T, N> &copy) :
                 items {copy.items}, size {N} {}
 
+            buffer &operator= (buffer const &r)
+            {
+                memory = r.memory;
+                size = r.size;
+                return *this;
+            }
+
+            template <size_t N>
+            buffer &operator= (static_buffer<T, N> const &r)
+            {
+                memory = r.memory;
+                size = N;
+                return *this;
+            }
+
             inline bool valid () const { items != nullptr; }
             inline void invalidate () { items = nullptr; }
 

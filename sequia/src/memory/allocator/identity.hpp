@@ -12,39 +12,41 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
 
-            template <typename Delegator,
-                     typename Value = typename Delegator::value_type,
-                     typename State = typename Delegator::state_type> 
+            template <typename Delegator, 
+                     typename ConcreteValue = std::false_type,
+                     typename ConcreteState = std::false_type>
 
-            class identity : public Delegator
+            class identity : 
+                public detail::base<Delegator, ConcreteValue, ConcreteState>
             {
-                protected:
-                    using base_type = Delegator;
+                public:
+                    using base_type = detail::base<Delegator, ConcreteValue, ConcreteState>;
+                    using value_type = ConcreteValue;
+
+                    struct state_type : 
+                        core::rebinder<Delegator, ConcreteValue>::state_type {};
 
                 public:
-                    using value_type = Value;
-                    using state_type = State;
-
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
 
                 public:
-                    template <typename U> 
-                    struct rebind 
-                    { 
-                        using other = identity
-                            <typename base_type::template rebind<U>::other>;
-                    };
+                    template <typename U>
+                    struct rebind { using other = identity<Delegator, U>; };
+
+                    template <typename U, typename S> 
+                    struct reify { using other = identity<Delegator, U, S>; };
 
                 public:
-                    // stateful copy constructor
-                    template <typename Allocator>
-                    identity (Allocator const &copy) :
-                        identity {copy.state()} {}
+                    // default constructor
+                    identity () = default;
+
+                    // copy constructor
+                    identity (identity const &copy) = default;
 
                     // stateful constructor
-                    explicit identity (State const &state) :
+                    explicit identity (state_type const &state) :
                         base_type {state} {}
 
                     // destructor
@@ -54,22 +56,19 @@ namespace sequia
                     // max available to allocate
                     size_t max_size () const 
                     { 
-                        return state().arena.size;
+                        return base_type::access_state().arena.size;
                     }
 
                     // allocate number of items
                     value_type *allocate (size_t num, const void* = 0) 
                     { 
-                        return state().arena.items; 
+                        return base_type::access_state().arena.items; 
                     }
 
                     // deallocate number of items
                     void deallocate (value_type *ptr, size_t num) 
                     {
                     }
-                
-                public:
-                    using base_type::state;
             };
         }
     }

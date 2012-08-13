@@ -13,45 +13,59 @@ namespace sequia
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
-            template <size_t N, typename T, typename State = base_state<T>>
-            class fixed_buffer
+            template <size_t N, 
+                     typename ConcreteValue = std::false_type, 
+                     typename ConcreteState = std::false_type>
+
+            class fixed_buffer :
+                public terminal<ConcreteState>
             {
-                protected:
-                    using base_type = std::false_type;
-
                 public:
-                    using value_type = T;
-                    using state_type = State;
-
+                    using base_type = terminal<ConcreteState>;
+                    using state_type = basic_state<ConcreteValue>;
+                    using value_type = ConcreteValue;
+                    
+                public:
                     using propagate_on_container_copy_assignment = std::false_type;
                     using propagate_on_container_move_assignment = std::false_type;
                     using propagate_on_container_swap = std::false_type;
 
                 public:
                     template <typename U>
-                    struct rebind 
-                    { 
-                        using other = fixed_buffer<N, U>; 
-                    };
+                    struct rebind { using other = fixed_buffer<N, U>; };
+
+                    template <typename U, typename S>
+                    struct reify { using other = fixed_buffer<N, U, S>; };
 
                 public:
                     // default constructor
-                    fixed_buffer () : state_ {N} {}
+                    fixed_buffer ()
+                    {
+                        buffer<value_type> &mem = base_type::access_state().arena;
+                        mem = buffer_;
+                        
+                        std::cout << "fixed const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "fixed const: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "fixed const: mem.size: " << std::dec << mem.size << std::endl;
+                    }
 
                     // copy constructor
                     fixed_buffer (fixed_buffer const &copy) = delete;
 
-                    // stateful constructor
-                    explicit fixed_buffer (State const &state) :
-                        state_ {buffer_} 
-                    {
-                        buffer<T> &mem = state_.arena;
-                        
-                        ASSERTF (N == mem.size, "state allocation mismatch");
-                    }
-
                     // destructor
                     ~fixed_buffer () = default;
+
+                    // stateful constructor
+                    explicit fixed_buffer (state_type const &state)
+                    {
+                        ASSERTF (N == mem.size, "state allocation mismatch");
+
+                        buffer<value_type> &mem = base_type::access_state().arena;
+                        
+                        std::cout << "fixed const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "fixed const: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "fixed const: mem.size: " << std::dec << mem.size << std::endl;
+                    }
 
                 public:
                     size_t max_size () const 
@@ -59,9 +73,9 @@ namespace sequia
                         return N;
                     }
 
-                    T *allocate (size_t num, const void* = 0) 
+                    value_type *allocate (size_t num, const void* = 0) 
                     { 
-                        buffer<T> &mem = state_.arena;
+                        buffer<value_type> &mem = base_type::access_state().arena;
                         
                         ASSERTF (!mem.valid(), "previously allocated");
                         ASSERTF (N == num, "incorrect allocation size");
@@ -69,9 +83,9 @@ namespace sequia
                         return mem.items = buffer_.items;
                     }
 
-                    void deallocate (T *ptr, size_t num) 
+                    void deallocate (value_type *ptr, size_t num) 
                     {
-                        buffer<T> &mem = state_.arena;
+                        buffer<value_type> &mem = base_type::access_state().arena;
                         
                         ASSERTF (mem.valid(), "not previously allocated");
                         ASSERTF (mem.items == ptr, "not from this allocator");
@@ -80,12 +94,8 @@ namespace sequia
                         mem.invalidate();
                     }
 
-                public:
-                    state_type const &state() const { return state_; }
-
                 private:
-                    static_buffer<T, N> buffer_;
-                    state_type          state_;
+                    static_buffer<value_type, N>    buffer_;
             };
         }
     }

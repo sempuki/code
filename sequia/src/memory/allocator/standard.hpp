@@ -13,16 +13,16 @@ namespace sequia
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
-            template <typename T, typename State = base_state<T>>
+            template <typename T>
             class standard : public std::allocator<T>
             {
-                protected:
+                public:
                     using base_type = std::false_type;
+                    
+                    using value_type = T;
+                    using state_type = base_state<T>;
 
                 public:
-                    using value_type = T;
-                    using state_type = State;
-
                     using propagate_on_container_copy_assignment = std::false_type;
                     using propagate_on_container_move_assignment = std::false_type;
                     using propagate_on_container_swap = std::false_type;
@@ -35,23 +35,17 @@ namespace sequia
                     };
 
                 public:
-                    // stateful copy constructor
-                    template <typename Allocator>
-                    standard (Allocator const &copy) :
-                        standard {copy.state()} {}
+                    // default constructor
+                    standard () = default;
+
+                    // copy constructor
+                    standard (standard const &copy) = default;
 
                     // stateful constructor
-                    explicit standard (state_type const &state) :
-                        state_ {state} {}
+                    explicit standard (state_type const &state) {}
 
                     // destructor
                     ~standard () = default;
-
-                public:
-                    state_type const &state() const { return state_; }
-
-                private:
-                    state_type  state_;
             };
         }
     }

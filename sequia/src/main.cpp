@@ -1,11 +1,19 @@
 #include <iostream>
+#include <iomanip>
 
 #include <core/debug.hpp>
 #include <core/standard.hpp>
 #include <core/stream.hpp>
 #include <core/types.hpp>
-#include <core/container.hpp>
+//#include <core/container.hpp>
 #include <state/state.hpp>
+
+#include <memory/allocator/core.hpp>
+#include <memory/allocator/concrete.hpp>
+#include <memory/allocator/terminal.hpp>
+#include <memory/allocator/scoped.hpp>
+#include <memory/allocator/identity.hpp>
+#include <memory/allocator/fixed_buffer.hpp>
 
 using namespace std;
 using namespace sequia;
@@ -146,18 +154,27 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    core::fixed_vector<10, int> vec;
-    
-    for (int i=0; i < 10; ++i)
-        vec.push_back (i);
+    memory::allocator::concrete<
+        memory::allocator::identity<
+            memory::allocator::scoped<
+                memory::allocator::fixed_buffer<10>>>, int> alloc;
 
-    for (int i=0; i < 10; ++i)
-        cout << vec[i] << endl;
+    cout << sizeof(alloc) << endl;
 
-    core::fixed_map<10, int, int> map;
+    cout << sizeof(std::vector<int>) << endl;
 
-    for (int i=0; i < 10; i++)
-        map[i] = i;
+    //core::fixed_vector<10, int> vec;
+    //
+    //for (int i=0; i < 10; ++i)
+    //    vec.push_back (i);
+
+    //for (int i=0; i < 10; ++i)
+    //    cout << vec[i] << endl;
+
+    //core::fixed_map<10, int, int> map;
+
+    //for (int i=0; i < 10; i++)
+    //    map[i] = i;
 
     //for (int i=0; i < 10; i++)
     //    cout << map[i] << endl;

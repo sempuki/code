@@ -12,42 +12,66 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills rebindable allocator concept
 
-            template <typename Delegator,
-                     typename Value = typename Delegator::value_type,
-                     typename State = typename Delegator::state_type> 
+            template <typename Delegator, 
+                     typename ConcreteValue = std::false_type,
+                     typename ConcreteState = std::false_type>
 
-            class scoped : public Delegator
+            class scoped : 
+                public detail::base<Delegator, ConcreteValue, ConcreteState>
             {
-                protected:
-                    using base_type = Delegator;
+                public:
+                    using base_type = detail::base<Delegator, ConcreteValue, ConcreteState>;
+                    using value_type = ConcreteValue;
+
+                    struct state_type : 
+                        core::rebinder<Delegator, ConcreteValue>::state_type {};
 
                 public:
-                    using value_type = Value;
-                    using state_type = State;
-
                     using propagate_on_container_copy_assignment = std::true_type;
                     using propagate_on_container_move_assignment = std::true_type;
                     using propagate_on_container_swap = std::true_type;
 
                 public:
-                    template <typename U> 
-                    struct rebind 
-                    { 
-                        using other = scoped
-                            <typename base_type::template rebind<U>::other>;
-                    };
+                    template <typename U>
+                    struct rebind { using other = scoped<Delegator, U>; };
+
+                    template <typename U, typename S> 
+                    struct reify { using other = scoped<Delegator, U, S>; };
 
                 public:
-                    // stateful copy constructor
-                    template <typename Allocator>
-                    scoped (Allocator const &copy) :
-                        scoped {copy.state()} {}
+                    // default constructor
+                    scoped ()
+                    {
+                        buffer<value_type> &mem = base_type::access_state().arena;
+
+                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
+
+                        mem.items = base_type::allocate (mem.size);
+                    }    
+
+                    // copy constructor
+                    scoped (scoped const &copy)
+                    {
+                        buffer<value_type> &mem = base_type::access_state().arena;
+
+                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
+
+                        mem.items = base_type::allocate (mem.size);
+                    }
 
                     // stateful constructor
                     explicit scoped (state_type const &state) :
-                        base_type {state}, state_ {base_type::state()}
+                        base_type {state}
                     {
-                        buffer<value_type> &mem = state_.arena;
+                        buffer<value_type> &mem = base_type::access_state().arena;
+
+                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
 
                         mem.items = base_type::allocate (mem.size);
                     }
@@ -55,16 +79,10 @@ namespace sequia
                     // destructor
                     ~scoped ()
                     {
-                        buffer<value_type> &mem = state_.arena;
+                        buffer<value_type> &mem = base_type::access_state().arena;
 
                         base_type::deallocate (mem.items, mem.size);
                     }
-
-                public:
-                    state_type const &state() const { return state_; }
-
-                private:
-                    state_type  state_;
             };
         }
     }

@@ -13,16 +13,16 @@ namespace sequia
             // Fulfills rebindable allocator concept
             // Fulfills terminal allocator concept
 
-            template <typename T, typename State = base_state<T>>
+            template <typename T>
             class null
             {
-                protected:
+                public:
                     using base_type = std::false_type;
+                    
+                    using value_type = T;
+                    using state_type = base_state<T>;
 
                 public:
-                    using value_type = T;
-                    using state_type = State;
-
                     using propagate_on_container_copy_assignment = std::false_type;
                     using propagate_on_container_move_assignment = std::false_type;
                     using propagate_on_container_swap = std::false_type;
@@ -35,14 +35,14 @@ namespace sequia
                     };
 
                 public:
-                    // stateful copy constructor
-                    template <typename Allocator>
-                    null (Allocator const &copy) :
-                        null {copy.state()} {}
+                    // default constructor
+                    null () = default;
+
+                    // copy constructor
+                    null (null const &copy) = default;
 
                     // stateful constructor
-                    explicit null (state_type const &state) :
-                        state_ {state} {}
+                    explicit null (state_type const &state) {}
 
                     // destructor
                     ~null () = default;
@@ -56,12 +56,10 @@ namespace sequia
 
                     // deallocation is a null operation
                     void deallocate (T *ptr, size_t num) {}
-
+                
                 public:
-                    state_type const &state() const { return state_; }
-
-                private:
-                    state_type  state_;
+                    // state accessor
+                    virtual state_type const &state() const = 0;
             };
         }
     }
