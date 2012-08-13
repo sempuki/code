@@ -44,9 +44,9 @@ namespace sequia
                         buffer<value_type> &mem = base_type::access_state().arena;
                         mem = buffer_;
                         
-                        std::cout << "fixed const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
-                        std::cout << "fixed const: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "fixed const: mem.size: " << std::dec << mem.size << std::endl;
+                        std::cout << "fixed default: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "fixed default: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "fixed default: mem.size: " << std::dec << mem.size << std::endl;
                     }
 
                     // copy constructor
@@ -62,9 +62,9 @@ namespace sequia
 
                         buffer<value_type> &mem = base_type::access_state().arena;
                         
-                        std::cout << "fixed const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
-                        std::cout << "fixed const: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "fixed const: mem.size: " << std::dec << mem.size << std::endl;
+                        std::cout << "fixed state: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "fixed state: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "fixed state: mem.size: " << std::dec << mem.size << std::endl;
                     }
 
                 public:

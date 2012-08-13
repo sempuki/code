@@ -14,11 +14,10 @@ namespace sequia
             union 
             {
                 T       items [N];
-                uint8_t *bytes;
-                void    *memory;
+                uint8_t bytes [N * sizeof(T)];
             };
 
-            static_buffer () : memory {nullptr} {}
+            static_buffer () = default;
 
             constexpr size_t nitems () { return N; }
             constexpr size_t nbytes () { return N * sizeof(T); }
@@ -59,17 +58,17 @@ namespace sequia
             buffer (static_buffer<T, N> &copy) :
                 items {copy.items}, size {N} {}
 
-            buffer &operator= (buffer const &r)
+            buffer &operator= (buffer &r)
             {
-                memory = r.memory;
+                items = r.items;
                 size = r.size;
                 return *this;
             }
 
             template <size_t N>
-            buffer &operator= (static_buffer<T, N> const &r)
+            buffer &operator= (static_buffer<T, N> &r)
             {
-                memory = r.memory;
+                items = r.items;
                 size = N;
                 return *this;
             }

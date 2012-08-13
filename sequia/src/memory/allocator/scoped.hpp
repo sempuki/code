@@ -44,9 +44,9 @@ namespace sequia
                     {
                         buffer<value_type> &mem = base_type::access_state().arena;
 
-                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
-                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
+                        std::cout << "scoped default: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped default: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped default: mem.size: " << std::dec << mem.size << std::endl;
 
                         mem.items = base_type::allocate (mem.size);
                     }    
@@ -56,9 +56,9 @@ namespace sequia
                     {
                         buffer<value_type> &mem = base_type::access_state().arena;
 
-                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
-                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
+                        std::cout << "scoped copy: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped copy: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped copy: mem.size: " << std::dec << mem.size << std::endl;
 
                         mem.items = base_type::allocate (mem.size);
                     }
@@ -69,9 +69,9 @@ namespace sequia
                     {
                         buffer<value_type> &mem = base_type::access_state().arena;
 
-                        std::cout << "scoped const: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
-                        std::cout << "scoped const: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "scoped const: mem.size: " << std::dec << mem.size << std::endl;
+                        std::cout << "scoped state: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
+                        std::cout << "scoped state: mem.items: " << std::hex << mem.items << std::endl;
+                        std::cout << "scoped state: mem.size: " << std::dec << mem.size << std::endl;
 
                         mem.items = base_type::allocate (mem.size);
                     }

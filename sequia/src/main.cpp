@@ -154,17 +154,11 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    memory::allocator::concrete<
-        memory::allocator::identity<
-            memory::allocator::scoped<
-                memory::allocator::fixed_buffer<10>>>, int> alloc;
-
-    cout << sizeof(alloc) << endl;
-
-    cout << sizeof(std::vector<int>) << endl;
-
     //core::fixed_vector<10, int> vec;
-    //
+    
+    core::fixed_vector_allocator <10, int> alloc;
+    cout << std::hex << alloc.allocate(10) << endl;
+
     //for (int i=0; i < 10; ++i)
     //    vec.push_back (i);
 
