@@ -8,29 +8,6 @@ namespace sequia
     {
         namespace allocator
         {
-            namespace detail
-            {
-                template <typename Delegator, typename T, typename S>
-                using base = typename Delegator::template 
-                    reify<T, S>::other;
-
-                template <typename Delegator, typename T>
-                using concrete_base = typename Delegator::template 
-                    reify<T, typename core::rebinder<Delegator, T>::state_type>::other;
-                
-                template <typename Index, typename Value>
-                union block
-                {
-                    using index_type = Index;
-                    using value_type = Value;
-
-                    index_type  index;
-                    value_type  value;
-
-                    block() : index {0} {}
-                };
-            }
-
             template <typename T>
             struct basic_state 
             {

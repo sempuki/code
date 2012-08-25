@@ -10,29 +10,31 @@ namespace sequia
             //=========================================================================
             // Implements scoped allocate-on-construction semantics
             // Fulfills stateful allocator concept
-            // Fulfills rebindable allocator concept
             // Fulfills concrete allocator concept
             
-            template <typename Delegator, typename T>
+            namespace details
+            {
+                template <typename Base>
+                using concrete_base = 
+                    Base::concrete_type<typename Base::state_type, typename Base::value_type>;
+            }
 
-            class concrete : 
-                public detail::concrete_base<Delegator, T>
+            template <typename Composite>
+            class concrete : public details::concrete_base<Composite>
             {
                 public:
-                    using base_type = detail::concrete_base<Delegator, T>;
-                    using value_type = T;
-
-                    struct state_type : 
-                        base_type::state_type {};
+                    using base_type = details::concrete_base<Composite>;
+                    using state_type = typename Composite::state_type;
+                    using value_type = typename Composite::value_type;
 
                 public:
-                    using propagate_on_container_copy_assignment = std::true_type;
-                    using propagate_on_container_move_assignment = std::true_type;
-                    using propagate_on_container_swap = std::true_type;
+                    using propagate_on_container_copy_assignment = typename Composite::propagate_on_container_copy_assignment;
+                    using propagate_on_container_move_assignment = typename Composite::propagate_on_container_move_assignment;
+                    using propagate_on_container_swap = typename Composite::propagate_on_container_swap;
 
                 public:
                     template <typename U> 
-                    struct rebind { using other = concrete<Delegator, U>; };
+                    struct rebind { using other = concrete<Composite::rebind_type<U>>; };
 
                 public:
                     // default constructor

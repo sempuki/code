@@ -12,115 +12,127 @@ namespace sequia
             // * Uses an embedded index-based linked free list
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
-            // Fulfills rebindable allocator concept
 
-            template <typename Delegator, typename Index,
-                     typename ConcreteValue = std::false_type,
-                     typename ConcreteState = std::false_type>
-
-            class unity : 
-                public detail::base<Delegator, detail::block<Index,ConcreteValue>, ConcreteState>
+            template <typename Composite, typename Index>
+            struct unity
             {
-                public:
-                    using base_type = detail::base<Delegator, detail::block<Index,ConcreteValue>, ConcreteState>;
+                using base_type = Composite;
 
-                    using value_type = ConcreteValue;
-                    using block_type = detail::block<Index,ConcreteValue>;
+                struct value_type
+                {
+                    using index_type = Index;
+                    using value_type = base_type::value_type;
 
-                    struct state_type : 
-                        base_type::state_type
+                    union
                     {
-                        block_type  *head;
-
-                        state_type () :
-                            head {nullptr} {}
-
-                        state_type (state_type const &copy) :
-                            base_type::state_type {copy}, head {copy.head} {}
+                        index_type  index;
+                        value_type  value;
                     };
 
-                public:
-                    using propagate_on_container_copy_assignment = std::true_type;
-                    using propagate_on_container_move_assignment = std::true_type;
-                    using propagate_on_container_swap = std::true_type;
+                    value_type() : index {0} {}
+                };
+                    
+                struct state_type : 
+                    base_type::state_type<value_type>
+                {
+                    value_type  *head;
 
-                public:
-                    template <typename U>
-                    struct rebind { using other = unity<Delegator, Index, U>; };
+                    state_type () :
+                        head {nullptr} {}
 
-                    template <typename U, typename S> 
-                    struct reify { using other = unity<Delegator, Index, U, S>; };
+                    state_type (state_type const &copy) :
+                        base_type::state_type<block_type<T>> {copy}, 
+                        head {copy.head} {}
+                };
 
-                public:
-                    // default constructor
-                    unity () = default;
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
 
-                    // copy constructor
-                    unity (unity const &copy) = default;
+                template <typename U>
+                using rebind_type = unity<base_type::rebind_type<U>>;
 
-                    // destructor
-                    ~unity () = default;
-
-                    // state constructor
-                    explicit unity (state_type const &state) :
-                        base_type {state}
-                    {
-                        block_type *&free = base_type::access_state().head;
-                        buffer<block_type> const &mem = base_type::access_state().arena;
-
-                        ASSERTF (mem.items != nullptr, "memory not allocated");
-                        ASSERTF (mem.size < (core::one << (sizeof(Index) * 8)), 
-                                "too many objects for size of free list index type");
-
-                        std::cout << "unity const: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                        std::cout << "unity const: mem.items: " << std::hex << base_type::access_state().arena.items << std::endl;
-                        std::cout << "unity const: mem.size: " << std::dec << base_type::access_state().arena.size << std::endl;
-
-                        free = mem.items;
-
-                        Index index = 0;
-                        block_type *block = mem.items;
-                        block_type *end   = mem.items + mem.size;
-
-                        for (; block < end; ++block)
-                            block->index = ++index;
-                    }
-
-                public:
-                    // allocate
-                    value_type *allocate (size_t num, const void* = 0)
-                    {
-                        block_type *&free = base_type::access_state().head;
-                        buffer<block_type> const &mem = base_type::access_state().arena;
-
-                        ASSERTF (num == 1, "can only allocate one object per call");
-                        ASSERTF (mem.contains (free), "free list is corrupt");
-
-                        std::cout << "alloc: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                        std::cout << "alloc: mem.items: " << std::hex << mem.items << std::endl;
-                        std::cout << "alloc: mem.size: " << std::dec << mem.size << std::endl;
-
-                        block_type *block = free;
-                        free = mem.items + free->index;
-
-                        return reinterpret_cast <value_type *> (block);
-                    }
-
-                    // deallocate
-                    void deallocate (value_type *ptr, size_t num)
-                    {
-                        block_type *&free = base_type::access_state().head;
-                        buffer<block_type> const &mem = base_type::access_state().arena;
-
-                        ASSERTF (num == 1, "can only allocate one object per call");
-                        ASSERTF (mem.contains (ptr), "pointer is not from this heap");
-
-                        block_type *block = reinterpret_cast <block_type *> (ptr);
-
-                        block->index = free - mem.items;
-                        free = block;
-                    }
+                template <typename S, typename T>
+                using concrete_type = impl::unity<base_type::concrete_type, S, T>;
             };
+
+            namespace impl
+            {
+                template <typename Base, typename State, typename Value>
+                class unity : public Base <State, Value>
+                {
+                    // TODO: Value == block_type, not T
+                    public:
+                        // default constructor
+                        unity () = default;
+
+                        // copy constructor
+                        unity (unity const &copy) = default;
+
+                        // destructor
+                        ~unity () = default;
+
+                        // state constructor
+                        explicit unity (State const &state) :
+                            Base {state}
+                        {
+                            block_type *&free = Base::access_state().head;
+                            buffer<block_type> const &mem = Base::access_state().arena;
+
+                            ASSERTF (mem.items != nullptr, "memory not allocated");
+                            ASSERTF (mem.size < (core::one << (sizeof(Index) * 8)), 
+                                    "too many objects for size of free list index type");
+
+                            std::cout << "unity const: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
+                            std::cout << "unity const: mem.items: " << std::hex << Base::access_state().arena.items << std::endl;
+                            std::cout << "unity const: mem.size: " << std::dec << Base::access_state().arena.size << std::endl;
+
+                            free = mem.items;
+
+                            Index index = 0;
+                            block_type *block = mem.items;
+                            block_type *end   = mem.items + mem.size;
+
+                            for (; block < end; ++block)
+                                block->index = ++index;
+                        }
+
+                    public:
+                        // allocate
+                        Value *allocate (size_t num, const void* = 0)
+                        {
+                            block_type *&free = Base::access_state().head;
+                            buffer<block_type> const &mem = Base::access_state().arena;
+
+                            ASSERTF (num == 1, "can only allocate one object per call");
+                            ASSERTF (mem.contains (free), "free list is corrupt");
+
+                            std::cout << "alloc: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
+                            std::cout << "alloc: mem.items: " << std::hex << mem.items << std::endl;
+                            std::cout << "alloc: mem.size: " << std::dec << mem.size << std::endl;
+
+                            block_type *block = free;
+                            free = mem.items + free->index;
+
+                            return reinterpret_cast <Value *> (block);
+                        }
+
+                        // deallocate
+                        void deallocate (Value *ptr, size_t num)
+                        {
+                            block_type *&free = Base::access_state().head;
+                            buffer<block_type> const &mem = Base::access_state().arena;
+
+                            ASSERTF (num == 1, "can only allocate one object per call");
+                            ASSERTF (mem.contains (ptr), "pointer is not from this heap");
+
+                            block_type *block = reinterpret_cast <block_type *> (ptr);
+
+                            block->index = free - mem.items;
+                            free = block;
+                        }
+                };
+            }
         }
     }
 }

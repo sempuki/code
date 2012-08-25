@@ -11,66 +11,63 @@ namespace sequia
             // Only allocates the same memory arena for each call
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
-            // Fulfills rebindable allocator concept
 
-            template <typename Delegator, 
-                     typename ConcreteValue = std::false_type,
-                     typename ConcreteState = std::false_type>
-
-            class identity : 
-                public detail::base<Delegator, ConcreteValue, ConcreteState>
+            template <typename Composite>
+            struct identity
             {
-                public:
-                    using base_type = detail::base<Delegator, ConcreteValue, ConcreteState>;
-                    using value_type = ConcreteValue;
+                using base_type = Composite;
+                using value_type = base_type::value_type;
+                using state_type = base_type::state_type<value_type>;
+                    
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
 
-                    struct state_type : 
-                        base_type::state_type {};
+                template <typename U>
+                using rebind_type = identity<base_type::rebind_type<U>>;
 
-                public:
-                    using propagate_on_container_copy_assignment = std::true_type;
-                    using propagate_on_container_move_assignment = std::true_type;
-                    using propagate_on_container_swap = std::true_type;
-
-                public:
-                    template <typename U>
-                    struct rebind { using other = identity<Delegator, U>; };
-
-                    template <typename U, typename S> 
-                    struct reify { using other = identity<Delegator, U, S>; };
-
-                public:
-                    // default constructor
-                    identity () = default;
-
-                    // copy constructor
-                    identity (identity const &copy) = default;
-
-                    // stateful constructor
-                    explicit identity (state_type const &state) :
-                        base_type {state} {}
-
-                    // destructor
-                    ~identity () = default;
-
-                public:
-                    // max available to allocate
-                    size_t max_size () const 
-                    { 
-                        return base_type::access_state().arena.size;
-                    }
-
-                    // allocate number of items
-                    value_type *allocate (size_t num, const void* = 0) 
-                    { 
-                        return base_type::access_state().arena.items; 
-                    }
-
-                    // deallocate number of items
-                    void deallocate (value_type *ptr, size_t num) 
-                    {
-                    }
+                template <typename S, typename T>
+                using concrete_type = impl::identity<base_type::concrete_type, S, T>;
             };
+
+            namespace impl
+            {
+                template <typename Base, typename State, typename Value>
+                class identity : public Base <State, Value>
+                {
+                    public:
+                        // default constructor
+                        identity () = default;
+
+                        // copy constructor
+                        identity (identity const &copy) = default;
+
+                        // stateful constructor
+                        explicit identity (State const &state) :
+                            Base {state} {}
+
+                        // destructor
+                        ~identity () = default;
+
+                    public:
+                        // max available to allocate
+                        size_t max_size () const 
+                        { 
+                            return Base::access_state().arena.size;
+                        }
+
+                        // allocate number of items
+                        Value *allocate (size_t num, const void* = 0) 
+                        { 
+                            return Base::access_state().arena.items; 
+                        }
+
+                        // deallocate number of items
+                        void deallocate (Value *ptr, size_t num) 
+                        {
+                        }
+                };
+            }
         }
     }
 }

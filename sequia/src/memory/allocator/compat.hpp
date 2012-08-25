@@ -8,75 +8,63 @@ namespace sequia
         namespace allocator
         {
             //=========================================================================
-            // Implements scoped allocate-on-construction semantics
+            // Implements compatibility layer for old-style std allocators
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
-            // Fulfills rebindable allocator concept
 
-            template <typename Delegator, 
-                     typename ConcreteValue = std::false_type,
-                     typename ConcreteState = std::false_type>
-
-            class compat : 
-                public detail::base<Delegator, ConcreteValue, ConcreteState>
+            template <typename Composite>
+            struct compat
             {
-                public:
-                    using base_type = detail::base<Delegator, ConcreteValue, ConcreteState>;
-                    using value_type = ConcreteValue;
+                using base_type = Composite;
+                using value_type = base_type::value_type;
+                using state_type = base_type::state_type<value_type>;
+                    
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
 
-                    struct state_type : 
-                        base_type::state_type {};
+                template <typename U>
+                using rebind_type = compat<base_type::rebind_type<U>>;
 
-                public:
-                    using pointer = value_type *;
-                    using reference = value_type &;
-                    using const_pointer = value_type const *;
-                    using const_reference = value_type const &;
-
-                    using size_type = size_t;
-                    using difference_type = ptrdiff_t;
-
-                public:
-                    using propagate_on_container_copy_assignment = std::true_type;
-                    using propagate_on_container_move_assignment = std::true_type;
-                    using propagate_on_container_swap = std::true_type;
-
-                public:
-                    template <typename U>
-                    struct rebind { using other = compat<Delegator, U>; };
-
-                   template <typename U, typename S> 
-                    struct reify { using other = compat<Delegator, U, S>; };
-
-                public:
-                    // default constructor
-                    compat () = default;
-
-                    // copy constructor
-                    compat (compat const &copy) = default;
-
-                    // stateful constructor
-                    explicit compat (state_type const &state) :
-                        base_type {state} {}
-
-                    // destructor
-                    ~compat () = default;
-
-                public:
-                    pointer address (reference v) const { return &v; }
-                    const_pointer address (const_reference v) const { return &v; }
-
-                    template<typename... Args>
-                    void construct (pointer p, Args&&... args)
-                    {
-                        new ((void *)p) value_type (std::forward<Args>(args)...);
-                    }
-
-                    void destroy (pointer p)
-                    {
-                        p->~value_type();
-                    }
+                template <typename S, typename T>
+                using concrete_type = impl::compat<base_type::concrete_type<S, T>, S, T>;
             };
+
+            namespace impl
+            {
+                template <typename Base, typename State, typename Value>
+                class compat : public Base
+                {
+                    public:
+                        // default constructor
+                        compat () = default;
+
+                        // copy constructor
+                        compat (compat const &copy) = default;
+
+                        // stateful constructor
+                        explicit compat (State const &state) :
+                            Base {state} {}
+
+                        // destructor
+                        ~compat () = default;
+
+                    public:
+                        pointer address (reference v) const { return &v; }
+                        const_pointer address (const_reference v) const { return &v; }
+
+                        template<typename... Args>
+                        void construct (pointer p, Args&&... args)
+                        {
+                            new ((void *)p) Value (std::forward<Args>(args)...);
+                        }
+
+                        void destroy (pointer p)
+                        {
+                            p->~Value();
+                        }
+                };
+            }
         }
     }
 }
