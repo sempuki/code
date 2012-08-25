@@ -7,52 +7,36 @@ namespace sequia
     {
         namespace allocator
         {
-
             //=====================================================================
             // Only allocates single element per call
             // * Uses an embedded index-based linked free list
             // Fulfills stateful allocator concept
+            // Fulfills composable allocator concept
             // Fulfills rebindable allocator concept
 
-            namespace detail
-            {
-                template <typename Index, typename Value>
-                union block
-                {
-                    using index_type = Index;
-                    using value_type = Value;
+            template <typename Delegator, typename Index,
+                     typename ConcreteValue = std::false_type,
+                     typename ConcreteState = std::false_type>
 
-                    index_type  index;
-                    value_type  value;
-
-                    block() : index {0} {}
-                };
-
-
-                template <typename Delegator, 
-                         typename Index,
-                         typename Value = typename Delegator::value_type> 
-
-                using base = typename Delegator::template rebind<block<Index, Value>>::other;
-            }
-
-            //-----------------------------------------------------------------
-
-            template <typename Delegator, typename Index, typename T = void>
-            class unity : public detail::base<Delegator, Index>
+            class unity : 
+                public detail::base<Delegator, detail::block<Index,ConcreteValue>, ConcreteState>
             {
                 public:
-                    using base_type = detail::base<Delegator, Index>;
+                    using base_type = detail::base<Delegator, detail::block<Index,ConcreteValue>, ConcreteState>;
 
-                    using value_type = T;
-                    using block_type = detail::block<Index, T>;
+                    using value_type = ConcreteValue;
+                    using block_type = detail::block<Index,ConcreteValue>;
 
-                    struct state_type : typename base_type::state_type
+                    struct state_type : 
+                        base_type::state_type
                     {
                         block_type  *head;
 
-                        state (state const &copy) :
-                            base {copy.base}, head {copy.head} {}
+                        state_type () :
+                            head {nullptr} {}
+
+                        state_type (state_type const &copy) :
+                            base_type::state_type {copy}, head {copy.head} {}
                     };
 
                 public:
@@ -62,12 +46,11 @@ namespace sequia
 
                 public:
                     template <typename U>
-                    struct rebind 
-                    { 
-                        using other = unity 
-                            <typename base_type::template rebind<U>::other, Index, T>;
-                    };
-                
+                    struct rebind { using other = unity<Delegator, Index, U>; };
+
+                    template <typename U, typename S> 
+                    struct reify { using other = unity<Delegator, Index, U, S>; };
+
                 public:
                     // default constructor
                     unity () = default;
@@ -80,19 +63,18 @@ namespace sequia
 
                     // state constructor
                     explicit unity (state_type const &state) :
-                        base_type {state.base}, state_ {base_type::state()} 
+                        base_type {state}
                     {
-                        block_type *&free = state().head;
-                        buffer<block_type> const &mem = state().base->arena;
+                        block_type *&free = base_type::access_state().head;
+                        buffer<block_type> const &mem = base_type::access_state().arena;
 
                         ASSERTF (mem.items != nullptr, "memory not allocated");
                         ASSERTF (mem.size < (core::one << (sizeof(Index) * 8)), 
                                 "too many objects for size of free list index type");
 
                         std::cout << "unity const: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                        std::cout << "unity const: mem.items: " << std::hex << state().base->arena.items << std::endl;
-                        std::cout << "unity const: mem.size: " << std::dec << state().base->arena.size << std::endl;
-                        std::cout << "!! " << &(unity::state()) << " : " << state().base << std::endl;
+                        std::cout << "unity const: mem.items: " << std::hex << base_type::access_state().arena.items << std::endl;
+                        std::cout << "unity const: mem.size: " << std::dec << base_type::access_state().arena.size << std::endl;
 
                         free = mem.items;
 
@@ -108,8 +90,8 @@ namespace sequia
                     // allocate
                     value_type *allocate (size_t num, const void* = 0)
                     {
-                        block_type *&free = state().head;
-                        buffer<block_type> const &mem = state().base->arena;
+                        block_type *&free = base_type::access_state().head;
+                        buffer<block_type> const &mem = base_type::access_state().arena;
 
                         ASSERTF (num == 1, "can only allocate one object per call");
                         ASSERTF (mem.contains (free), "free list is corrupt");
@@ -127,8 +109,8 @@ namespace sequia
                     // deallocate
                     void deallocate (value_type *ptr, size_t num)
                     {
-                        block_type *&free = state().head;
-                        buffer<block_type> const &mem = state().base->arena;
+                        block_type *&free = base_type::access_state().head;
+                        buffer<block_type> const &mem = base_type::access_state().arena;
 
                         ASSERTF (num == 1, "can only allocate one object per call");
                         ASSERTF (mem.contains (ptr), "pointer is not from this heap");
@@ -138,10 +120,6 @@ namespace sequia
                         block->index = free - mem.items;
                         free = block;
                     }
-
-                public:
-                    // state accessor
-                    virtual state_type &state() = 0;
             };
         }
     }

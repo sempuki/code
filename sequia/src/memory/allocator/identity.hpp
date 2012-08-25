@@ -25,7 +25,7 @@ namespace sequia
                     using value_type = ConcreteValue;
 
                     struct state_type : 
-                        core::rebinder<Delegator, ConcreteValue>::state_type {};
+                        base_type::state_type {};
 
                 public:
                     using propagate_on_container_copy_assignment = std::true_type;

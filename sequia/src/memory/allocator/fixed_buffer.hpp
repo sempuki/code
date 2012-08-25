@@ -23,8 +23,10 @@ namespace sequia
             {
                 public:
                     using base_type = terminal<ConcreteState>;
-                    using state_type = basic_state<ConcreteValue>;
                     using value_type = ConcreteValue;
+                    
+                    struct state_type : 
+                        basic_state<ConcreteValue> {};
                     
                 public:
                     using propagate_on_container_copy_assignment = std::false_type;

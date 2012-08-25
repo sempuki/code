@@ -157,13 +157,13 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    //core::fixed_map<10, int, int> map;
+    core::fixed_map<10, int, int> map;
 
-    //for (int i=0; i < 10; i++)
-    //    map[i] = i;
+    for (int i=0; i < 10; i++)
+        map[i] = i;
 
-    //for (int i=0; i < 10; i++)
-    //    cout << map[i] << endl;
+    for (int i=0; i < 10; i++)
+        cout << map[i] << endl;
 
     return 0; 
 }

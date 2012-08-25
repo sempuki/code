@@ -17,7 +17,7 @@ namespace sequia
                 uint8_t bytes [N * sizeof(T)];
             };
 
-            static_buffer () = default;
+            static_buffer () {}
 
             constexpr size_t nitems () { return N; }
             constexpr size_t nbytes () { return N * sizeof(T); }
