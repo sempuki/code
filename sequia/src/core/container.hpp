@@ -28,9 +28,8 @@ namespace sequia
 
         template <size_t N, typename K, typename V>
         using fixed_map_allocator = 
-            
             memory::allocator::concrete<
-                memory::allocator::compat< 
+                memory::allocator::compat<
                     memory::allocator::unity<
                         memory::allocator::scoped<
                             memory::allocator::fixed_buffer<N>>, 

@@ -45,7 +45,7 @@ namespace sequia
                     fixed_buffer ()
                     {
                         buffer<value_type> &mem = base_type::access_state().arena;
-                        mem = buffer_;
+                        mem.size = N;
                         
                         std::cout << "fixed default: sizeof(value_type) " << std::dec << sizeof(value_type) << std::endl;
                         std::cout << "fixed default: mem.items: " << std::hex << mem.items << std::endl;
@@ -59,7 +59,8 @@ namespace sequia
                     ~fixed_buffer () = default;
 
                     // stateful constructor
-                    explicit fixed_buffer (state_type const &state)
+                    explicit fixed_buffer (state_type const &state) : 
+                        base_type {state}
                     {
                         ASSERTF (N == mem.size, "state allocation mismatch");
 
