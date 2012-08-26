@@ -13,68 +13,79 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
 
-            template <typename Composite, typename Index>
-            struct unity
-            {
-                using base_type = Composite;
-
-                struct value_type
-                {
-                    using index_type = Index;
-                    using value_type = base_type::value_type;
-
-                    union
-                    {
-                        index_type  index;
-                        value_type  value;
-                    };
-
-                    value_type() : index {0} {}
-                };
-                    
-                struct state_type : 
-                    base_type::state_type<value_type>
-                {
-                    value_type  *head;
-
-                    state_type () :
-                        head {nullptr} {}
-
-                    state_type (state_type const &copy) :
-                        base_type::state_type<block_type<T>> {copy}, 
-                        head {copy.head} {}
-                };
-
-                using propagate_on_container_copy_assignment = std::true_type;
-                using propagate_on_container_move_assignment = std::true_type;
-                using propagate_on_container_swap = std::true_type;
-
-                template <typename U>
-                using rebind_type = unity<base_type::rebind_type<U>>;
-
-                template <typename S, typename T>
-                using concrete_type = impl::unity<base_type::concrete_type, S, T>;
-            };
-
             namespace impl
             {
-                template <typename Base, typename State, typename Value>
-                class unity : public Base <State, Value>
+                template <typename Index, typename Type>
+                union block
                 {
-                    // TODO: Value == block_type, not T
+                    using index_type = Index;
+                    using value_type = Type;
+
+                    index_type  index;
+                    value_type  value;
+
+                    block() : index {0} {}
+                };
+
+                template <typename Base, typename State, typename Type, typename Index>
+                class unity : public Base
+                {
+                    private:
+                        using block_type = block<Index,Type>;
+
                     public:
                         // default constructor
-                        unity () = default;
+                        unity () :
+                            Base {} { common_initialization(); }
 
                         // copy constructor
-                        unity (unity const &copy) = default;
-
-                        // destructor
-                        ~unity () = default;
+                        unity (unity const &copy) :
+                            Base {copy} { common_initialization(); }
 
                         // state constructor
                         explicit unity (State const &state) :
-                            Base {state}
+                            Base {state} { common_initialization(); }
+
+                        // destructor
+                        ~unity () { common_finalization (); }
+
+                    public:
+                        // allocate
+                        Type *allocate (size_t num, const void* = 0)
+                        {
+                            block_type *&free = Base::access_state().head;
+                            buffer<block_type> const &mem = Base::access_state().arena;
+
+                            ASSERTF (num == 1, "can only allocate one object per call");
+                            ASSERTF (mem.contains (free), "free list is corrupt");
+
+                            std::cout << "alloc: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
+                            std::cout << "alloc: mem.items: " << std::hex << mem.items << std::endl;
+                            std::cout << "alloc: mem.size: " << std::dec << mem.size << std::endl;
+
+                            block_type *block = free;
+                            free = mem.items + free->index;
+
+                            return reinterpret_cast <Type *> (block);
+                        }
+
+                        // deallocate
+                        void deallocate (Type *ptr, size_t num)
+                        {
+                            block_type *&free = Base::access_state().head;
+                            buffer<block_type> const &mem = Base::access_state().arena;
+
+                            ASSERTF (num == 1, "can only allocate one object per call");
+                            ASSERTF (mem.contains (ptr), "pointer is not from this heap");
+
+                            block_type *block = reinterpret_cast <block_type *> (ptr);
+
+                            block->index = free - mem.items;
+                            free = block;
+                        }
+
+                    private:
+                        void common_initialization ()
                         {
                             block_type *&free = Base::access_state().head;
                             buffer<block_type> const &mem = Base::access_state().arena;
@@ -97,42 +108,39 @@ namespace sequia
                                 block->index = ++index;
                         }
 
-                    public:
-                        // allocate
-                        Value *allocate (size_t num, const void* = 0)
+                        void common_finalization ()
                         {
-                            block_type *&free = Base::access_state().head;
-                            buffer<block_type> const &mem = Base::access_state().arena;
-
-                            ASSERTF (num == 1, "can only allocate one object per call");
-                            ASSERTF (mem.contains (free), "free list is corrupt");
-
-                            std::cout << "alloc: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                            std::cout << "alloc: mem.items: " << std::hex << mem.items << std::endl;
-                            std::cout << "alloc: mem.size: " << std::dec << mem.size << std::endl;
-
-                            block_type *block = free;
-                            free = mem.items + free->index;
-
-                            return reinterpret_cast <Value *> (block);
-                        }
-
-                        // deallocate
-                        void deallocate (Value *ptr, size_t num)
-                        {
-                            block_type *&free = Base::access_state().head;
-                            buffer<block_type> const &mem = Base::access_state().arena;
-
-                            ASSERTF (num == 1, "can only allocate one object per call");
-                            ASSERTF (mem.contains (ptr), "pointer is not from this heap");
-
-                            block_type *block = reinterpret_cast <block_type *> (ptr);
-
-                            block->index = free - mem.items;
-                            free = block;
                         }
                 };
             }
+
+            template <typename Composite, typename Index>
+            struct unity
+            {
+                using base_type = Composite;
+
+                template <typename T>
+                struct state_type : base_type::template state_type<impl::block<Index,T>>
+                {
+                    using base_state_type = typename base_type::template state_type<impl::block<Index,T>>;
+
+                    impl::block<Index,T> *head;
+
+                    state_type () :
+                        head {nullptr} {}
+
+                    state_type (state_type const &copy) :
+                        base_state_type {copy}, 
+                        head {copy.head} {}
+                };
+
+                template <typename S, typename T>
+                using concrete_type = impl::unity<typename base_type::template concrete_type<S,T>, S, T, Index>;
+            
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
+            };
         }
     }
 }

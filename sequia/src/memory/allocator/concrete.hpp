@@ -12,20 +12,13 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills concrete allocator concept
             
-            namespace details
-            {
-                template <typename Base>
-                using concrete_base = 
-                    Base::concrete_type<typename Base::state_type, typename Base::value_type>;
-            }
-
-            template <typename Composite>
-            class concrete : public details::concrete_base<Composite>
+            template <typename Composite, typename ConcreteType>
+            class concrete : public Composite::template concrete_type<typename Composite::template state_type<ConcreteType>, ConcreteType>
             {
                 public:
-                    using base_type = details::concrete_base<Composite>;
-                    using state_type = typename Composite::state_type;
-                    using value_type = typename Composite::value_type;
+                    using base_type = typename Composite::template concrete_type<typename Composite::template state_type<ConcreteType>, ConcreteType>;
+                    using state_type = typename Composite::template state_type<ConcreteType>;
+                    using value_type = ConcreteType;
 
                 public:
                     using propagate_on_container_copy_assignment = typename Composite::propagate_on_container_copy_assignment;
@@ -34,7 +27,7 @@ namespace sequia
 
                 public:
                     template <typename U> 
-                    struct rebind { using other = concrete<Composite::rebind_type<U>>; };
+                    struct rebind { using other = concrete<Composite, U>; };
 
                 public:
                     // default constructor

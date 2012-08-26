@@ -10,18 +10,17 @@ namespace sequia
             //=========================================================================
             // Implements state storage and terminates allocator recursion
             
+            namespace impl
+            {
+                template <typename State>
+                class terminal : public stateful<State> {};
+            }
+
             struct terminal
             {
                 template <typename S, typename T>
                 using concrete_type = impl::terminal<S>;
             };
-
-            namespace impl
-            {
-                template <typename State>
-                class terminal :
-                    stateful<State> {};
-            }
         }
     }
 }

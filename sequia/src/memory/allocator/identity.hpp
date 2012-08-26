@@ -12,42 +12,26 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
 
-            template <typename Composite>
-            struct identity
-            {
-                using base_type = Composite;
-                using value_type = base_type::value_type;
-                using state_type = base_type::state_type<value_type>;
-                    
-                using propagate_on_container_copy_assignment = std::true_type;
-                using propagate_on_container_move_assignment = std::true_type;
-                using propagate_on_container_swap = std::true_type;
-
-                template <typename U>
-                using rebind_type = identity<base_type::rebind_type<U>>;
-
-                template <typename S, typename T>
-                using concrete_type = impl::identity<base_type::concrete_type, S, T>;
-            };
-
             namespace impl
             {
-                template <typename Base, typename State, typename Value>
-                class identity : public Base <State, Value>
+                template <typename Base, typename State, typename Type>
+                class identity : public Base
                 {
                     public:
                         // default constructor
-                        identity () = default;
+                        identity () :
+                            Base {} {}
 
                         // copy constructor
-                        identity (identity const &copy) = default;
+                        identity (identity const &copy) :
+                            Base {copy} {}
 
                         // stateful constructor
                         explicit identity (State const &state) :
                             Base {state} {}
 
                         // destructor
-                        ~identity () = default;
+                        ~identity () {}
 
                     public:
                         // max available to allocate
@@ -57,17 +41,33 @@ namespace sequia
                         }
 
                         // allocate number of items
-                        Value *allocate (size_t num, const void* = 0) 
+                        Type *allocate (size_t num, const void* = 0) 
                         { 
                             return Base::access_state().arena.items; 
                         }
 
                         // deallocate number of items
-                        void deallocate (Value *ptr, size_t num) 
+                        void deallocate (Type *ptr, size_t num) 
                         {
                         }
                 };
             }
+
+            template <typename Composite>
+            struct identity
+            {
+                using base_type = Composite;
+                
+                template <typename T>
+                using state_type = typename base_type::template state_type<T>;
+
+                template <typename S, typename T>
+                using concrete_type = impl::identity<typename base_type::template concrete_type<S,T>, S, T>;
+                    
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
+            };
         }
     }
 }

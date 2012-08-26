@@ -12,42 +12,35 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills composable allocator concept
 
-            template <typename Composite>
-            struct compat
-            {
-                using base_type = Composite;
-                using value_type = base_type::value_type;
-                using state_type = base_type::state_type<value_type>;
-                    
-                using propagate_on_container_copy_assignment = std::true_type;
-                using propagate_on_container_move_assignment = std::true_type;
-                using propagate_on_container_swap = std::true_type;
-
-                template <typename U>
-                using rebind_type = compat<base_type::rebind_type<U>>;
-
-                template <typename S, typename T>
-                using concrete_type = impl::compat<base_type::concrete_type<S, T>, S, T>;
-            };
-
             namespace impl
             {
-                template <typename Base, typename State, typename Value>
+                template <typename Base, typename State, typename Type>
                 class compat : public Base
                 {
                     public:
+                        using pointer = Type *;
+                        using reference = Type &;
+                        using const_pointer = Type const *;
+                        using const_reference = Type const &;
+
+                        using size_type = size_t;
+                        using difference_type = ptrdiff_t;
+
+                    public:
                         // default constructor
-                        compat () = default;
+                        compat () :
+                            Base {} {}
 
                         // copy constructor
-                        compat (compat const &copy) = default;
+                        compat (compat const &copy) :
+                            Base {copy} {}
 
                         // stateful constructor
                         explicit compat (State const &state) :
                             Base {state} {}
 
                         // destructor
-                        ~compat () = default;
+                        ~compat () {}
 
                     public:
                         pointer address (reference v) const { return &v; }
@@ -56,15 +49,31 @@ namespace sequia
                         template<typename... Args>
                         void construct (pointer p, Args&&... args)
                         {
-                            new ((void *)p) Value (std::forward<Args>(args)...);
+                            new ((void *)p) Type (std::forward<Args>(args)...);
                         }
 
                         void destroy (pointer p)
                         {
-                            p->~Value();
+                            p->~Type();
                         }
                 };
             }
+
+            template <typename Composite>
+            struct compat
+            {
+                using base_type = Composite;
+                
+                template <typename T>
+                using state_type = typename base_type::template state_type<T>;
+                    
+                template <typename S, typename T>
+                using concrete_type = impl::compat<typename base_type::template concrete_type<S,T>, S, T>;
+                    
+                using propagate_on_container_copy_assignment = std::true_type;
+                using propagate_on_container_move_assignment = std::true_type;
+                using propagate_on_container_swap = std::true_type;
+            };
         }
     }
 }

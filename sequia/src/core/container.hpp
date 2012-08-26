@@ -2,29 +2,29 @@
 #define _CONTAINER_HPP_
 
 #include <memory/allocator/core.hpp>
-//#include <memory/allocator/constant.hpp>
-#include <memory/allocator/compat.hpp>
-#include <memory/allocator/concrete.hpp>
+#include <memory/allocator/stateful.hpp>
 #include <memory/allocator/terminal.hpp>
+#include <memory/allocator/fixed_buffer.hpp>
 #include <memory/allocator/identity.hpp>
 #include <memory/allocator/unity.hpp>
+#include <memory/allocator/compat.hpp>
 #include <memory/allocator/scoped.hpp>
-#include <memory/allocator/fixed_buffer.hpp>
-
+#include <memory/allocator/concrete.hpp>
+//#include <memory/allocator/constant.hpp>
 
 namespace sequia
 {
     namespace core
     {
-        template <size_t N, typename T>
+        template <typename T, size_t N>
         using fixed_vector_allocator = 
             memory::allocator::concrete<
                 memory::allocator::identity<
                     memory::allocator::scoped<
                         memory::allocator::fixed_buffer<N>>>, T>;
 
-        template <size_t N, typename T>
-        using fixed_vector = std::vector<T, fixed_vector_allocator<N, T>>;
+        template <typename T, size_t N>
+        using fixed_vector = std::vector<T, fixed_vector_allocator<T, N>>;
 
         template <size_t N, typename K, typename V>
         using fixed_map_allocator = 

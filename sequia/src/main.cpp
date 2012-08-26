@@ -149,7 +149,7 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    core::fixed_vector<10, int> vec;
+    core::fixed_vector<int, 10> vec;
 
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
