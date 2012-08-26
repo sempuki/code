@@ -135,7 +135,7 @@ namespace sequia
                 };
 
                 template <typename S, typename T>
-                using concrete_type = impl::unity<typename base_type::template concrete_type<S,T>, S, T, Index>;
+                using concrete_type = impl::unity<typename base_type::template concrete_type<S,impl::block<Index,T>>, S, T, Index>;
             
                 using propagate_on_container_copy_assignment = std::true_type;
                 using propagate_on_container_move_assignment = std::true_type;
