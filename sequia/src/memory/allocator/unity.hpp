@@ -59,10 +59,6 @@ namespace sequia
                             ASSERTF (num == 1, "can only allocate one object per call");
                             ASSERTF (mem.contains (free), "free list is corrupt");
 
-                            std::cout << "alloc: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                            std::cout << "alloc: mem.items: " << std::hex << mem.items << std::endl;
-                            std::cout << "alloc: mem.size: " << std::dec << mem.size << std::endl;
-
                             block_type *block = free;
                             free = mem.items + free->index;
 
@@ -93,10 +89,6 @@ namespace sequia
                             ASSERTF (mem.items != nullptr, "memory not allocated");
                             ASSERTF (mem.size < (core::one << (sizeof(Index) * 8)), 
                                     "too many objects for size of free list index type");
-
-                            std::cout << "unity const: sizeof(block_type) " << std::dec << sizeof(block_type) << std::endl;
-                            std::cout << "unity const: mem.items: " << std::hex << Base::access_state().arena.items << std::endl;
-                            std::cout << "unity const: mem.size: " << std::dec << Base::access_state().arena.size << std::endl;
 
                             free = mem.items;
 
