@@ -12,6 +12,22 @@ namespace sequia
             // Fulfills stateful allocator concept
             // Fulfills concrete allocator concept
             
+            /* To construct a composable allocator: 
+             *  1. create a templated class that describes:
+             *   a. How the to extend the state object exposed by the base allocator
+             *   b. How to create a concrete allocator from Base, State, and T types
+             *  2. implement a templated class that intercepts or redirects allocator calls
+             *  3. compose allocators starting from concrete<> and ending with terminal<>
+             *
+             *  The State class is effectively the interface from base classes to parent
+             *  to allow introspection into the functioning of the composite allocator.
+             *  Extending classes should derive state_type to add new features, and 
+             *  wrap value types when passing concrete_type to the base class; ie. 
+             *  state_type is modified when passed to concrete<>, where it is passed
+             *  unchanged to terminal<>; value_type is modified as it is passed down to 
+             *  base classes, not on the way up to concrete<>.
+             */
+
             template <typename Composite, typename ConcreteType>
             class concrete : public get_concrete_base_type <Composite, ConcreteType>
             {
