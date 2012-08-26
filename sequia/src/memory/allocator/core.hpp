@@ -9,10 +9,13 @@ namespace sequia
         namespace allocator
         {
             template <typename Type, typename ...Args>
-            using get_state_type = typename Type::template state_type<Args...>;
+            using get_state_type = typename Type::template state_type <Args...>;
 
             template <typename Type, typename ...Args>
-            using get_concrete_type = typename Type::template concrete_type<Args...>;
+            using get_concrete_type = typename Type::template concrete_type <Args...>;
+
+            template <typename Type, typename ...Args>
+            using get_concrete_base_type = get_concrete_type <Type, get_state_type <Type, Args...>, Args...>;
 
             template <typename T>
             struct basic_state 

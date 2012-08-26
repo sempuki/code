@@ -13,11 +13,11 @@ namespace sequia
             // Fulfills concrete allocator concept
             
             template <typename Composite, typename ConcreteType>
-            class concrete : public Composite::template concrete_type<typename Composite::template state_type<ConcreteType>, ConcreteType>
+            class concrete : public get_concrete_base_type <Composite, ConcreteType>
             {
                 public:
-                    using base_type = typename Composite::template concrete_type<typename Composite::template state_type<ConcreteType>, ConcreteType>;
-                    using state_type = typename Composite::template state_type<ConcreteType>;
+                    using base_type = get_concrete_base_type <Composite, ConcreteType>;
+                    using state_type = get_state_type <Composite, ConcreteType>;
                     using value_type = ConcreteType;
 
                 public:
