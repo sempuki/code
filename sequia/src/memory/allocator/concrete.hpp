@@ -37,9 +37,14 @@ namespace sequia
                     using value_type = ConcreteType;
 
                 public:
-                    using propagate_on_container_copy_assignment = typename Composite::propagate_on_container_copy_assignment;
-                    using propagate_on_container_move_assignment = typename Composite::propagate_on_container_move_assignment;
-                    using propagate_on_container_swap = typename Composite::propagate_on_container_swap;
+                    using propagate_on_container_copy_assignment = 
+                        typename Composite::propagate_on_container_copy_assignment;
+
+                    using propagate_on_container_move_assignment = 
+                        typename Composite::propagate_on_container_move_assignment;
+
+                    using propagate_on_container_swap = 
+                        typename Composite::propagate_on_container_swap;
 
                 public:
                     template <typename U> 
