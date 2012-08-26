@@ -34,7 +34,7 @@ namespace sequia
                         memory::allocator::scoped<
                             memory::allocator::fixed_buffer<N>>, 
                         typename core::min_word_size<N-1>::type>>, 
-                std::pair<const K, V>>;
+                typename std::map<K,V>::value_type>;
 
         template <size_t N, typename K, typename V, typename Compare = std::less<K>>
         using fixed_map = std::map<K, V, Compare, fixed_map_allocator<N, K, V>>;

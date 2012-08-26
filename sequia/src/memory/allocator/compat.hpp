@@ -59,17 +59,15 @@ namespace sequia
                 };
             }
 
-            template <typename Composite>
+            template <typename Base>
             struct compat
             {
-                using base_type = Composite;
-                
                 template <typename T>
-                using state_type = typename base_type::template state_type<T>;
-                    
+                using state_type = get_state_type <Base, T>;
+
                 template <typename S, typename T>
-                using concrete_type = impl::compat<typename base_type::template concrete_type<S,T>, S, T>;
-                    
+                using concrete_type = impl::compat <get_concrete_type <Base, S, T>, S, T>;
+                
                 using propagate_on_container_copy_assignment = std::true_type;
                 using propagate_on_container_move_assignment = std::true_type;
                 using propagate_on_container_swap = std::true_type;

@@ -81,13 +81,11 @@ namespace sequia
             template <size_t N> 
             struct fixed_buffer
             {
-                using base_type = terminal;
-
                 template <typename T>
                 using state_type = basic_state<T>;
-                    
+
                 template <typename S, typename T>
-                using concrete_type = impl::fixed_buffer<typename base_type::template concrete_type<S, T>, S, T, N>;
+                using concrete_type = impl::fixed_buffer <get_concrete_type <terminal, S, T>, S, T, N>;
 
                 using propagate_on_container_copy_assignment = std::false_type;
                 using propagate_on_container_move_assignment = std::false_type;

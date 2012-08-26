@@ -106,15 +106,13 @@ namespace sequia
                 };
             }
 
-            template <typename Composite, typename Index>
+            template <typename Base, typename Index>
             struct unity
             {
-                using base_type = Composite;
-
                 template <typename T>
-                struct state_type : base_type::template state_type<impl::block<Index,T>>
+                struct state_type : get_state_type <Base, impl::block<Index,T>> 
                 {
-                    using base_state_type = typename base_type::template state_type<impl::block<Index,T>>;
+                    using base_type = get_state_type <Base, impl::block<Index,T>>;
 
                     impl::block<Index,T> *head;
 
@@ -122,12 +120,11 @@ namespace sequia
                         head {nullptr} {}
 
                     state_type (state_type const &copy) :
-                        base_state_type {copy}, 
-                        head {copy.head} {}
+                        base_type {copy}, head {copy.head} {}
                 };
 
                 template <typename S, typename T>
-                using concrete_type = impl::unity<typename base_type::template concrete_type<S,impl::block<Index,T>>, S, T, Index>;
+                using concrete_type = impl::unity <get_concrete_type <Base, S, impl::block<Index,T>>, S, T, Index>;
             
                 using propagate_on_container_copy_assignment = std::true_type;
                 using propagate_on_container_move_assignment = std::true_type;
