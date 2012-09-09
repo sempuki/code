@@ -10,7 +10,7 @@
 --- presumed that sum of sizes of each subqueue O(n)
 -- event reduce: the contents of each remaining queue are consumed entirely by a terminal process
 - end result of input stream processing is often a change of state of entity-components
-- dirty state is recorded in each entity or component
+- dirty state is recorded in each entity or component (use RCU algorithm for threaded reads/updates)
 -- controller: ? (AI, animation, physics -- versus observer?)
 -- file streaming: ?
 -- component processing of entities proceeds similarly
