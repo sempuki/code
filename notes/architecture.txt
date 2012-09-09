@@ -10,9 +10,7 @@
 --- presumed that sum of sizes of each subqueue O(n)
 -- event reduce: the contents of each remaining queue are consumed entirely by a terminal process
 - end result of input stream processing is often a change of state of entity-components
-- dirty state is recorded in each entity or component (use RCU algorithm for threaded reads/updates)
--- controller: ? (AI, animation, physics -- versus observer?)
--- file streaming: ?
+- dirty state is recorded in each entity or component (use STM/RCU algorithm for threaded reads/updates)
 -- component processing of entities proceeds similarly
 --- component map: for each processing routine, build a map of dirty or otherwise interesting components
 --- component reduce: for each interest map, queue and process components
@@ -20,3 +18,12 @@
 -- no intra-element dependencies in mappings, but implicit dependencies may exist in reductions
 -- each task lists result-stream dependant tasks as children
 -- task is bound to input-stream, result-stream, map operator and reduce operator
+-- controller: ? (AI, animation, physics -- versus observer?)
+-- file streaming: SAX-like back end generates new objects for each hierarchical section in the file as it's read
+--- hierarchical sub-streams access each granularity of sub-section
+-- network streaming: see Structured Streams Transport
+-- task streaming: stream by priority, which thread to run on, etc (these are properties of the stream not the task)
+--- linked list joins parent to dependency tasks
+--- dependency tasks read the return value and decide whether to run
+--- tasks can choose to enqueue more tasks, or dequeue their children (as an optimization instead of propagating a failure code)
+--- real-time tasks have a time-out value and expiry handler
