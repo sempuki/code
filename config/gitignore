@@ -2,6 +2,7 @@
 # *.vcproj
 # *.sln
 *.suo
+*.sdf
 *.ncb
 *.user
 *.pdb
