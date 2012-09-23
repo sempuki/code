@@ -7,12 +7,12 @@
 *.pdb
 *.idb
 *.lib
+*.obj
 *.log
-*/*.dir/
-*/*/*.dir/
+*.tlog
+*.lastbuildstate
 */Debug/
 */Release/
-*/RelWithDebInfo/
 
 # Windows -specific data
 *.dll
