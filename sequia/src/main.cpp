@@ -5,6 +5,7 @@
 #include <core/standard.hpp>
 #include <core/stream.hpp>
 #include <core/types.hpp>
+#include <core/name.hpp>
 #include <core/container.hpp>
 #include <state/state.hpp>
 
@@ -164,6 +165,9 @@ int main(int argc, char **argv)
 
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
+
+    core::Name testname ("alkdjfladsfjkasd");
+    cout << "0x" << std::hex << testname.digest_ << endl;
 
     return 0; 
 }

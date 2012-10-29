@@ -98,6 +98,27 @@ namespace sequia
         template <typename T>
         using aligned_storage = typename std::aligned_storage 
             <sizeof(T), std::alignment_of<T>::value>::type;
+
+        template <typename T, size_t Alignment = sizeof(T)>
+        inline T* next_aligned (void const *pointer)
+        {
+            uintptr_t p = reinterpret_cast <uintptr_t> (pointer);
+            return reinterpret_cast <T *> ((p + Alignment-1) & ~(Alignment-1));
+        }
+
+        template <typename T, size_t Alignment = sizeof(T)>
+        inline T* make_aligned (void const *pointer)
+        {
+            uintptr_t p = reinterpret_cast <uintptr_t> (pointer);
+            return reinterpret_cast <T *> (p & ~(Alignment-1));
+        }
+
+        template <typename T, size_t Alignment = sizeof(T)>
+        inline size_t aligned_difference (void const *pointer)
+        {
+            uintptr_t p = reinterpret_cast <uintptr_t> (pointer);
+            return Alignment - (p & Alignment-1);
+        }
     }
 }
 

@@ -25,6 +25,7 @@ namespace sequia
 
         constexpr uint64_t one = 1;
         constexpr uint64_t ones = -1;
+        constexpr uint32_t crc32c = 0x82F63B78;
 
         constexpr size_t min_num_bytes (uint64_t value)
         {
