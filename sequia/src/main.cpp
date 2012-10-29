@@ -166,8 +166,28 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
 
-    core::Name testname ("alkdjfladsfjkasd");
-    cout << "0x" << std::hex << testname.digest_ << endl;
+    core::name n0 ("521");
+    core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
+    core::name n2 ("dfasdlkfjasldk");
+    core::name n3 ("lkdjgalskdjflajdslkf");
+    core::name n4 ("kasdjf");
+    core::name n5 ("jadl;fja;slk");
+    core::name n6 ("aldskfjalsdjfalksj");
+    core::name n7 ("dsfsaj");
+    core::name n8 ("sadlfasldkfjals;dkjf;lasdkj");
+    core::name n9 ("sdfljlasdicuvxc.,merw.,e");
+
+    cout << std::hex;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n0.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n1.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n2.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n3.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n4.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n5.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n6.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n7.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n8.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n9.digest_ << endl;
 
     return 0; 
 }
