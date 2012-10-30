@@ -178,16 +178,16 @@ int main(int argc, char **argv)
     core::name n9 ("sdfljlasdicuvxc.,merw.,e");
 
     cout << std::hex;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n0.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n1.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n2.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n3.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n4.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n5.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n6.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n7.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n8.digest_ << endl;
-    cout << "0x" << std::setw(8) << std::setfill('0') << n9.digest_ << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n0 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n1 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n2 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n3 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n4 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n5 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n6 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n7 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n8 << endl;
+    cout << "0x" << std::setw(8) << std::setfill('0') << n9 << endl;
 
     return 0; 
 }
