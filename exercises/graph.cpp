@@ -219,6 +219,12 @@ class SparseGraph
 // vertices via the EdgeIterator::operator++()
 // * SparseGraph: O(V+E) since each vertex is visited, with a search of all
 // edges via the EdgeIterator::operator++()
+//
+// TODO: separate expanding from contracting of the stack based on whether 
+// what you pop has been visited before, to allow processing on first 
+// visiting the parent, or when all children have been visited. This mirrors 
+// what's possible using a recursive solution (processing before or after the 
+// recursive call).
 
 template <typename Graph>
 struct TraverseDFS
