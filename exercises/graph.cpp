@@ -103,12 +103,6 @@ namespace graph
     };
 
 
-    // TODO: separate expanding from contracting of the stack based on whether 
-    // what you pop has been visited before, to allow processing on first 
-    // visiting the parent, or when all children have been visited. This mirrors 
-    // what's possible using a recursive solution (processing before or after the 
-    // recursive call).
-
     template <typename Graph, typename Fringe>
     struct Traversal
     {
