@@ -5,6 +5,9 @@
 #include <cstring>
 #include <climits>
 
+using std::cout;
+using std::endl;
+
 int const NVERTICES = 10;
 int graph[NVERTICES][NVERTICES]; 
 // graph[a][b] = n; => edge (a, b) has weight n
@@ -12,64 +15,58 @@ int graph[NVERTICES][NVERTICES];
 template<int N>
 std::vector<int> find_shortest_path(int const graph[N][N], int a, int b)
 {
-    using std::vector;
-    using std::fill_n;
+    std::vector<int> shortest_path;
 
-    vector<int> path;
-    bool visited[N];
-    int distance[N];
-    int parent[N];
-    int weight;
+    bool visited[N];    // which vertices have been visited
+    int  distance[N];   // min distance (in weight) from from vertex a to i
+    int  parent[N];     // shortest path from a to all i (in reverse)
     
-    fill_n(visited, N, false);
-    fill_n(distance, N, INT_MAX);
+    std::fill_n (visited, N, false);
+    std::fill_n (distance, N, INT_MAX);
     
-    int current = a;
+    int weight, current = a;
     distance[current] = 0;
 
     while (!visited[current])
     {
         visited[current] = true;
 
-        // find shortest path to i through current
+        // find shortest path from a to i through current
         for (int i=0; i < N; ++i)
         {
             weight = graph[current][i];
-
-            if (!visited[i] && weight >= 0 && distance[current] + weight < distance[i])
+            
+            if (!visited[i] && weight >= 0) // not visited and has edge
             {
-                distance[i] = distance[current] + weight;
-                parent[i] = current;
+                if (distance[current] + weight < distance[i]) // has shortcut via current
+                {
+                    distance[i] = distance[current] + weight;
+                    parent[i] = current;
+                }
             }
         }
 
-        // find next (min distance) vertex to visit
+        // extend path through minimum weighted edge
         for (int i=0, D=INT_MAX; i < N; ++i)
             if (!visited[i] && distance[i] < D)
                 D = distance[i], current = i;
     }
 
-    // record shortest path from parent list
+    // walk parent list in reverse from b to a to find path
     for (current = b; current != a; current = parent[current])
-        path.push_back(current);
-    path.push_back(a);
+        shortest_path.push_back (current);
+    shortest_path.push_back (a);
 
-    reverse(path.begin(), path.end());
+    std::reverse (std::begin (shortest_path), std::end (shortest_path));
 
-    return path;
+    return shortest_path;
 }
 
 int main()
 {
-    using std::cout;
-    using std::vector;
-    using std::copy;
-    using std::fill_n;
-    using std::ostream_iterator;
-
     // null edges have negative weight
     for (int i=0; i < NVERTICES; ++i)
-        fill_n(graph[i], NVERTICES, -1);
+        std::fill_n (graph[i], NVERTICES, -1);
 
     // test map
     graph[1][2] = graph[2][1] = 7; 
@@ -85,9 +82,11 @@ int main()
     graph[3][3] = graph[4][4] = 
     graph[5][5] = 0; 
 
-    vector<int> path = find_shortest_path(graph, 1, 5);
-    copy(path.begin(), path.end(), ostream_iterator<int> (cout, ", "));
-    cout << std::endl;
+    std::vector<int> path = find_shortest_path (graph, 1, 5);
+
+    std::copy (std::begin (path), std::end (path), 
+            std::ostream_iterator<int> (cout, ", "));
+    cout << endl;
 
     return 0;
 }
