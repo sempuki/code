@@ -13,15 +13,23 @@ using namespace std;
 
 namespace graph
 {
-    typedef int                     Vertex;
-    typedef std::vector<Vertex>     VertexList;
-    typedef std::vector<VertexList> AdjacencyList;
+    typedef int Vertex;
+    typedef int Weight;
 
-    typedef VertexList::iterator            VertexIterator;
-    typedef VertexList::const_iterator      VertexConstIterator;
+    struct Edge
+    {
+        Vertex vertex;
+        Weight weight;
 
-    typedef AdjacencyList::iterator         EdgeIterator;
-    typedef AdjacencyList::const_iterator   EdgeConstIterator;
+        Edge () : vertex {-1}, weight {-1} {}
+        Edge (Vertex v, Weight w) : vertex {v}, weight {w} {}
+    };
+
+    typedef std::vector<Edge>               EdgeList;
+    typedef std::vector<EdgeList>           AdjacencyList;
+
+    typedef EdgeList::iterator              EdgeIterator;
+    typedef EdgeList::const_iterator        EdgeConstIterator;
 
     class SparseGraph
     {
@@ -33,63 +41,86 @@ namespace graph
             size_t nvertices () const { return adjacent_.size(); }
 
         public:
-            VertexIterator edge_begin (int v) { return adjacent_[v].begin(); }
-            VertexConstIterator edge_begin (int v) const { return adjacent_[v].begin(); }
+            EdgeIterator edge_begin (int v) { return std::begin (adjacent_[v]); }
+            EdgeConstIterator edge_begin (int v) const { return std::begin (adjacent_[v]); }
 
-            VertexIterator edge_end (int v) { return adjacent_[v].end(); }
-            VertexConstIterator edge_end (int v) const { return adjacent_[v].end(); }
-
-            EdgeIterator vertex_begin () { return adjacent_.begin(); }
-            EdgeConstIterator vertex_begin () const { return adjacent_.begin(); }
-
-            EdgeIterator vertex_end () { return adjacent_.end(); }
-            EdgeConstIterator vertex_end () const { return adjacent_.end(); }
+            EdgeIterator edge_end (int v) { return std::end (adjacent_[v]); }
+            EdgeConstIterator edge_end (int v) const { return std::end (adjacent_[v]); }
 
         public:
-            bool has_edge (int v, int w) const 
+            bool has_edge (Vertex v, Vertex w) const 
             { 
                 bool result = false;
 
-                if (v < nvertices ())
+                if (v < adjacent_.size())
                 {
-                    VertexList const &connected {adjacent_[v]};
-                    VertexConstIterator itr {std::begin (connected)};
-                    VertexConstIterator end {std::end (connected)};
+                    EdgeList const &connected = adjacent_[v];
+                    EdgeConstIterator begin = std::begin (connected);
+                    EdgeConstIterator end = std::end (connected);
 
-                    result = std::find (itr, end, w) != end;
+                    auto has_vertex = [w] (Edge const &e) { return e.vertex == w; };
+                    auto itr = std::find_if (begin, end, has_vertex);
+
+                    result = itr != end;
                 }
 
                 return result;
             }
 
-            void join (int v, int w)
+            Weight edge_weight (Vertex v, Vertex w) const
             {
-                if (std::max (v, w) >= nvertices ())
+                Weight result = -1;
+
+                if (v < adjacent_.size())
                 {
-                    // resize vertices to accommodate all edges
+                    EdgeList const &connected = adjacent_[v];
+                    EdgeConstIterator begin = std::begin (connected);
+                    EdgeConstIterator end = std::end (connected);
+
+                    auto has_vertex = [w] (Edge const &e) { return e.vertex == w; };
+                    auto itr = std::find_if (begin, end, has_vertex);
+
+                    if (itr != end)
+                        result = itr->weight;
+                }
+
+                return result;
+            }
+
+            void join (Vertex v, Vertex w, Weight weight = -1)
+            {
+                if (std::max (v, w) >= adjacent_.size())
+                {
+                    // resize connected to accommodate all edges
                     adjacent_.resize (std::max (v, w) + 1);
                 }
 
-                VertexList &connected = adjacent_[v];
-                VertexIterator itr {std::begin (connected)};
-                VertexIterator end {std::end (connected)};
+                Edge edge {w, weight};
 
-                // try to keep vertices in sorted order
-                for (; itr != end && *itr < w; ++itr);
+                EdgeList &connected = adjacent_[v];
+                EdgeIterator itr = std::begin (connected);
+                EdgeIterator end = std::end (connected);
 
-                connected.insert (itr, w);
+                // try to keep edges in sorted vertex order
+                for (; itr != end && itr->vertex < edge.vertex; ++itr);
+
+                connected.insert (itr, edge);
+
                 ++ nedges_;
             }
 
-            void cut (int v, int w)
+            void cut (Vertex v, Vertex w)
             {
-                if (v < nvertices ())
+                if (v < adjacent_.size())
                 {
-                    VertexList &connected = adjacent_[v];
-                    VertexIterator itr {std::begin (connected)};
-                    VertexIterator end {std::end (connected)};
+                    EdgeList &connected = adjacent_[v];
+                    EdgeIterator begin = std::begin (connected);
+                    EdgeIterator end = std::end (connected);
 
-                    if ((itr = std::find (itr, end, w)) != end)
+                    auto has_vertex = [w] (Edge const &e) { return e.vertex == w; };
+                    auto itr = std::find_if (begin, end, has_vertex);
+
+                    if (itr != end)
                     {
                         connected.erase (itr);
                         -- nedges_;
@@ -151,8 +182,8 @@ namespace graph
 
                     for (; itr != end; ++itr)
                     {
-                        parent [*itr] = vertex;
-                        fringe.push (*itr);
+                        parent [itr->vertex] = vertex;
+                        fringe.push (itr->vertex);
                     }
                 }
                 else
@@ -189,6 +220,22 @@ namespace graph
             Vertex &next () { return std::queue<Vertex>::front(); }
             Vertex const &next () const { return std::queue<Vertex>::front(); }
     };
+
+    template <typename Graph>
+    struct MinSpanningTree
+    {
+        Graph const &graph; 
+        
+        std::vector<Vertex> parent;
+        std::vector<bool>   visited;
+
+        MinSpanningTree (const Graph &g) : 
+            graph (g) {}
+
+        void operator() (int start)
+        {
+        }
+    };
 }
 
 //=============================================================================
@@ -209,7 +256,7 @@ int main (int argc, char** argv)
         auto i = graph.edge_begin (v);
         auto e = graph.edge_end (v);
         for (; i != e; ++i)
-            cout << *i << ", ";
+            cout << i->vertex << ", ";
         cout << endl;
     }
 

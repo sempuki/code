@@ -12,13 +12,13 @@ int const NVERTICES = 10;
 int graph[NVERTICES][NVERTICES]; 
 // graph[a][b] = n; => edge (a, b) has weight n
 
-template<int N>
+template <int N>
 std::vector<int> find_shortest_path(int const graph[N][N], int a, int b)
 {
     std::vector<int> shortest_path;
 
     bool visited[N];    // which vertices have been visited
-    int  distance[N];   // min distance (in weight) from from vertex a to i
+    int  distance[N];   // distance (in weight) from vertex a to i
     int  parent[N];     // shortest path from a to all i (in reverse)
     
     std::fill_n (visited, N, false);
