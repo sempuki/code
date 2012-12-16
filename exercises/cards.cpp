@@ -8,7 +8,7 @@ void do_reference_impl (int const N)
 {
     queue<int> deck, input;
 
-    for (int n=1; n <= N; ++n)
+    for (int n = 0; n < N; ++n)
         input.push(n);
     deck = input;
 
@@ -47,18 +47,20 @@ void do_reference_impl (int const N)
 
 void do_optimized_impl (int const N)
 {
-    vector<int> input, deck, table;
+    int A[N], B[N], C[N];
 
-    for (int n = 1; n <= N; ++n)
-        input.push_back(n);
-    deck = input;
-    table.resize(N);
+    int *input = A;
+    int *table = B;
+    int *deck = C;
+
+    for (int n = 0; n < N; ++n)
+        input[n] = deck[n] = n;
 
     do 
     {
         int start = 0;
-        int stride = 1;
         int index = 0;
+        int stride = 1;
         int next = N-1;
         bool take = true;
 
@@ -78,16 +80,14 @@ void do_optimized_impl (int const N)
 
             stride <<= 1;
         }
+        
+        swap (deck, table);
 
-        copy (begin (table), end (table), begin (deck));
-
-        for (int v : deck)
-            cout << v << ", ";
+        for (int i=0; i < N; ++i)
+            cout << deck[i] << ", ";
         cout << endl;
-
-        ++count;
     } 
-    while (deck != input);
+    while (!equal (input, input+N, deck));
 }
 
 int main (int argc, char **argv)
