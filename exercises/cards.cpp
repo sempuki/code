@@ -1,12 +1,46 @@
+/* cards.cpp --
+ *
+ *			Ryan McDougall
+ */
+
 #include <iostream>
 #include <queue>
 #include <stack>
 
 using namespace std;
 
-void do_reference_impl (int const N)
+int string_to_int (const char *str)
+{
+    bool leading = true;
+    int value = 0;
+    int sign = 1;
+
+    if (str)
+    {
+        for (char c; *str; ++str)
+        {
+            if (*str == '-' && leading)
+                sign = -1;
+
+            if (*str == ' ' || *str == '\t')
+                continue;
+            else
+                leading = false;
+
+            c = *str - '0';
+
+            if (c >= 0 && c < 10)
+                value *= 10, value += c;
+        }
+    }
+
+    return sign * value;
+}
+
+int do_reference_impl (int const N)
 {
     queue<int> deck, input;
+    int rounds = 0;
 
     for (int n = 0; n < N; ++n)
         input.push(n);
@@ -41,13 +75,20 @@ void do_reference_impl (int const N)
             cout << current << ", ";
         }
         cout << endl;
+
+        ++rounds;
     } 
     while (deck != input);
+
+    return rounds;
 }
 
-void do_optimized_impl (int const N)
+int do_optimized_impl (int const N)
 {
     int A[N], B[N], C[N];
+
+    int rounds = 0;
+    bool equal = false;
 
     int *input = A;
     int *table = B;
@@ -83,22 +124,31 @@ void do_optimized_impl (int const N)
         
         swap (deck, table);
 
-        for (int i=0; i < N; ++i)
-            cout << deck[i] << ", ";
-        cout << endl;
+        ++rounds;
+
+        equal = true;
+        for (int n = 0; n < N && equal; ++n)
+            equal = (input[n] == deck[n]);
     } 
-    while (!equal (input, input+N, deck));
+    while (!equal);
+
+    return rounds;
 }
 
 int main (int argc, char **argv)
 {
-    int const N = 14;
+    if (argc != 2)
+    {
+        cerr << argv[0] << " <SIZE_OF_DECK>" << endl;
+        return -1;
+    }
 
-    do_reference_impl (N);
+    int const N = string_to_int (argv[1]);
 
-    cout << "===========================" << endl;
+    //cout << "number of rounds: " << do_reference_impl (N) << endl;
+    //cout << "===========================" << endl;
 
-    do_optimized_impl (N);
+    cout << do_optimized_impl (N) << endl;
 
     return 0;
 }
