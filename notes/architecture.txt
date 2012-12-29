@@ -27,3 +27,6 @@
 --- dependency tasks read the return value and decide whether to run
 --- tasks can choose to enqueue more tasks, or dequeue their children (as an optimization instead of propagating a failure code)
 --- real-time tasks have a time-out value and expiry handler
+
+* Dependency injection/mapping
+- memory mapper reads layout file and constructs allocators components request by name
