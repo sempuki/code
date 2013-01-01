@@ -14,17 +14,12 @@ def configure(ctx):
 
     ctx.setenv('debug', default)
     ctx.env.append_unique('CXXFLAGS', ['-g', '-std=c++11'])
-    ctx.env.variant = ctx.options.build
 
     ctx.setenv('release', default)
     ctx.env.append_unique('CXXFLAGS', ['-g -O2', '-std=c++11'])
-    ctx.env.variant = ctx.options.build
 
     ctx.setenv('shipping', default)
     ctx.env.append_unique('CXXFLAGS', ['-O2', '-std=c++11'])
-    ctx.env.variant = ctx.options.build
-
-    ctx.setenv(ctx.options.build);
 
     print 'Using environment: {}'.format(ctx.env)
     print 'All Environments : {}'.format(ctx.all_envs)
