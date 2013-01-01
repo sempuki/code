@@ -26,7 +26,7 @@ namespace sequia
         template <typename T, size_t N>
         using fixed_vector = std::vector<T, fixed_vector_allocator<T, N>>;
 
-        template <size_t N, typename K, typename V>
+        template <typename K, typename V, size_t N>
         using fixed_map_allocator = 
             memory::allocator::concrete<
                 memory::allocator::compat<
@@ -36,8 +36,8 @@ namespace sequia
                         typename core::min_word_size<N-1>::type>>, 
                 typename std::map<K,V>::value_type>;
 
-        template <size_t N, typename K, typename V, typename Compare = std::less<K>>
-        using fixed_map = std::map<K, V, Compare, fixed_map_allocator<N, K, V>>;
+        template <typename K, typename V, size_t N, typename Compare = std::less<K>>
+        using fixed_map = std::map<K, V, Compare, fixed_map_allocator<K, V, N>>;
     }
 }
 

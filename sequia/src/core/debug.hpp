@@ -12,13 +12,6 @@
 #endif
 
 #if ((defined DEBUG || defined _DEBUG) && !defined DISABLE_ASSERTS)
-#define ASSUMEF(cond, ...) \
-    if (EXPECT_UNLIKELY(!(cond))) \
-    { \
-        printf("--- ASSUMPTION FAILED: "); \
-        printf(__VA_ARGS__); \
-        printf("\n"); \
-    }
 #define ASSERTF(cond, ...) \
     if (EXPECT_UNLIKELY(!(cond))) \
     { \
@@ -27,9 +20,24 @@
         printf("\n"); \
         assert(cond); \
     }
+#define ASSUMEF(cond, ...) \
+    if (EXPECT_UNLIKELY(!(cond))) \
+    { \
+        printf("--- ASSUMPTION FAILED: "); \
+        printf(__VA_ARGS__); \
+        printf("\n"); \
+    }
+#define CONFIRMF(cond, ...) \
+    if (EXPECT_UNLIKELY(!(cond))) \
+    { \
+        printf("... CONFIRMATION FAILED: "); \
+        printf(__VA_ARGS__); \
+        printf("\n"); \
+    }
 #else
-#define ASSUMEF(cond, ...) ((void) 0)
 #define ASSERTF(cond, ...) ((void) 0)
+#define ASSUMEF(cond, ...) ((void) 0)
+#define CONFIRMF(cond, ...) ((void) 0)
 #endif
     
 #endif

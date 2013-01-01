@@ -158,7 +158,7 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    core::fixed_map<10, int, int> map;
+    core::fixed_map<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;
@@ -166,10 +166,15 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
 
-    core::name n0 ("521");
-    core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
-    core::name n2 ("dfasdlkfjasldk");
-    core::name n3 ("lkdjgalskdjflajdslkf");
+    core::name n0 ("a");
+    core::name n1 ("aa");
+    core::name n2 ("aaa");
+    core::name n3 ("aaaa");
+
+    //core::name n0 ("521");
+    //core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
+    //core::name n2 ("dfasdlkfjasldk");
+    //core::name n3 ("lkdjgalskdjflajdslkf");
     core::name n4 ("kasdjf");
     core::name n5 ("jadl;fja;slk");
     core::name n6 ("aldskfjalsdjfalksj");
