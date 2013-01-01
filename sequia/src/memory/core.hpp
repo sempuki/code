@@ -103,11 +103,25 @@ namespace sequia
             buffer (T *data, size_t num) : 
                 items {data}, size {num} {}
 
+            buffer (T *begin, T *end) :
+                address {begin}, size {end - begin} 
+            {
+                ASSERTF (end < begin, "invalid range passed");
+            }
+
             buffer (void const *data, size_t bytes) : 
                 address {data}, size {bytes / sizeof(T)} 
             {
-                WATCHF (bytes == size * sizeof(T), "lost %ld bytes from buffer conversion",
-                        bytes - (size * sizeof(T)));
+                //WATCHF (bytes == nbytes(), "lost %ld bytes in conversion",
+                //        bytes - nbytes());
+            }
+
+            template <typename U>
+            buffer (buffer<U> &copy) :
+                buffer {copy.address, copy.nbytes()} 
+            {
+                //WATCHF (copy.nbytes() == nbytes(), "lost %ld bytes in conversion",
+                //        copy.nbytes() - nbytes());
             }
 
             template <size_t N>
