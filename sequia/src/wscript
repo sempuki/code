@@ -3,14 +3,12 @@
 
 def options(ctx):
     ctx.load('compiler_cxx')
-    ctx.add_option('--build', action='store', default='debug', help='configuration to build')
+    ctx.add_option('--build', action='store', default='', help='configuration to build')
 
 def configure(ctx):
     ctx.load('compiler_cxx')
-    ctx.env.BUILD = ctx.options.build
+    ctx.env.variant = ctx.options.build
     default = ctx.env
-
-    print 'Using build type: {}'.format(ctx.env.BUILD)
 
     ctx.setenv('debug', default)
     ctx.env.append_unique('CXXFLAGS', ['-g', '-std=c++11'])
@@ -21,16 +19,13 @@ def configure(ctx):
     ctx.setenv('shipping', default)
     ctx.env.append_unique('CXXFLAGS', ['-O2', '-std=c++11'])
 
-    print 'Using environment: {}'.format(ctx.env)
-    print 'All Environments : {}'.format(ctx.all_envs)
 
 def build(ctx):
-    ctx.env = ctx.all_envs[ctx.env.BUILD]
-    ctx.program(source='main.cpp', target='game', includes='.')
+    variant = ctx.variant if len(ctx.variant) > 0 else ctx.env.variant
+    print 'Using build type: {}'.format(variant)
 
-    print 'Using variant: {}'.format(ctx.env.variant)
-    print 'Using environment: {}'.format(ctx.env)
-    print 'All Environments : {}'.format(ctx.all_envs)
+    ctx.env = ctx.all_envs[variant]
+    ctx.program(source='main.cpp', target='game', includes='.')
 
 # Create a custom builder for each combination of context and configuration 
 from waflib.Build import BuildContext, CleanContext, InstallContext, UninstallContext
