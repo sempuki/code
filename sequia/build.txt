@@ -1,12 +1,10 @@
 # To build and run the game:
-$ rm -rf build/
-$ waf configure --build=debug
+$ waf clean configure --build=debug
 $ waf build -j 4 [-v]
 $ ./build/src/game
 
 # Alternatively:
-$ rm -rf build/
-$ waf configure
+$ waf clean configure
 $ waf debug_build -j 4 [-v]
 $ ./build/src/game
 
