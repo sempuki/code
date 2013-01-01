@@ -43,4 +43,7 @@
     excludesfile = ~/.gitignore
     #autocrlf = true                # used in Windows 
     autocrlf = input                # used in Unix
-
+[push]
+    default = simple
+[credential]
+    helper = cache --timeout=3600
