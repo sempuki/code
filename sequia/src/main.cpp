@@ -5,6 +5,7 @@
 #include <core/standard.hpp>
 #include <core/stream.hpp>
 #include <core/types.hpp>
+#include <core/hash.hpp>
 #include <core/name.hpp>
 #include <core/container.hpp>
 #include <state/state.hpp>
@@ -166,19 +167,23 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
 
-    core::name n0 ("a");
-    core::name n1 ("aa");
-    core::name n2 ("aaa");
-    core::name n3 ("aaaa");
+    core::name n0 ("");
+    core::name n1 ("a");
+    core::name n2 ("aa");
+    core::name n3 ("aaa");
+    core::name n4 ("aaaa");
+    core::name n5 ("aaaaa");
+    core::name n6 ("aaaaaa");
+    core::name n7 ("aaaaaaa");
 
     //core::name n0 ("521");
     //core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
     //core::name n2 ("dfasdlkfjasldk");
     //core::name n3 ("lkdjgalskdjflajdslkf");
-    core::name n4 ("kasdjf");
-    core::name n5 ("jadl;fja;slk");
-    core::name n6 ("aldskfjalsdjfalksj");
-    core::name n7 ("dsfsaj");
+    //core::name n4 ("kasdjf");
+    //core::name n5 ("jadl;fja;slk");
+    //core::name n6 ("aldskfjalsdjfalksj");
+    //core::name n7 ("dsfsaj");
     core::name n8 ("sadlfasldkfjals;dkjf;lasdkj");
     core::name n9 ("sdfljlasdicuvxc.,merw.,e");
 

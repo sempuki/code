@@ -26,32 +26,36 @@ namespace sequia
             private:
                 uint32_t compute_hash (char const *str)
                 {
-                    memory::buffer <char const> buf {str, strlen (str)};
-                    auto aligned = memory::align <uint32_t const> (buf);
-                    
                     uint32_t hash = core::crc32c;
 
-                    // Include any bytes missed due to alignment overhead
-                    auto pre = *reinterpret_cast <uint32_t const *> (buf.begin());
-                    auto pre_size= memory::aligned_overhead <uint32_t> (buf.begin()) * 8;
-                    hash ^= pre >> pre_size;
+                    // Compute initial buffers
+                    memory::buffer <char const> buf {str, strlen (str)};
+                    auto aligned = memory::aligned_buffer <uint32_t const> (buf);
+                    auto overhead = memory::aligned_overhead <uint32_t const> (buf);
+
+                    std::cout << "buf address: " << buf.address << std::endl;
+                    std::cout << "buf size: " << buf.size << std::endl;
+                    std::cout << "aligned address: " << aligned.address << std::endl;
+                    std::cout << "aligned size: " << aligned.size << std::endl;
+                    std::cout << "pointer overhead: " << overhead.first << std::endl;
+                    std::cout << "size overhead: " << overhead.second << std::endl;
+                    
+                    // Include any unaligned bytes at the beginning
+                    auto ptr = reinterpret_cast <void const *> (buf.begin());
+                    auto size = aligned.size? overhead.first : buf.size;
+
+                    memory::buffer <uint8_t const> prelude {ptr, size};
+                    hash = block_hash_32 (prelude, hash, core::crc32c);
 
                     // Hash aligned blocks of 4-byte words
-                    for (auto block : aligned)
-                    {
-                        hash = (hash << 16) | 
-                            ((hash & 0xF0000000) >> 24) |
-                            ((hash & 0x0F000000) >> 12) |
-                            ((hash & 0x00F00000) >> 12) |
-                            ((hash & 0x000F0000) >> 16);
+                    hash = block_hash_32 (aligned, hash, core::crc32c);
 
-                        hash ^= core::crc32c;
-                    }
+                    // Include any unaligned bytes at the end
+                    ptr = reinterpret_cast <void const *> (aligned.end());
+                    size = aligned.size? overhead.second : 0;
 
-                    // Include any bytes missed due to alignment offset
-                    auto post = *reinterpret_cast <uint32_t const *> (buf.end() - 4);
-                    auto post_size = memory::aligned_offset <uint32_t> (buf.end()) * 8;
-                    hash ^= post >> pre_size;
+                    memory::buffer <uint8_t const> postlude {ptr, size};
+                    hash = block_hash_32 (postlude, hash, core::crc32c);
 
                     return hash;
                 }
@@ -65,10 +69,9 @@ namespace sequia
 
         std::ostream &operator<< (std::ostream &out, name const &n)
         {
-#ifdef DEBUG
-            out << n.string();
-#else
             out << static_cast <uint32_t> (n);
+#ifdef DEBUG
+            out << " [" << n.string() << "]";
 #endif
             return out;
         } 

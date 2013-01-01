@@ -27,10 +27,10 @@
         printf(__VA_ARGS__); \
         printf("\n"); \
     }
-#define CONFIRMF(cond, ...) \
+#define WATCHF(cond, ...) \
     if (EXPECT_UNLIKELY(!(cond))) \
     { \
-        printf("... CONFIRMATION FAILED: "); \
+        printf("... WATCH TRIGGERED: "); \
         printf(__VA_ARGS__); \
         printf("\n"); \
     }

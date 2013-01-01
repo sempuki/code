@@ -3,7 +3,7 @@
 
 def options(ctx):
     ctx.load('compiler_cxx')
-    ctx.add_option('--build', action='store', default='', help='configuration to build')
+    ctx.add_option('--build', action='store', default='', help='build configuration')
 
 def configure(ctx):
     ctx.load('compiler_cxx')
@@ -24,7 +24,7 @@ def configure(ctx):
 
 def build(ctx):
     variant = ctx.variant if len(ctx.variant) > 0 else ctx.env.variant
-    print 'Using build type: {}'.format(variant)
+    print 'Using build configuration: {}'.format(variant.upper())
 
     INCLUDES = '.'
     DEFINES = ctx.env.DEFINES
