@@ -12,20 +12,26 @@ def configure(ctx):
 
     ctx.setenv('debug', default)
     ctx.env.append_unique('CXXFLAGS', ['-g', '-std=c++11'])
+    ctx.env.append_unique('DEFINES', 'DEBUG')
 
     ctx.setenv('release', default)
     ctx.env.append_unique('CXXFLAGS', ['-g', '-O2', '-std=c++11'])
+    ctx.env.append_unique('DEFINES', 'RELEASE')
 
     ctx.setenv('shipping', default)
     ctx.env.append_unique('CXXFLAGS', ['-O2', '-std=c++11'])
+    ctx.env.append_unique('DEFINES', 'SHIPPING')
 
 
 def build(ctx):
     variant = ctx.variant if len(ctx.variant) > 0 else ctx.env.variant
     print 'Using build type: {}'.format(variant)
 
+    INCLUDES = '.'
+    DEFINES = ctx.env.DEFINES
+
     ctx.env = ctx.all_envs[variant]
-    ctx.program(source='main.cpp', target='game', includes='.')
+    ctx.program(source='main.cpp', target='game', includes=INCLUDES, defines=DEFINES)
 
 # Create a custom builder for each combination of context and configuration 
 from waflib.Build import BuildContext, CleanContext, InstallContext, UninstallContext
