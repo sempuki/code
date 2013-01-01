@@ -71,7 +71,7 @@ namespace sequia
             inline uint8_t *byte_begin () { return bytes; }
             inline uint8_t *byte_end () { return bytes + N * sizeof(T); }
 
-            inline bool contains (T *p) { return p >= items && p < items + N; }
+            inline bool contains (T *p) const { return p >= items && p < items + N; }
         };
 
         //--------------------------------------------------------------------
@@ -103,7 +103,8 @@ namespace sequia
                 std::cout << "bytes: " << bytes << std::endl;
                 std::cout << "size: " << size << std::endl;
                 std::cout << "sizeof(T): " << sizeof(T) << std::endl;
-                CONFIRMF (bytes == size * sizeof(T), "lost %d bytes from buffer conversion");
+                CONFIRMF (bytes == size * sizeof(T), 
+                        "lost %ld bytes from buffer conversion", bytes - (size * sizeof(T)));
             }
 
             template <size_t N>
@@ -125,7 +126,7 @@ namespace sequia
                 return *this;
             }
 
-            inline bool valid () const { address != nullptr; }
+            inline bool valid () const { return address != nullptr; }
             inline void invalidate () { address = nullptr; }
 
             inline size_t nitems () const { return size; }
@@ -137,7 +138,7 @@ namespace sequia
             inline uint8_t *byte_begin () { return bytes; }
             inline uint8_t *byte_end () { return bytes + size * sizeof(T); }
 
-            inline bool contains (T *p) { return p >= items && p < items + size; }
+            inline bool contains (T *p) const { return p >= items && p < items + size; }
         };
 
         template <typename T>

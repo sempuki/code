@@ -9,3 +9,6 @@ $ rm -rf build/
 $ waf configure
 $ waf debug_build -j 4 [-v]
 $ ./build/src/game
+
+# Configure clang
+$ CXX=clang waf configure

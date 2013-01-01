@@ -71,10 +71,10 @@ namespace sequia
                             block_type *&free = Base::access_state().head;
                             buffer<block_type> const &mem = Base::access_state().arena;
 
-                            ASSERTF (num == 1, "can only allocate one object per call");
-                            ASSERTF (mem.contains (ptr), "pointer is not from this heap");
-
                             block_type *block = reinterpret_cast <block_type *> (ptr);
+
+                            ASSERTF (num == 1, "can only allocate one object per call");
+                            ASSERTF (mem.contains (block), "pointer is not from this heap");
 
                             block->index = free - mem.items;
                             free = block;

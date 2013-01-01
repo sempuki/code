@@ -22,7 +22,6 @@ def configure(ctx):
     ctx.env.append_unique('CXXFLAGS', ['-O2', '-std=c++11'])
     ctx.env.append_unique('DEFINES', 'SHIPPING')
 
-
 def build(ctx):
     variant = ctx.variant if len(ctx.variant) > 0 else ctx.env.variant
     print 'Using build type: {}'.format(variant)
