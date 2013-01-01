@@ -16,7 +16,7 @@ def configure(ctx):
     ctx.env.append_unique('CXXFLAGS', ['-g', '-std=c++11'])
 
     ctx.setenv('release', default)
-    ctx.env.append_unique('CXXFLAGS', ['-g -O2', '-std=c++11'])
+    ctx.env.append_unique('CXXFLAGS', ['-g', '-O2', '-std=c++11'])
 
     ctx.setenv('shipping', default)
     ctx.env.append_unique('CXXFLAGS', ['-O2', '-std=c++11'])
