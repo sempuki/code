@@ -1,5 +1,5 @@
-#ifndef _FIXED_ALLOCATOR_HPP_
-#define _FIXED_ALLOCATOR_HPP_
+#ifndef _STATIC_ALLOCATOR_HPP_
+#define _STATIC_ALLOCATOR_HPP_
 
 namespace sequia
 {
@@ -16,22 +16,22 @@ namespace sequia
             namespace impl
             {
                 template <typename Base, typename State, typename Type, size_t N>
-                class fixed_buffer : public Base
+                class static_buffer : public Base
                 {
                     public:
                         // default constructor
-                        fixed_buffer () :
+                        static_buffer () :
                             Base {} { common_initialization (); }
 
                         // stateful constructor
-                        explicit fixed_buffer (State const &state) : 
+                        explicit static_buffer (State const &state) : 
                             Base {state} { common_initialization (); }
 
                         // copy constructor
-                        fixed_buffer (fixed_buffer const &copy) = delete;
+                        static_buffer (static_buffer const &copy) = delete;
 
                         // destructor
-                        ~fixed_buffer () { common_finalization (); }
+                        ~static_buffer () { common_finalization (); }
 
                     public:
                         size_t max_size () const 
@@ -74,18 +74,18 @@ namespace sequia
                         }
 
                     private:
-                        static_buffer<Type, N>  buffer_;
+                        memory::static_buffer<Type, N>  buffer_;
                 };
             }
 
             template <size_t N> 
-            struct fixed_buffer
+            struct static_buffer
             {
                 template <typename T>
                 using state_type = basic_state<T>;
 
                 template <typename S, typename T>
-                using concrete_type = impl::fixed_buffer <get_concrete_type <terminal, S, T>, S, T, N>;
+                using concrete_type = impl::static_buffer <get_concrete_type <terminal, S, T>, S, T, N>;
 
                 using propagate_on_container_copy_assignment = std::false_type;
                 using propagate_on_container_move_assignment = std::false_type;

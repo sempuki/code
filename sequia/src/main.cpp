@@ -151,7 +151,7 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    core::fixed_vector<int, 10> vec;
+    core::static_vector<int, 10> vec;
 
     for (int i=0; i < 10; ++i)
         vec.push_back (i);
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; ++i)
         cout << vec[i] << endl;
 
-    core::fixed_map<int, int, 10> map;
+    core::static_map<int, int, 10> map;
 
     for (int i=0; i < 10; i++)
         map[i] = i;
@@ -167,23 +167,14 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << map[i] << endl;
 
-    core::name n0 ("");
-    core::name n1 ("a");
-    core::name n2 ("aa");
-    core::name n3 ("aaa");
-    core::name n4 ("aaaa");
-    core::name n5 ("aaaaa");
-    core::name n6 ("aaaaaa");
-    core::name n7 ("aaaaaaa");
-
-    //core::name n0 ("521");
-    //core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
-    //core::name n2 ("dfasdlkfjasldk");
-    //core::name n3 ("lkdjgalskdjflajdslkf");
-    //core::name n4 ("kasdjf");
-    //core::name n5 ("jadl;fja;slk");
-    //core::name n6 ("aldskfjalsdjfalksj");
-    //core::name n7 ("dsfsaj");
+    core::name n0 ("521");
+    core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
+    core::name n2 ("dfasdlkfjasldk");
+    core::name n3 ("lkdjgalskdjflajdslkf");
+    core::name n4 ("kasdjf");
+    core::name n5 ("jadl;fja;slk");
+    core::name n6 ("aldskfjalsdjfalksj");
+    core::name n7 ("dsfsaj");
     core::name n8 ("sadlfasldkfjals;dkjf;lasdkj");
     core::name n9 ("sdfljlasdicuvxc.,merw.,e");
 
