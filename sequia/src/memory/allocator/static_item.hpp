@@ -33,12 +33,15 @@ namespace sequia
             class static_item : public std::allocator <impl::block_type<Type,N>>
             {
                 public:
+                    template <class U> struct rebind { using other = static_item<U,N>; };
+
+                public:
                     static_item ()
                     {
                         ASSERTF (mem_.valid(), "memory not allocated");
-                        ASSERTF (mem_.size < (core::one<<(core::min_num_bytes(mem_.size)*8)),
+                        ASSERTF (N < (core::one << (core::min_num_bytes (N) * 8)),
                                 "too many objects for size of free list index type");
-
+                        
                         auto index = 0;
                         for (auto &block : mem_)
                             block.index = ++index;
@@ -53,7 +56,7 @@ namespace sequia
                     }
 
                     template <class U>
-                    static_item (static_item<U,N> const &copy ) :
+                    static_item (static_item<U,N> const &copy) :
                         static_item {} 
                     {
                         WATCHF (false, "allocator rebind copy constructor called");

@@ -14,6 +14,11 @@ namespace sequia
             class static_buffer : public std::allocator <Type>
             {
                 public:
+                    template <class U> struct rebind { using other = static_buffer<U,N>; };
+
+                public:
+                    static_buffer () {}
+
                     static_buffer (static_buffer const &copy) :
                         static_buffer {} 
                     {
@@ -35,19 +40,12 @@ namespace sequia
 
                     Type *allocate (size_t num, const void* = 0) 
                     { 
-                        ASSERTF (!mem_.valid(), "previously allocated");
-                        ASSERTF (N == num, "incorrect allocation size");
-
                         return mem_.items;
                     }
 
                     void deallocate (Type *ptr, size_t num) 
                     {
-                        ASSERTF (mem_.valid(), "not previously allocated");
                         ASSERTF (mem_.items == ptr, "not from this allocator");
-                        ASSERTF (N == num, "incorrect allocation size");
-
-                        mem_.invalidate();
                     }
 
                 private:
