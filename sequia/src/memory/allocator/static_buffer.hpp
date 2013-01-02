@@ -14,6 +14,20 @@ namespace sequia
             class static_buffer : public std::allocator <Type>
             {
                 public:
+                    static_buffer (static_buffer const &copy) :
+                        static_buffer {} 
+                    {
+                        WATCHF (false, "allocator copy constructor called");
+                    }
+
+                    template <class U>
+                    static_buffer (static_buffer<U,N> const &copy ) :
+                        static_buffer {} 
+                    {
+                        WATCHF (false, "allocator rebind copy constructor called");
+                    }
+
+                public:
                     size_t max_size () const 
                     { 
                         return N;
@@ -37,7 +51,7 @@ namespace sequia
                     }
 
                 private:
-                    memory::static_buffer<Type, N>  mem_;
+                    memory::static_buffer<Type,N>  mem_;
             };
         }
     }

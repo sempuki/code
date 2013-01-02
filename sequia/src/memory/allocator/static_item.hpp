@@ -33,7 +33,7 @@ namespace sequia
             class static_item : public std::allocator <impl::block_type<Type,N>>
             {
                 public:
-                    static_item()
+                    static_item ()
                     {
                         ASSERTF (mem_.valid(), "memory not allocated");
                         ASSERTF (mem_.size < (core::one<<(core::min_num_bytes(mem_.size)*8)),
@@ -47,11 +47,17 @@ namespace sequia
                     }
 
                     static_item (static_item const &copy) :
-                        static_item {} {}
+                        static_item {} 
+                    {
+                        WATCHF (false, "allocator copy constructor called");
+                    }
 
                     template <class U>
                     static_item (static_item<U,N> const &copy ) :
-                        static_item {} {}
+                        static_item {} 
+                    {
+                        WATCHF (false, "allocator rebind copy constructor called");
+                    }
 
                 public:
                     size_t max_size () const 

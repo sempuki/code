@@ -151,21 +151,29 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    core::static_vector<int, 10> vec;
+    core::static_vector<int, 10> v1;
 
     for (int i=0; i < 10; ++i)
-        vec.push_back (i);
+        v1.push_back (i);
+
+    for (int i=0; i < 10; i++)
+        cout << v1[i] << endl;
+
+    core::static_map<int, int, 10> m1;
+
+    for (int i=0; i < 10; i++)
+        m1[i] = i;
+
+    for (int i=0; i < 10; i++)
+        cout << m1[i] << endl;
+
+    core::fixed_vector<int> v2 = core::make_fixed_vector<int> (10);
 
     for (int i=0; i < 10; ++i)
-        cout << vec[i] << endl;
-
-    core::static_map<int, int, 10> map;
+        v2.push_back (i);
 
     for (int i=0; i < 10; i++)
-        map[i] = i;
-
-    for (int i=0; i < 10; i++)
-        cout << map[i] << endl;
+        cout << v2[i] << endl;
 
     core::name n0 ("521");
     core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
