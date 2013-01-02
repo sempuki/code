@@ -1,6 +1,24 @@
 #ifndef _ALLOCATOR_CORE_HPP_
 #define _ALLOCATOR_CORE_HPP_
 
+// Example:
+//
+// template <typename T, size_t N>
+// using static_vector_allocator = 
+//     memory::allocator::concrete<
+//         memory::allocator::identity<
+//             memory::allocator::scoped<
+//                 memory::allocator::static_buffer<N>>>, T>;
+//
+// template <typename K, typename V, size_t N>
+// using static_map_allocator = 
+//     memory::allocator::concrete<
+//         memory::allocator::compat<
+//             memory::allocator::unity<
+//                 memory::allocator::scoped<
+//                     memory::allocator::static_buffer<N>>, 
+//                 typename core::min_word_size<N-1>::type>>, 
+//         typename std::map<K,V>::value_type>;
 
 namespace sequia
 {

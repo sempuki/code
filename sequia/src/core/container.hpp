@@ -1,43 +1,20 @@
 #ifndef _CONTAINER_HPP_
 #define _CONTAINER_HPP_
 
-#include <memory/allocator/core.hpp>
-#include <memory/allocator/stateful.hpp>
-#include <memory/allocator/terminal.hpp>
 #include <memory/allocator/static_buffer.hpp>
-#include <memory/allocator/identity.hpp>
-#include <memory/allocator/unity.hpp>
-#include <memory/allocator/compat.hpp>
-#include <memory/allocator/scoped.hpp>
-#include <memory/allocator/concrete.hpp>
-//#include <memory/allocator/constant.hpp>
+#include <memory/allocator/static_item.hpp>
 
 namespace sequia
 {
     namespace core
     {
         template <typename T, size_t N>
-        using static_vector_allocator = 
-            memory::allocator::concrete<
-                memory::allocator::identity<
-                    memory::allocator::scoped<
-                        memory::allocator::static_buffer<N>>>, T>;
-
-        template <typename T, size_t N>
-        using static_vector = std::vector<T, static_vector_allocator<T, N>>;
-
-        template <typename K, typename V, size_t N>
-        using static_map_allocator = 
-            memory::allocator::concrete<
-                memory::allocator::compat<
-                    memory::allocator::unity<
-                        memory::allocator::scoped<
-                            memory::allocator::static_buffer<N>>, 
-                        typename core::min_word_size<N-1>::type>>, 
-                typename std::map<K,V>::value_type>;
+        using static_vector = std::vector<T, 
+              memory::allocator::static_buffer<T, N>>;
 
         template <typename K, typename V, size_t N, typename Compare = std::less<K>>
-        using static_map = std::map<K, V, Compare, static_map_allocator<K, V, N>>;
+        using static_map = std::map<K, V, Compare, 
+              memory::allocator::static_item<typename std::map<K,V,Compare>::value_type, N>>;
     }
 }
 
