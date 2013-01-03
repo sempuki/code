@@ -167,13 +167,14 @@ int main(int argc, char **argv)
     for (int i=0; i < 10; i++)
         cout << m1[i] << endl;
 
-    core::fixed_vector<int> v2 = core::make_fixed_vector<int> (10);
+    auto v2 = core::make_fixed_vector<int> (10);
+    core::fixed_vector<int> v3 = v2;
 
     for (int i=0; i < 10; ++i)
-        v2.push_back (i);
+        v3.push_back (i);
 
     for (int i=0; i < 10; i++)
-        cout << v2[i] << endl;
+        cout << v3[i] << endl;
 
     core::name n0 ("521");
     core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");

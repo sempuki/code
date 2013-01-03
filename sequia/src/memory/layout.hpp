@@ -9,7 +9,7 @@ namespace sequia
         struct heap
         {
             size_t const page_size;
-            std::vector <uint8_t, > page_list;
+            core::fixed_vector <uint8_t> page_list;
         };
 
         //--------------------------------------------------------------------
