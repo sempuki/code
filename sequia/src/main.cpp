@@ -9,6 +9,7 @@
 #include <core/name.hpp>
 #include <core/container.hpp>
 #include <state/state.hpp>
+#include <memory/layout.hpp>
 
 using namespace std;
 using namespace sequia;
@@ -157,15 +158,8 @@ int main(int argc, char **argv)
         v1.push_back (i);
 
     for (int i=0; i < 10; i++)
-        cout << v1[i] << endl;
-
-    core::static_map<int, int, 10> m1;
-
-    for (int i=0; i < 10; i++)
-        m1[i] = i;
-
-    for (int i=0; i < 10; i++)
-        cout << m1[i] << endl;
+        cout << v1[i] << ",";
+    cout << endl;
 
     auto v2 = core::make_fixed_vector<int> (10);
     core::fixed_vector<int> v3 = v2;
@@ -174,7 +168,26 @@ int main(int argc, char **argv)
         v3.push_back (i);
 
     for (int i=0; i < 10; i++)
-        cout << v3[i] << endl;
+        cout << v3[i] << ",";
+    cout << endl;
+
+    core::static_map<int, int, 10> m1;
+
+    for (int i=0; i < 10; i++)
+        m1[i] = i;
+
+    for (int i=0; i < 10; i++)
+        cout << m1[i] << ",";
+    cout << endl;
+
+    auto m2 = core::make_fixed_map<int,int> (10);
+
+    for (int i=0; i < 10; ++i)
+        m2[i] = i;
+
+    for (int i=0; i < 10; i++)
+        cout << m2[i] << ",";
+    cout << endl;
 
     core::name n0 ("521");
     core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");

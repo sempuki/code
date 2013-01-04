@@ -9,7 +9,7 @@ namespace sequia
         struct heap
         {
             size_t const page_size;
-            core::fixed_vector <uint8_t> page_list;
+            core::fixed_vector <memory::buffer<uint8_t>> page_list;
         };
 
         //--------------------------------------------------------------------
@@ -18,7 +18,6 @@ namespace sequia
 
         class layout
         {
-
         };
     }
 }

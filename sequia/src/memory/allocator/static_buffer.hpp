@@ -49,7 +49,7 @@ namespace sequia
                     }
 
                 private:
-                    memory::static_buffer<Type,N>  mem_;
+                    memory::static_buffer<Type,N> mem_;
             };
         }
     }

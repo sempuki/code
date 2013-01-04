@@ -27,6 +27,9 @@ namespace sequia
 
                 template <typename T, size_t N>
                 using block_type = block <typename core::min_word_size<N-1>::type, T>;
+                
+                template <typename T>
+                using block_32 = block <uint32_t, T>;
             }
 
             template <typename Type, size_t N>
@@ -39,7 +42,7 @@ namespace sequia
                     static_item ()
                     {
                         ASSERTF (mem_.valid(), "memory not allocated");
-                        ASSERTF (N < (core::one << (core::min_num_bytes (N) * 8)),
+                        ASSERTF (N < (core::one << (core::min_num_bytes(N)*8)),
                                 "too many objects for size of free list index type");
                         
                         auto index = 0;
@@ -84,6 +87,7 @@ namespace sequia
                         auto block = reinterpret_cast <impl::block_type<Type,N> *> (ptr);
 
                         ASSERTF (num == 1, "can only allocate one object per call");
+                        ASSERTF (mem_.valid(), "not previously allocated");
                         ASSERTF (mem_.contains (block), "pointer is not from this heap");
 
                         block->index = head_ - mem_.begin();
