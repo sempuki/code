@@ -3,57 +3,20 @@
 
 #include <core/debug.hpp>
 #include <core/standard.hpp>
-#include <core/stream.hpp>
+#include <memory/core.hpp>
 #include <core/types.hpp>
+#include <core/bits.hpp>
 #include <core/hash.hpp>
 #include <core/name.hpp>
 #include <core/container.hpp>
+#include <core/stream.hpp>
 #include <state/state.hpp>
 #include <memory/layout.hpp>
 
+// TODO: per-namespace meta-include file
+
 using namespace std;
 using namespace sequia;
-
-namespace App
-{
-    class Test
-    {
-        public:
-            Test(int a, float b, char c)
-                : a_(a), b_(b), c_(c) {}
-
-            template <typename T>
-            bool serialize (core::stream<T> *s) const
-            {
-                *s << a_ << b_ << c_;
-                return true;
-            }
-
-            template <typename T>
-            bool deserialize (core::stream<T> *s)
-            {
-                *s >> a_ >> b_ >> c_;
-                return true;
-            }
-
-        private:
-            int     a_;
-            float   b_;
-            char    c_;
-    };
-}
-
-namespace traits
-{
-    namespace stream
-    {
-        template <>
-        struct element <App::Test>
-        {
-            typedef custom_serializable_tag serialization;
-        };
-    }
-}
 
 struct State1
 {
@@ -134,15 +97,21 @@ namespace traits
 
 int main(int argc, char **argv)
 {
-    size_t N = sizeof(App::Test) * 10;
-    uint8_t buf[N];
+    const int N = 10;
+    int memory[N];
+    core::stream<int> s1 {memory::buffer<int> {memory, N}};
 
-    core::stream<uint8_t> stream (buf, N);
-    App::Test in (1, 0.1, 'a');
-    App::Test out (0, 0.0, 0);
-    
-    stream << in;
-    stream >> out;
+    for (int i=0; i < 5; ++i)
+        s1 << i;
+
+    for (int i=0; i < 5; ++i)
+        s1 >> i, cout << i << ",";
+    cout << endl;
+
+    for (int i=0; i < 5; ++i)
+        s1 << i;
+    cout << "stream size: " << s1.size() << endl;
+
 
     state::singular_machine <State1, State2, State3> machine;
     machine.react (1);
