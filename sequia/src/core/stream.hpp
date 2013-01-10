@@ -42,11 +42,10 @@ namespace sequia
 
                 bool full () const { return size_ == mem_.size; }
                 bool empty () const { return size_ == 0; }
-                size_t size () const { return size_; }
+                int size () const { return size_; }
 
             private:
-                size_t size_;
-                int read_, write_;
+                int size_, read_, write_;
                 memory::buffer<E> mem_;
         };
     }
