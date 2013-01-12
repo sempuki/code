@@ -2,24 +2,22 @@
 #define _MEMORY_LAYOUT_HPP_
 
 
-namespace sequia
-{
-    namespace memory
+namespace sequia { namespace memory {
+
+    struct heap
     {
-        struct heap
-        {
-            size_t const page_size;
-            core::fixed_vector <memory::buffer<uint8_t>> page_list;
-        };
+        size_t const page_size;
+        core::fixed_vector <memory::buffer<uint8_t>> page_list;
+    };
 
-        //--------------------------------------------------------------------
-        // Organizes the layout of memory as read in from a layout description
-        // file by allocating heaps on construction and returning them by name.
+    //--------------------------------------------------------------------
+    // Organizes the layout of memory as read in from a layout description
+    // file by allocating heaps on construction and returning them by name.
 
-        class layout
-        {
-        };
-    }
-}
+    class layout
+    {
+    };
+    
+} }
 
 #endif

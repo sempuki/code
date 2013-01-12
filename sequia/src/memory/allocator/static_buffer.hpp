@@ -1,58 +1,53 @@
 #ifndef _STATIC_BUFFER_ALLOCATOR_HPP_
 #define _STATIC_BUFFER_ALLOCATOR_HPP_
 
-namespace sequia
-{
-    namespace memory
+namespace sequia { namespace memory { namespace allocator {
+
+    //=====================================================================
+    // Allocates the same static buffer each call
+
+    template <typename Type, size_t N>
+    class static_buffer : public std::allocator <Type>
     {
-        namespace allocator
-        {
-            //=====================================================================
-            // Allocates the same static buffer each call
+        public:
+            template <class U> struct rebind { using other = static_buffer<U,N>; };
 
-            template <typename Type, size_t N>
-            class static_buffer : public std::allocator <Type>
+        public:
+            static_buffer () {}
+
+            static_buffer (static_buffer const &copy) :
+                static_buffer {} 
             {
-                public:
-                    template <class U> struct rebind { using other = static_buffer<U,N>; };
+                WATCHF (false, "allocator copy constructor called");
+            }
 
-                public:
-                    static_buffer () {}
+            template <class U>
+            static_buffer (static_buffer<U,N> const &copy ) :
+                static_buffer {} 
+            {
+                WATCHF (false, "allocator rebind copy constructor called");
+            }
 
-                    static_buffer (static_buffer const &copy) :
-                        static_buffer {} 
-                    {
-                        WATCHF (false, "allocator copy constructor called");
-                    }
+        public:
+            size_t max_size () const 
+            { 
+                return N;
+            }
 
-                    template <class U>
-                    static_buffer (static_buffer<U,N> const &copy ) :
-                        static_buffer {} 
-                    {
-                        WATCHF (false, "allocator rebind copy constructor called");
-                    }
+            Type *allocate (size_t num, const void* = 0) 
+            { 
+                return mem_.items;
+            }
 
-                public:
-                    size_t max_size () const 
-                    { 
-                        return N;
-                    }
+            void deallocate (Type *ptr, size_t num) 
+            {
+                ASSERTF (mem_.items == ptr, "not from this allocator");
+            }
 
-                    Type *allocate (size_t num, const void* = 0) 
-                    { 
-                        return mem_.items;
-                    }
-
-                    void deallocate (Type *ptr, size_t num) 
-                    {
-                        ASSERTF (mem_.items == ptr, "not from this allocator");
-                    }
-
-                private:
-                    memory::static_buffer<Type,N> mem_;
-            };
-        }
-    }
-}
+        private:
+            memory::static_buffer<Type,N> mem_;
+    };
+        
+} } }
 
 #endif
