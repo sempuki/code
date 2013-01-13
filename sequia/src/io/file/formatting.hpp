@@ -69,6 +69,12 @@ namespace io { namespace file {
             char const ch;
     };
 
+    template<typename C, typename T>
+    std::basic_istream<C,T> &delim (std::basic_istream<C,T>& stream)
+    {
+        return std::ws (stream); // space is the default delimiter
+    }
+
     std::istream &operator>> (std::istream &stream, std::istream::char_type const ch)
     {
         if (stream && stream.get() != ch)
