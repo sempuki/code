@@ -108,7 +108,8 @@ nnoremap <C-f> :cgetexpr system(find."")
 
 "generate local C++ tags files
 nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f cpp.tags<CR>
-set tags+=./cpp.tags,cpp.tags
+"nnoremap <silent> <Leader>= :!ctags -R --language-force=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f std.tags /usr/include/c++<CR>
+set tags+=./cpp.tags,cpp.tags,
 
 "generate local C# tags files
 nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+iamzS --extra=+fq -f cs.tags<CR>

@@ -24,6 +24,8 @@ namespace sequia { namespace core {
         private:
             uint32_t compute_hash (char const *str)
             {
+                // TODO: use std::hash (fold size_t -> uint32_t)?
+
                 uint32_t hash = core::crc32c;
 
                 auto length = strlen (str);
@@ -42,15 +44,6 @@ namespace sequia { namespace core {
 #endif
             uint32_t    hash_;
     };
-
-    std::ostream &operator<< (std::ostream &out, name const &n)
-    {
-        out << static_cast <uint32_t> (n);
-#ifdef DEBUG
-        out << " [" << n.string() << "]";
-#endif
-        return out;
-    } 
 
 } }
 
