@@ -12,7 +12,7 @@ namespace sequia { namespace core {
             {
                 auto usable_size = 1 << bit::log2_floor (mem_.size);
 
-                WATCHF (usable_size == mem_.size, "stream using buffer size %d (of %d)", 
+                WATCHF (usable_size == mem_.size, "stream using buffer size %d (of %zd)", 
                         usable_size, mem_.size);
 
                 mem_.size = usable_size;

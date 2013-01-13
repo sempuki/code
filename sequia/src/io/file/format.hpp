@@ -1,7 +1,13 @@
-#ifndef _IO_FILE_FORMATTING_HPP_
-#define _IO_FILE_FORMATTING_HPP_
+#ifndef _IO_FILE_FORMAT_HPP_
+#define _IO_FILE_FORMAT_HPP_
 
-namespace io { namespace file {
+namespace sequia { namespace io { namespace file { namespace format {
+
+    //=========================================================================
+    // Facilitates processing of primitive ASCII file formats like INI, CSV
+
+    //-------------------------------------------------------------------------
+    // Character type facet with per-instance lookup table
 
     class ctype_char_local : public std::ctype<char>
     {
@@ -17,6 +23,9 @@ namespace io { namespace file {
             mask table_ [table_size];
     };
 
+    //-------------------------------------------------------------------------
+    // IO manipulator to set delimiting characters
+    
     class setdelim
     {
         public:
@@ -26,6 +35,7 @@ namespace io { namespace file {
             {
                 auto current = stream.getloc();
 
+                // facets are reference counted, unique id-indexed, dynamic type-cast
                 if (!std::has_facet<ctype_char_local> (current))
                 {
                     stream.imbue (std::locale (current, new ctype_char_local));
@@ -43,6 +53,15 @@ namespace io { namespace file {
             char const ch;
     };
 
+    std::istream &operator>> (std::istream &stream, setdelim delim)
+    {
+        delim (stream);
+        return stream;
+    }
+
+    //-------------------------------------------------------------------------
+    // IO manipulator to clear delimiting characters
+    
     class cleardelim
     {
         public:
@@ -52,6 +71,7 @@ namespace io { namespace file {
             {
                 auto current = stream.getloc();
 
+                // facets are reference counted, unique id-indexed, dynamic type-cast
                 if (!std::has_facet<ctype_char_local> (current))
                 {
                     stream.imbue (std::locale (current, new ctype_char_local));
@@ -69,12 +89,23 @@ namespace io { namespace file {
             char const ch;
     };
 
-    template<typename C, typename T>
-    std::basic_istream<C,T> &delim (std::basic_istream<C,T>& stream)
+    std::istream &operator>> (std::istream &stream, cleardelim delim)
+    {
+        delim (stream);
+        return stream;
+    }
+
+    //-------------------------------------------------------------------------
+    // IO manipulator to consume one delimiter (as "whitespace")
+
+    std::istream &delim (std::istream &stream)
     {
         return std::ws (stream); // space is the default delimiter
     }
 
+    //-------------------------------------------------------------------------
+    // Consume constant single or multiple-character sequences
+    
     std::istream &operator>> (std::istream &stream, std::istream::char_type const ch)
     {
         if (stream && stream.get() != ch)
@@ -92,18 +123,6 @@ namespace io { namespace file {
         return stream;
     }
 
-    std::istream &operator>> (std::istream &stream, setdelim delim)
-    {
-        delim (stream);
-        return stream;
-    }
-
-    std::istream &operator>> (std::istream &stream, cleardelim delim)
-    {
-        delim (stream);
-        return stream;
-    }
-
-} }
+} } } }
 
 #endif

@@ -11,12 +11,18 @@
 #include <core/container.hpp>
 #include <core/stream.hpp>
 #include <state/state.hpp>
+
 #include <memory/layout.hpp>
+#include <io/file/chunk.hpp>
+#include <io/file/format.hpp>
+#include <data/mapping.hpp>
+#include <data/file/heap_description.hpp>
 
 // TODO: per-namespace meta-include file
 
 using namespace std;
 using namespace sequia;
+using namespace sequia::data;
 
 struct State1
 {
@@ -112,6 +118,20 @@ int main(int argc, char **argv)
         s1 << i;
     cout << "stream size: " << s1.size() << endl;
 
+    std::fstream file ("test.txt", std::ios_base::in);
+
+    if (file)
+    {
+        cout << "file opened." << endl;
+        data::file::heap_description descr = {"test", 4096, 1, 10};
+
+        file >> descr;
+
+        cout << descr.name << " " << descr.page << " " 
+            << descr.min << " " << descr.max << endl;
+
+        file.close();
+    }
 
     state::singular_machine <State1, State2, State3> machine;
     machine.react (1);

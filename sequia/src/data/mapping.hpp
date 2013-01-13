@@ -14,7 +14,7 @@ namespace sequia { namespace data {
     } 
 #endif
 
-    std::ostream &operator>> (std::istream &stream, core::name &obj)
+    std::istream &operator>> (std::istream &stream, core::name &obj)
     {
         std::string s;
 
@@ -32,7 +32,7 @@ namespace sequia { namespace data {
         return stream;
     } 
 
-    std::ostream &operator>> (std::istream &stream, io::file::chunk &obj)
+    std::istream &operator>> (std::istream &stream, io::file::chunk &obj)
     {
         obj << stream;
         return stream;

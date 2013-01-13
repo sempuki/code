@@ -96,7 +96,7 @@ namespace sequia { namespace core { namespace bit {
     {
         static_assert (std::is_integral<T>::value, "type is not an integer");
 
-        return (value > 0) && (value & (value - 1) == 0);
+        return (value > 0) && ((value & (value - 1)) == 0);
     }
 
     inline uint32_t log2_floor (uint32_t x)
