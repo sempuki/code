@@ -122,13 +122,12 @@ int main(int argc, char **argv)
 
     if (file)
     {
-        cout << "file opened." << endl;
-        data::file::heap_description descr = {"test", 4096, 1, 10};
+        data::file::heap_description descr;
 
         file >> descr;
 
-        cout << descr.name << " " << descr.page << " " 
-            << descr.min << " " << descr.max << endl;
+        cout << descr.name << " " << descr.page_size << " " 
+            << descr.min_pages << " " << descr.max_pages << endl;
 
         file.close();
     }

@@ -6,6 +6,8 @@ namespace sequia { namespace core {
     class name
     {
         public:
+            name () : hash_ {0} {}
+
             name (char const *str) : 
 #ifdef DEBUG
                 name_ (str),
