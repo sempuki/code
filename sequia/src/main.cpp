@@ -15,14 +15,14 @@
 #include <memory/layout.hpp>
 #include <io/file/chunk.hpp>
 #include <io/file/format.hpp>
-#include <data/mapping.hpp>
+#include <data/map.hpp>
 #include <data/file/heap_description.hpp>
 
 // TODO: per-namespace meta-include file
 
 using namespace std;
 using namespace sequia;
-using namespace sequia::data;
+using namespace sequia::data::map;
 
 struct State1
 {
@@ -101,7 +101,7 @@ namespace traits
     }
 }
 
-int main(int argc, char **argv)
+int main (int argc, char **argv)
 {
     const int N = 10;
     int memory[N];
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
     machine.react (5);
     machine.react (6);
 
-    core::static_vector<int, 10> v1;
+    core::static_vector<bool, 10> v1;
 
     for (int i=0; i < 10; ++i)
         v1.push_back (i);

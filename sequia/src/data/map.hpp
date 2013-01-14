@@ -1,7 +1,7 @@
-#ifndef _DATA_MAPPING_HPP_
-#define _DATA_MAPPING_HPP_
+#ifndef _DATA_MAP_HPP_
+#define _DATA_MAP_HPP_
 
-namespace sequia { namespace data {
+namespace sequia { namespace data { namespace map {
 
     //-------------------------------------------------------------------------
 
@@ -38,6 +38,6 @@ namespace sequia { namespace data {
         return stream;
     } 
 
-} }
+} } }
 
 #endif

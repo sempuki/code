@@ -4,7 +4,7 @@
 
 namespace sequia { namespace memory {
 
-    //--------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template <typename T>
     using aligned_storage = typename std::aligned_storage 
@@ -45,7 +45,7 @@ namespace sequia { namespace memory {
         return !(p & Alignment-1);
     }
 
-    //--------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template <typename T, size_t N>
     struct static_buffer
@@ -78,7 +78,7 @@ namespace sequia { namespace memory {
         inline bool contains (T *p) const { return p >= items && p < items + N; }
     };
 
-    //--------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template <typename T>
     struct buffer

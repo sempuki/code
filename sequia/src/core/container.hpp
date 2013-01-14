@@ -8,6 +8,8 @@
 
 namespace sequia { namespace core {
 
+    // TODO: specialize allocator for vector<bool>
+
     template <typename T, size_t N>
     using static_vector = std::vector<T, 
           memory::allocator::static_buffer<typename std::vector<T>::value_type, N>>;
