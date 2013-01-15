@@ -26,7 +26,7 @@ namespace sequia { namespace core {
         private:
             uint32_t compute_hash (char const *str)
             {
-                // TODO: use std::hash (fold size_t -> uint32_t)?
+                // NOTE: std::hash would require extra copy in std::string
 
                 uint32_t hash = core::crc32c;
 
