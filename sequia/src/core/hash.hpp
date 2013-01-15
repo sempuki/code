@@ -16,7 +16,7 @@ namespace sequia { namespace core {
         // WARN: algorithm is endian sensitive
         // Are unaligned reads faster/safer with memcpy?
 
-        hash ^= ((buf.size + 0x85ebca6b) * 0xcc9e2d51) >> 13;
+        hash ^= (buf.size * 0xcc9e2d51) ^ 0x85ebca6b;
 
         for (auto block : buf)
         {
@@ -29,7 +29,7 @@ namespace sequia { namespace core {
         }
 
         hash ^= (hash * 0x1b873593) >> 16;
-        hash ^= (hash * 0xc2b2ae35) >> 16;
+        hash ^= (hash * 0xc2b2ae35);
         
         return hash;
     }
