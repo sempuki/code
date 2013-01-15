@@ -28,8 +28,7 @@ namespace sequia { namespace core {
             hash ^= (block * ~magic) ^ ((~block * magic) >> 16);
         }
 
-        hash ^= (hash * 0x1b873593) >> 16;
-        hash ^= (hash * 0xc2b2ae35);
+        hash ^= (hash * 0xc2b2ae35) ^ ((hash * 0x1b873593) >> 16);
         
         return hash;
     }
