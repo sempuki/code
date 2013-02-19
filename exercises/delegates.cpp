@@ -8,146 +8,209 @@ using namespace std;
 
 struct Test
 {
-    void foo (int value) const
+    void foo (int value)
     {
-        cout << "Test::foo (" << value << ")" << endl;
+        cout << "Test::foo (" << value << ") {" << count++ << "}" << endl;
     }
+
+    int count = 0;
 };
 
-template <typename ...Args>
-class Delegate
+namespace core
 {
-    static const int STORAGE_SIZE = 64 - sizeof (void (Delegate::*)(Args...));
+    template <typename ...Args>
+    class delegate
+    {
+        static const int STORAGE_SIZE = 64 - sizeof (void (delegate::*)(Args...));
 
-    public:
-        Delegate () : 
-            invoker_ {nullptr} 
-        {}
+        public:
+            delegate () : 
+                invoker_ {nullptr} 
+            {}
 
-        Delegate (Delegate const &copy) :
-            invoker_ {copy.invoker_}
-        {
-            std::memcpy (storage_, copy.storage_, STORAGE_SIZE);
-        }
-        
-        Delegate (void (*function)(Args...))
-        {
-            assign (function);
-        }
-
-        template <typename Functor>
-        Delegate (Functor functor)
-        {
-            assign (functor);
-        }
-
-    public:
-        operator bool () const 
-        { 
-            return invoker_ != nullptr; 
-        }
-
-        bool operator== (Delegate const &rhs) const
-        {
-            return 
-                invoker_ != nullptr &&
-                invoker_ == rhs.invoker_ && 
-                std::memcmp (storage_, rhs.storage_, STORAGE_SIZE) == 0;
-        }
-
-        Delegate &operator= (void (*function)(Args...))
-        {
-            assign (function);
-            return *this;
-        }
-
-        template <typename Functor>
-        Delegate &operator= (Functor &&functor)
-        {
-            assign (functor);
-            return *this;
-        }
-
-        void operator() (Args... args)
-        {
-            (this->*invoker_) (args...);
-        }
-
-    private:
-        template <typename Functor>
-        void assign (Functor functor)
-        {
-            assert (sizeof (functor) <= STORAGE_SIZE);
-            std::memset (storage_, 0, STORAGE_SIZE);
-            std::memcpy (storage_, &functor, sizeof (functor));
-            invoker_ = &Delegate::invoke<Functor>;
-        }
-
-        void assign (void (*function)(Args...))
-        {
-            assert (sizeof (function) <= STORAGE_SIZE);
-            std::memset (storage_, 0, STORAGE_SIZE);
-            std::memcpy (storage_, &function, sizeof (function));
-            invoker_ = &Delegate::invoke;
-        }
-
-        template <typename Functor>
-        void invoke (Args... args)
-        {
-            (*reinterpret_cast<Functor *> (storage_)) (args...);
-        }
-
-        void invoke (Args... args)
-        {
-            auto test = reinterpret_cast <void (*)(Args...)> (storage_);
-            cout << (void *) test << endl;
-        }
-
-    private:
-        void (Delegate::*invoker_) (Args... args);
-        uint8_t storage_ [STORAGE_SIZE];
-};
-
-template <typename ...Args>
-class Signal
-{
-    public:
-        template <typename Functor>
-        void operator+= (Functor functor)
-        {
-            bool found = false;
-
-            for (auto &delegate : delegates)
+            delegate (delegate const &copy) :
+                invoker_ {copy.invoker_}
             {
-                if (!delegate)
+                std::memcpy (storage_, copy.storage_, STORAGE_SIZE);
+            }
+
+            delegate (void (*function)(Args...))
+            {
+                assign (function);
+            }
+
+            template <typename Functor>
+            delegate (Functor functor)
+            {
+                assign (functor);
+            }
+
+        public:
+            operator bool () const 
+            { 
+                return invoker_ != nullptr; 
+            }
+
+            bool operator== (delegate const &rhs) const
+            {
+                return 
+                    invoker_ != nullptr &&
+                    invoker_ == rhs.invoker_ && 
+                    std::memcmp (storage_, rhs.storage_, STORAGE_SIZE) == 0;
+            }
+
+            delegate &operator= (std::nullptr_t)
+            {
+                clear ();
+                return *this;
+            }
+
+            delegate &operator= (void (*function)(Args...))
+            {
+                assign (function);
+                return *this;
+            }
+
+            template <typename Functor>
+            delegate &operator= (Functor &&functor)
+            {
+                assign (functor);
+                return *this;
+            }
+
+            void operator() (Args... args)
+            {
+                (this->*invoker_) (args...);
+            }
+
+        private:
+            void clear ()
+            {
+                std::memset (storage_, 0, STORAGE_SIZE);
+                invoker_ = nullptr;
+            }
+
+            void assign (void (*function)(Args...))
+            {
+                assert (sizeof (function) <= STORAGE_SIZE);
+                std::memset (storage_, 0, STORAGE_SIZE);
+                std::memcpy (storage_, &function, sizeof (function));
+                invoker_ = &delegate::invoke;
+            }
+
+            template <typename Functor>
+            void assign (Functor functor)
+            {
+                assert (sizeof (functor) <= STORAGE_SIZE);
+                std::memset (storage_, 0, STORAGE_SIZE);
+                std::memcpy (storage_, &functor, sizeof (functor));
+                invoker_ = &delegate::invoke<Functor>;
+            }
+
+            void invoke (Args... args)
+            {
+                (**reinterpret_cast <void (**)(Args...)> (storage_)) (args...);
+            }
+
+            template <typename Functor>
+            void invoke (Args... args)
+            {
+                (*reinterpret_cast<Functor *> (storage_)) (args...);
+            }
+
+        private:
+            void (delegate::*invoker_) (Args... args);
+            uint8_t storage_ [STORAGE_SIZE];
+    };
+
+    template <typename ...Args>
+    class signal
+    {
+        public:
+            class slot
+            {
+                friend class signal;
+
+                public:
+                    operator bool () const 
+                    { 
+                        return signal_ != nullptr && index_ != -1; 
+                    }
+
+                private:
+                    void attach (signal const *p, int i)
+                    {
+                        signal_ = p;
+                        index_ = i;
+                    }
+
+                    void detach ()
+                    {
+                        signal_ = nullptr;
+                        index_ = -1;
+                    }
+
+                    bool belongs (signal const *p, int n) const
+                    {
+                        return signal_ == p && index_ < n;
+                    }
+
+                    int index () const
+                    {
+                        return index_;
+                    }
+
+                private:
+                    signal const *signal_ = nullptr;
+                    int index_ = -1;
+            };
+
+        public:
+            template <typename Functor>
+            slot operator+= (Functor functor)
+            {
+                slot incoming;
+
+                int size = delegates.size();
+                for (int index = 0; index < size; ++index)
                 {
-                    delegate = functor;
-                    found = true;
-                    break;
+                    if (!delegates[index])
+                    {
+                        delegates[index] = functor;
+                        incoming.attach (this, index);
+                        break;
+                    }
+                }
+
+                if (!incoming)
+                {
+                    delegates.emplace_back (functor);
+                    incoming.attach (this, size);
+                }
+
+                return incoming;
+            }
+
+            void operator-= (slot &outgoing)
+            {
+                if (outgoing.belongs (this, delegates.size()))
+                {
+                    int index = outgoing.index();
+                    delegates[index] = nullptr;
+                    outgoing.detach();
                 }
             }
 
-            if (!found)
+            void operator() (Args... args)
             {
-                delegates.emplace_back (functor);
+                for (auto &next : delegates)
+                    if (next) next (args...);
             }
-        }
 
-        template <typename Functor>
-        void operator-= (Functor functor)
-        {
-        }
-
-        void operator() (Args... args)
-        {
-            for (auto &delegate : delegates)
-                if (delegate)
-                    delegate (args...);
-        }
-
-    private:
-        std::vector<Delegate<Args...>> delegates;
-};
+        private:
+            std::vector<delegate<Args...>> delegates;
+    };
+}
 
 void dummy (int value)
 {
@@ -158,20 +221,17 @@ int main()
 {
     Test test;
 
-    cout << (void *) dummy << endl;
+    core::signal<int> signal;
+    core::signal<int>::slot last;
 
-    Delegate<int> delegates[10];
-
-    for (auto &delegate : delegates)
+    for (int i=0; i < 3; ++i)
     {
-        delegate = dummy;//[test] (int value) { test.foo (value); };
+        last = (signal += [&test] (int value) { test.foo (value); });
     }
 
-    int value = 0;
-    for (auto &delegate : delegates)
-    {
-        delegate (value++);
-    }
+    signal (5);
+    signal (6);
+    signal (7);
 
     return 0;
 }
