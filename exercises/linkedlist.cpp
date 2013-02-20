@@ -50,10 +50,6 @@ namespace list
                     }
 
                 private:
-                    node  *node_ptr () { return ptr_; }
-                    node **next_ptr () { return &ptr_->next; }
-
-                private:
                     node *ptr_ = nullptr;
             };
 
@@ -71,14 +67,8 @@ namespace list
         public:
             iterator previous (iterator position)
             {
-                iterator prev; 
-
-                for (auto iter = begin(); iter != end(); ++iter)
-                    if (iter != position)
-                        prev = iter;
-                    else break;
-
-                return prev;
+                node **head = previous_ (position.ptr_);
+                return iterator {*head};
             }
 
         public:
@@ -90,23 +80,47 @@ namespace list
 
             iterator insert_after (iterator position, T const &value)
             {
-                node **head = position.next_ptr ();
+                node **head = position.ptr_;
                 return iterator {insert_ (head, value)};
             }
 
             iterator insert_before (iterator position, T const &value)
             {
-                return insert_after (previous (position), value);
+                node **head = previous_ (position.ptr_);
+                return iterator {insert_ (head, value)};
             }
 
         public:
-            void erase (iterator begin, iterator end)
+            void erase_inclusive (iterator begin, iterator end)
             {
-                iterator prev = previous (begin);
+                node **head = previous_ (begin.ptr_);
+                node  *tail = end.ptr_;
+                erase_ (head, tail);
+            }
 
+            void erase_exclusive (iterator begin, iterator end)
+            {
+                node **head = next_ (begin.ptr_);
+                node  *tail = end.ptr_;
+                erase_ (head, tail);
             }
 
         private:
+            node **next_ (node *item)
+            {
+                return &item->next;
+            }
+
+            node **previous_ (node *item)
+            {
+                node **prev = &head_;
+
+                while (*prev && *prev != item)
+                    prev = &(*prev)->next;
+
+                return prev;
+            }
+            // inserts new node after head
             node *insert_ (node **head, T const &value)
             {
                 ++size_;
@@ -114,8 +128,19 @@ namespace list
                 return *head;
             }
 
-            void erase_ ()
+            // removes nodes after head until tail; ie. (head, tail)
+            void erase_ (node **head, node *tail)
             {
+                node *curr = *head;
+                *head = tail;
+
+                while (curr != tail)
+                {
+                    auto orphan = curr;
+                    curr = curr->next;
+                    delete orphan;
+                    --size_;
+                }
             }
 
         private:
@@ -136,6 +161,8 @@ int main (int argc, char **argv)
 
     for (auto v : list)
         cout << v << endl;
+
+    list.erase_inclusive (std::begin (list), std::end (list));
 
     return 0;
 }
