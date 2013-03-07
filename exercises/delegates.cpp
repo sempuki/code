@@ -21,106 +21,151 @@ namespace core
     template <typename ...Args>
     class delegate
     {
-        static const int STORAGE_SIZE = 64 - sizeof (void (delegate::*)(Args...));
+        private:
+            class dispatch
+            {
+                public:
+                    operator bool () const
+                    {
+                        return 
+                            call_ != nullptr && 
+                            copy_ != nullptr && 
+                            destroy_ != nullptr;
+                    }
+
+                    bool operator== (dispatch const &other) const
+                    {
+                        return 
+                            call_ != other.call_ && 
+                            copy_ != other.copy_ && 
+                            destroy_ != other.destroy_;
+                    }
+
+                    inline void call (void *storage, Args... args)
+                    {
+                        (this->*call_) (storage, args...);
+                    }
+
+                    inline void copy (void const *storage, void *destination)
+                    {
+                        (this->*copy_) (storage, destination);
+                    }
+
+                    inline void destroy (void *storage)
+                    {
+                        (this->*destroy_) (storage);
+                    }
+
+                    void clear ()
+                    {
+                        call_ = nullptr; 
+                        copy_ = nullptr; 
+                        destroy_ = nullptr;
+                    }
+
+                    template <typename Functor>
+                    void initialize ()
+                    {
+                        call_ = &dispatch::functor_call<Functor>;
+                        copy_ = &dispatch::functor_copy<Functor>;
+                        destroy_ = &dispatch::functor_destroy<Functor>;
+                    }
+
+                private:
+                    template <typename Functor>
+                    void functor_call (void *storage, Args... args)
+                    {
+                        auto typed_storage = reinterpret_cast<Functor *> (storage);
+                        (*typed_storage) (args...);
+                    }
+
+                    template <typename Functor>
+                    void functor_copy (void const *storage, void *destination)
+                    {
+                        auto typed_storage = reinterpret_cast<Functor const *> (storage);
+                        new (destination) Functor (*typed_storage);
+                    }
+
+                    template <typename Functor>
+                    void functor_destroy (void *storage)
+                    {
+                        auto typed_storage = reinterpret_cast<Functor *> (storage);
+                        typed_storage->~Functor();
+                    }
+
+                private:
+                    void (dispatch::*call_) (void *storage, Args... args) = nullptr;
+                    void (dispatch::*copy_) (void const *storage, void *dst) = nullptr;
+                    void (dispatch::*destroy_) (void *storage) = nullptr;
+            };
+
+            // Tune memory requirements for your application or platform
+            using storage = std::aligned_storage<32, 8>::type; 
 
         public:
-            delegate () : 
-                invoker_ {nullptr} 
-            {}
 
-            delegate (delegate const &copy) :
-                invoker_ {copy.invoker_}
-            {
-                std::memcpy (storage_, copy.storage_, STORAGE_SIZE);
-            }
+            delegate () = default;
 
-            delegate (void (*function)(Args...))
+            delegate (delegate const &other) :
+                dispatch_ {other.dispatch_}
             {
-                assign (function);
+                dispatch_.copy (&other.storage_, &storage_);
             }
 
             template <typename Functor>
             delegate (Functor functor)
             {
-                assign (functor);
+                assert (sizeof (functor) <= sizeof (&storage_));
+                dispatch_.template initialize<Functor> ();
+                dispatch_.copy (&functor, &storage_);
+            }
+
+            ~delegate ()
+            {
+                dispatch_.destroy (&storage_);
+            }
+
+        public:
+            delegate &operator= (std::nullptr_t)
+            {
+                dispatch_.clear ();
+                return *this;
+            }
+
+            delegate &operator= (delegate const &other)
+            {
+                dispatch_.copy (&other.storage_, &storage_);
+                return *this;
+            }
+
+            template <typename Functor>
+            delegate &operator= (Functor functor)
+            {
+                assert (sizeof (functor) <= sizeof (&storage_));
+                dispatch_.template initialize<Functor> ();
+                dispatch_.copy (&functor, &storage_);
+                return *this;
             }
 
         public:
             operator bool () const 
             { 
-                return invoker_ != nullptr; 
+                return dispatch_;
             }
 
-            bool operator== (delegate const &rhs) const
+            bool operator== (delegate const &other) const
             {
-                return 
-                    invoker_ != nullptr &&
-                    invoker_ == rhs.invoker_ && 
-                    std::memcmp (storage_, rhs.storage_, STORAGE_SIZE) == 0;
-            }
-
-            delegate &operator= (std::nullptr_t)
-            {
-                clear ();
-                return *this;
-            }
-
-            delegate &operator= (void (*function)(Args...))
-            {
-                assign (function);
-                return *this;
-            }
-
-            template <typename Functor>
-            delegate &operator= (Functor &&functor)
-            {
-                assign (functor);
-                return *this;
+                return dispatch_ == other.dispatch_;
             }
 
             void operator() (Args... args)
             {
-                (this->*invoker_) (args...);
+                dispatch_.call (&storage_, args...);
             }
 
         private:
-            void clear ()
-            {
-                std::memset (storage_, 0, STORAGE_SIZE);
-                invoker_ = nullptr;
-            }
-
-            void assign (void (*function)(Args...))
-            {
-                assert (sizeof (function) <= STORAGE_SIZE);
-                std::memset (storage_, 0, STORAGE_SIZE);
-                std::memcpy (storage_, &function, sizeof (function));
-                invoker_ = &delegate::invoke;
-            }
-
-            template <typename Functor>
-            void assign (Functor functor)
-            {
-                assert (sizeof (functor) <= STORAGE_SIZE);
-                std::memset (storage_, 0, STORAGE_SIZE);
-                std::memcpy (storage_, &functor, sizeof (functor));
-                invoker_ = &delegate::invoke<Functor>;
-            }
-
-            void invoke (Args... args)
-            {
-                (**reinterpret_cast <void (**)(Args...)> (storage_)) (args...);
-            }
-
-            template <typename Functor>
-            void invoke (Args... args)
-            {
-                (*reinterpret_cast<Functor *> (storage_)) (args...);
-            }
-
-        private:
-            void (delegate::*invoker_) (Args... args);
-            uint8_t storage_ [STORAGE_SIZE];
+            dispatch dispatch_;
+            storage  storage_;
     };
 
     template <typename ...Args>
