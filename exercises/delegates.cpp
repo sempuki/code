@@ -43,17 +43,17 @@ namespace core
 
                     inline void call (void *storage, Args... args)
                     {
-                        (this->*call_) (storage, args...);
+                        (*call_) (storage, args...);
                     }
 
                     inline void copy (void const *storage, void *destination)
                     {
-                        (this->*copy_) (storage, destination);
+                        (*copy_) (storage, destination);
                     }
 
                     inline void destroy (void *storage)
                     {
-                        (this->*destroy_) (storage);
+                        (*destroy_) (storage);
                     }
 
                     void clear ()
@@ -73,34 +73,34 @@ namespace core
 
                 private:
                     template <typename Functor>
-                    void functor_call (void *storage, Args... args)
+                    static void functor_call (void *storage, Args... args)
                     {
                         auto typed_storage = reinterpret_cast<Functor *> (storage);
                         (*typed_storage) (args...);
                     }
 
                     template <typename Functor>
-                    void functor_copy (void const *storage, void *destination)
+                    static void functor_copy (void const *storage, void *destination)
                     {
                         auto typed_storage = reinterpret_cast<Functor const *> (storage);
                         new (destination) Functor (*typed_storage);
                     }
 
                     template <typename Functor>
-                    void functor_destroy (void *storage)
+                    static void functor_destroy (void *storage)
                     {
                         auto typed_storage = reinterpret_cast<Functor *> (storage);
                         typed_storage->~Functor();
                     }
 
                 private:
-                    void (dispatch::*call_) (void *storage, Args... args) = nullptr;
-                    void (dispatch::*copy_) (void const *storage, void *dst) = nullptr;
-                    void (dispatch::*destroy_) (void *storage) = nullptr;
+                    void (*call_) (void *storage, Args... args) = nullptr;
+                    void (*copy_) (void const *storage, void *dst) = nullptr;
+                    void (*destroy_) (void *storage) = nullptr;
             };
 
             // Tune memory requirements for your application or platform
-            using storage = std::aligned_storage<32, 8>::type; 
+            using storage = std::aligned_storage<24, 8>::type; 
 
         public:
 
@@ -115,7 +115,9 @@ namespace core
             template <typename Functor>
             delegate (Functor functor)
             {
-                assert (sizeof (functor) <= sizeof (&storage_));
+                static_assert (sizeof (functor) <= sizeof (storage_), 
+                        "functor too large for fixed storage");
+
                 dispatch_.template initialize<Functor> ();
                 dispatch_.copy (&functor, &storage_);
             }
@@ -141,7 +143,9 @@ namespace core
             template <typename Functor>
             delegate &operator= (Functor functor)
             {
-                assert (sizeof (functor) <= sizeof (&storage_));
+                static_assert (sizeof (functor) <= sizeof (storage_), 
+                        "functor too large for fixed storage");
+
                 dispatch_.template initialize<Functor> ();
                 dispatch_.copy (&functor, &storage_);
                 return *this;
@@ -273,6 +277,8 @@ int main()
     {
         last = (signal += [&test] (int value) { test.foo (value); });
     }
+
+    signal += dummy;
 
     signal (5);
     signal (6);
