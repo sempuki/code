@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <thread>
 
 #include <sys/socket.h>
@@ -24,6 +25,49 @@ struct scoped_thread
     }
 };
 
+namespace io { namespace net {
+
+namespace detail 
+{
+    bool try_string_to_inet4 (std::string const &str, sockaddr_in &addr)
+    {
+        using std::string;
+        using std::stoul;
+
+        string host;
+        size_t portmark = str.rfind (':');
+
+        host = str.substr (0, portmark);
+        if (portmark != string::npos) 
+            addr.sin_port = htons (stoul (str.substr (portmark + 1)));
+
+        int result = inet_pton (AF_INET, host.c_str(), &addr.sin_addr);
+        bool success = result == 1;
+
+        return success;
+    }
+
+    bool try_inet4_to_string (sockaddr_in const &addr, std::string &str)
+    {
+        using std::to_string;
+
+        char buf [INET6_ADDRSTRLEN];
+
+        char const *result = inet_ntop (AF_INET, &addr.sin_addr, buf, sizeof(buf));
+        bool success = result != nullptr;
+
+        if (success)
+        {
+            str = buf; 
+            str += ':';
+            str += to_string (ntohs (addr.sin_port));
+        }
+        
+        return success;
+    }
+}
+
+
 class socket
 {
     public:
@@ -37,9 +81,6 @@ class socket
         class inetaddress
         {
             public:
-                static const int MAX_STR_LEN = 64;
-
-            public:
                 inetaddress () = default;
                 inetaddress (inetaddress const &other) = default;
                 inetaddress &operator= (inetaddress const &other) = default;
@@ -48,22 +89,15 @@ class socket
             public:
                 inetaddress (std::string const &addr)
                 {
-                    // TODO: strip port number
-                    // PORT: IPv4 family, WSAStringToAddress
-                    int result = inet_pton (AF_INET, addr.c_str(), &address_.sin_addr);
-                    if (result <= 0) errorcode_ = error_code::CONVERSION;
+                    if (!detail::try_string_to_inet4 (addr, address_))
+                        errorcode_ = error_code::CONVERSION;
                 }
 
                 operator std::string () const 
                 {
-                    char const *result;
-                    char buf [MAX_STR_LEN];
-                    
-                    // TODO: attach port number
-                    // PORT: IPv4 family, WSAStringToAddress
-                    
-                    result = inet_ntop (AF_INET, &address_.sin_addr, buf, sizeof(buf));
-                    return std::string {(result != nullptr)? buf : ""};
+                    std::string result;
+                    detail::try_inet4_to_string (address_, result);
+                    return result;
                 }
 
             public:
@@ -107,18 +141,25 @@ class socket
     private:
 };
 
+}}
+
 int main (int argc, char **argv)
 {
-    scoped_thread network { std::thread { [] { } } };
+    io::net::socket::inetaddress addr {"127.0.0.1:8080"};
+    cout << (std::string) addr << endl;
+    cout << addr.host() << endl;
+    cout << addr.port() << endl;
 
-    bool quit = false;
-    std::string command;
+    //scoped_thread network { std::thread { [] { } } };
 
-    while (!quit && cin >> command)
-    {
-        if (command == "quit")
-            quit = true;
-    }
+    //bool quit = false;
+    //std::string command;
+
+    //while (!quit && cin >> command)
+    //{
+    //    if (command == "quit")
+    //        quit = true;
+    //}
 
     return 0;
 }
