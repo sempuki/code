@@ -1,6 +1,10 @@
 #include <iostream>
 #include <sstream>
 #include <thread>
+#include <system_error>
+
+#include <cstring>
+#include <cerrno>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -32,7 +36,7 @@ namespace detail
     bool try_string_to_inet4 (std::string const &str, sockaddr_in &addr)
     {
         using std::string;
-        using std::stoul;
+        using std::stoul; // WARN: can throw
 
         string host;
         size_t portmark = str.rfind (':');
@@ -42,18 +46,18 @@ namespace detail
             addr.sin_port = htons (stoul (str.substr (portmark + 1)));
 
         int result = inet_pton (AF_INET, host.c_str(), &addr.sin_addr);
-        bool success = result == 1;
+        bool success = result > 0;
 
         return success;
     }
 
     bool try_inet4_to_string (sockaddr_in const &addr, std::string &str)
     {
-        using std::to_string;
+        using std::to_string; // WARN: can throw
 
         char buf [INET6_ADDRSTRLEN];
 
-        char const *result = inet_ntop (AF_INET, &addr.sin_addr, buf, sizeof(buf));
+        char const *result = inet_ntop (AF_INET, &addr.sin_addr, buf, sizeof (buf));
         bool success = result != nullptr;
 
         if (success)
@@ -65,32 +69,38 @@ namespace detail
         
         return success;
     }
-}
 
+    void load_last_system_error_code (std::error_code &error)
+    {
+        // PORT: errno used in POSIX plaforms only
+        return error.assign (errno, std::system_category ()); 
+    }
+}
 
 class socket
 {
     public:
-        enum class error_code
-        {
-            NONE,
-            CONVERSION,
-            NUMBER
-        };
+        enum class type { TCP, UDP }; // TODO: VDP et al.
 
-        class inetaddress
+        class address
         {
             public:
-                inetaddress () = default;
-                inetaddress (inetaddress const &other) = default;
-                inetaddress &operator= (inetaddress const &other) = default;
-                ~inetaddress () = default;
+                address ()
+                {
+                    std::memset (&address_, 0, sizeof (address_));
+                    address_.sin_family = AF_INET;
+                    error_ = std::errc::bad_address;
+                }
+
+                address (address const &other) = default;
+                address &operator= (address const &other) = default;
+                ~address () = default;
 
             public:
-                inetaddress (std::string const &addr)
+                address (std::string const &addr)
                 {
                     if (!detail::try_string_to_inet4 (addr, address_))
-                        errorcode_ = error_code::CONVERSION;
+                        detail::load_last_system_error_code (error_);
                 }
 
                 operator std::string () const 
@@ -100,22 +110,24 @@ class socket
                     return result;
                 }
 
-            public:
-                error_code error () const { return errorcode_; }
-                operator bool () const { return errorcode_ == error_code::NONE; }
+                operator sockaddr* () { return reinterpret_cast<sockaddr *> (&address_); }
 
             public:
-                bool has_same_port (inetaddress const &other) const
+                operator bool () const { return !error_; }
+                std::error_code error () const { return error_; }
+
+            public:
+                bool has_same_port (address const &other) const
                 {
                     return address_.sin_port == other.address_.sin_port;
                 }
 
-                bool has_same_host (inetaddress const &other) const
+                bool has_same_host (address const &other) const
                 {
                     return address_.sin_addr.s_addr == other.address_.sin_addr.s_addr;
                 }
 
-                bool operator== (inetaddress const &other) const 
+                bool operator== (address const &other) const 
                 {
                     return has_same_port (other) && has_same_host (other);
                 }
@@ -128,24 +140,62 @@ class socket
                 void set_host (uint32_t host) { address_.sin_addr.s_addr = htonl (host); }
 
             private:
-                sockaddr_in address_;
-                error_code  errorcode_ = error_code::NONE;
+                sockaddr_in     address_;
+                std::error_code error_;
         };
 
+        using handle_type = int;
+
     public:
-        socket () = default;
+        socket (type kind) 
+        {
+            int sockfam, socktype, sockproto;
+            map_socket_type (kind, sockfam, socktype, sockproto);
+            if (handle_ = ::socket (sockfam, socktype, sockproto) < 0) 
+                detail::load_last_system_error_code (error_);
+        }
+
         socket (socket const &other) = default;
         socket &operator= (socket const &socket) = default;
         ~socket () = default;
 
+    public:
+        operator bool () const { return !error_; }
+        std::error_code error () const { return error_; }
+
     private:
+        void map_socket_type (type kind, int &sockfam, int &socktype, int &sockprot)
+        {
+            switch (kind)
+            {
+                case type::TCP:
+                    sockfam = AF_INET;
+                    socktype = SOCK_STREAM;
+                    sockprot = IPPROTO_TCP;
+                    break;
+
+                case type::UDP:
+                    sockfam = AF_INET;
+                    socktype = SOCK_DGRAM;
+                    sockprot = IPPROTO_UDP;
+                    break;
+
+                default:
+                    sockfam = socktype = sockprot = -1;
+                    break;
+            }
+        }
+
+    private:
+        handle_type     handle_ = 0;
+        std::error_code error_;
 };
 
 }}
 
 int main (int argc, char **argv)
 {
-    io::net::socket::inetaddress addr {"127.0.0.1:8080"};
+    io::net::socket::address addr {"127.0.0.1:8080"};
     cout << (std::string) addr << endl;
     cout << addr.host() << endl;
     cout << addr.port() << endl;
