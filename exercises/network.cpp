@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cerrno>
 
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -31,56 +32,94 @@ struct scoped_thread
 
 namespace io { namespace net {
 
-namespace detail 
-{
-    bool try_string_to_inet4 (std::string const &str, sockaddr_in &addr)
+namespace platform 
+{ 
+    namespace posix 
     {
-        using std::string;
-        using std::stoul; // WARN: can throw
+        using handle_type = int;
+        static const handle_type INVALID_HANDLE = -1;
 
-        string host;
-        size_t portmark = str.rfind (':');
-
-        host = str.substr (0, portmark);
-        if (portmark != string::npos) 
-            addr.sin_port = htons (stoul (str.substr (portmark + 1)));
-
-        int result = inet_pton (AF_INET, host.c_str(), &addr.sin_addr);
-        bool success = result > 0;
-
-        return success;
-    }
-
-    bool try_inet4_to_string (sockaddr_in const &addr, std::string &str)
-    {
-        using std::to_string; // WARN: can throw
-
-        char buf [INET6_ADDRSTRLEN];
-
-        char const *result = inet_ntop (AF_INET, &addr.sin_addr, buf, sizeof (buf));
-        bool success = result != nullptr;
-
-        if (success)
+        bool try_string_to_inet4 (std::string const &str, sockaddr_in &addr)
         {
-            str = buf; 
-            str += ':';
-            str += to_string (ntohs (addr.sin_port));
-        }
-        
-        return success;
-    }
+            using std::string;
+            using std::stoul; // WARN: can throw
 
-    void load_last_system_error_code (std::error_code &error)
-    {
-        // PORT: errno used in POSIX plaforms only
-        return error.assign (errno, std::system_category ()); 
+            string host;
+            size_t portmark = str.rfind (':');
+
+            host = str.substr (0, portmark);
+            if (portmark != string::npos) 
+                addr.sin_port = htons (stoul (str.substr (portmark + 1)));
+
+            int result = inet_pton (AF_INET, host.c_str(), &addr.sin_addr);
+            bool success = result > 0;
+
+            return success;
+        }
+
+        bool try_inet4_to_string (sockaddr_in const &addr, std::string &str)
+        {
+            using std::to_string; // WARN: can throw
+
+            char buf [INET6_ADDRSTRLEN];
+
+            char const *result = inet_ntop (AF_INET, &addr.sin_addr, buf, sizeof (buf));
+            bool success = result != nullptr;
+
+            if (success)
+            {
+                str = buf; 
+                str += ':';
+                str += to_string (ntohs (addr.sin_port));
+            }
+
+            return success;
+        }
+
+        bool try_socket_open (int family, int type, int protocol, int &handle)
+        {
+            using ::socket;
+
+            int result = socket (family, type, protocol);
+            bool success = result >= 0;
+
+            if (success)
+                handle = result;
+
+            return success;
+        }
+
+        bool try_socket_close (int &handle)
+        {
+            using ::close;
+
+            int result = close (handle);
+            bool success = result >= 0;
+
+            if (success)
+                handle = INVALID_HANDLE;
+
+            return success;
+        }
+
+        void load_last_system_error_code (std::error_code &error)
+        {
+            return error.assign (errno, std::system_category ()); 
+        }
     }
+}
+
+namespace detail
+{
+    // TODO: platform::windows et al.
+    // TODO: #define the correct platform into namespace
+    using namespace platform::posix;
 }
 
 class socket
 {
     public:
-        enum class type { TCP, UDP }; // TODO: VDP et al.
+        enum class type { NONE, TCP, UDP }; // TODO: VDP et al.
 
         class address
         {
@@ -144,24 +183,62 @@ class socket
                 std::error_code error_;
         };
 
-        using handle_type = int;
+        using handle_type = detail::handle_type;
 
     public:
-        socket (type kind) 
-        {
-            int sockfam, socktype, sockproto;
-            map_socket_type (kind, sockfam, socktype, sockproto);
-            if (handle_ = ::socket (sockfam, socktype, sockproto) < 0) 
-                detail::load_last_system_error_code (error_);
-        }
-
+        socket () = default;
         socket (socket const &other) = default;
         socket &operator= (socket const &socket) = default;
-        ~socket () = default;
+
+        socket (socket &&other) :
+            socket {other} 
+        { 
+            other.invalidate (); 
+        }
+
+        socket &operator= (socket &&other) 
+        {
+            *this = other;
+            other.invalidate ();
+        }
+
+        socket (type kind) { open (kind); }
+        ~socket () { close (); }
 
     public:
         operator bool () const { return !error_; }
         std::error_code error () const { return error_; }
+
+    public:
+        std::error_code open (type kind)
+        {
+            type_ = kind;
+
+            int sockfam, socktype, sockproto;
+            map_socket_type (type_, sockfam, socktype, sockproto);
+
+            if (!detail::try_socket_open (sockfam, socktype, sockproto, handle_))
+                detail::load_last_system_error_code (error_);
+
+            return error_;
+        }
+
+        std::error_code close ()
+        {
+            type_ = type::NONE;
+
+            if (detail::try_socket_close (handle_))
+                detail::load_last_system_error_code (error_);
+
+            return error_;
+        }
+
+    public:
+        void invalidate ()
+        {
+            handle_ = detail::INVALID_HANDLE;
+            type_ = type::NONE;
+        }
 
     private:
         void map_socket_type (type kind, int &sockfam, int &socktype, int &sockprot)
@@ -187,7 +264,8 @@ class socket
         }
 
     private:
-        handle_type     handle_ = 0;
+        handle_type     handle_ = detail::INVALID_HANDLE;
+        socket::type    type_   = type::NONE;
         std::error_code error_;
 };
 
@@ -199,6 +277,8 @@ int main (int argc, char **argv)
     cout << (std::string) addr << endl;
     cout << addr.host() << endl;
     cout << addr.port() << endl;
+
+    io::net::socket sock {io::net::socket::type::UDP};
 
     //scoped_thread network { std::thread { [] { } } };
 
