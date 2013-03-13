@@ -7,9 +7,10 @@
 #include <cerrno>
 
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 using namespace std;
 
@@ -30,14 +31,16 @@ struct scoped_thread
     }
 };
 
-namespace io { namespace net {
-
+namespace io { namespace net 
+{
 namespace platform 
 { 
-    namespace posix 
+    namespace posix { namespace socket 
     {
         using handle_type = int;
-        static const handle_type INVALID_HANDLE = -1;
+        using size_type = socklen_t;
+
+        static const handle_type INVALID = -1;
 
         bool try_string_to_inet4 (std::string const &str, sockaddr_in &addr)
         {
@@ -76,7 +79,7 @@ namespace platform
             return success;
         }
 
-        bool try_socket_open (int family, int type, int protocol, int &handle)
+        bool try_open (int family, int type, int protocol, int &handle)
         {
             using ::socket;
 
@@ -89,24 +92,91 @@ namespace platform
             return success;
         }
 
-        bool try_socket_close (int &handle)
+        bool try_close (handle_type &handle)
         {
             using ::close;
 
-            int result = close (handle);
-            bool success = result >= 0;
+            handle_type result = close (handle);
+            bool success = result == 0;
 
             if (success)
-                handle = INVALID_HANDLE;
+                handle = INVALID;
 
             return success;
         }
 
-        void load_last_system_error_code (std::error_code &error)
+        bool try_bind (handle_type handle, sockaddr const *addr, size_type size)
+        {
+            using ::bind;
+
+            handle_type result = bind (handle, addr, size);
+            bool success = result != INVALID;
+
+            return success;
+        }
+
+        bool try_connect (handle_type handle, sockaddr const *addr, size_type size)
+        {
+            using ::connect;
+
+            handle_type result = connect (handle, addr, size);
+            bool success = result != INVALID;
+
+            return success;
+        }
+
+        bool try_listen (handle_type handle, int backlog)
+        {
+            using ::listen;
+
+            handle_type result = listen (handle, backlog);
+            bool success = result != INVALID;
+
+            return success;
+        }
+
+        bool try_accept (handle_type handle, sockaddr *addr, size_type &size, 
+                handle_type &accepted)
+        {
+            using ::accept;
+
+            handle_type result = accept (handle, addr, &size);
+            bool success = result != INVALID;
+
+            if (success)
+                accepted = result;
+
+            return success;
+        }
+
+        bool try_get_local_address (handle_type handle, sockaddr *addr, size_type &size)
+        {
+            using ::getsockname;
+
+            handle_type result = getsockname (handle, addr, &size);
+            bool success = result != INVALID;
+
+            return success;
+        }
+
+        bool try_get_remote_address (handle_type handle, sockaddr *addr, size_type &size)
+        {
+            using ::getpeername;
+
+            handle_type result = getpeername (handle, addr, &size);
+            bool success = result != INVALID;
+
+            return success;
+        }
+    }}
+
+    namespace posix { namespace system 
+    {
+        void load_last_error_code (std::error_code &error)
         {
             return error.assign (errno, std::system_category ()); 
         }
-    }
+    }}
 }
 
 namespace detail
@@ -119,6 +189,10 @@ namespace detail
 class socket
 {
     public:
+        using size_type = detail::socket::size_type;
+        using handle_type = detail::socket::handle_type;
+        static const handle_type INVALID = detail::socket::INVALID;
+
         enum class type { NONE, TCP, UDP }; // TODO: VDP et al.
 
         class address
@@ -138,18 +212,31 @@ class socket
             public:
                 address (std::string const &addr)
                 {
-                    if (!detail::try_string_to_inet4 (addr, address_))
-                        detail::load_last_system_error_code (error_);
+                    if (!detail::socket::try_string_to_inet4 (addr, address_))
+                        detail::system::load_last_error_code (error_);
                 }
 
                 operator std::string () const 
                 {
                     std::string result;
-                    detail::try_inet4_to_string (address_, result);
+                    detail::socket::try_inet4_to_string (address_, result);
                     return result;
                 }
 
-                operator sockaddr* () { return reinterpret_cast<sockaddr *> (&address_); }
+                operator sockaddr* () 
+                { 
+                    return reinterpret_cast<sockaddr *> (&address_); 
+                }
+
+                operator sockaddr const* () const
+                { 
+                    return reinterpret_cast<sockaddr const *> (&address_); 
+                }
+
+                size_type sockaddr_size () const
+                {
+                    return sizeof (address_);
+                }
 
             public:
                 operator bool () const { return !error_; }
@@ -183,8 +270,6 @@ class socket
                 std::error_code error_;
         };
 
-        using handle_type = detail::handle_type;
-
     public:
         socket () = default;
         socket (socket const &other) = default;
@@ -206,39 +291,102 @@ class socket
         ~socket () { close (); }
 
     public:
-        operator bool () const { return !error_; }
-        std::error_code error () const { return error_; }
+        void invalidate () { handle_ = INVALID; }
+        socket::type get_type () const { return type_; }
 
     public:
         std::error_code open (type kind)
         {
-            type_ = kind;
-
             int sockfam, socktype, sockproto;
-            map_socket_type (type_, sockfam, socktype, sockproto);
+            map_socket_type (kind, sockfam, socktype, sockproto);
 
-            if (!detail::try_socket_open (sockfam, socktype, sockproto, handle_))
-                detail::load_last_system_error_code (error_);
+            if (!detail::socket::try_open (sockfam, socktype, sockproto, handle_))
+                detail::system::load_last_error_code (error_);
 
             return error_;
         }
 
         std::error_code close ()
         {
-            type_ = type::NONE;
+            if (!detail::socket::try_close (handle_))
+                detail::system::load_last_error_code (error_);
 
-            if (detail::try_socket_close (handle_))
-                detail::load_last_system_error_code (error_);
+            invalidate ();
+
+            return error_;
+        }
+
+        std::error_code bind (address const &local)
+        {
+            auto addr = (sockaddr const *) local;
+            auto size = local.sockaddr_size ();
+
+            if (!detail::socket::try_bind (handle_, addr, size))
+                detail::system::load_last_error_code (error_);
+
+            return error_;
+        }
+
+        std::error_code connect (address const &remote)
+        {
+            auto addr = (sockaddr const *) remote;
+            auto size = remote.sockaddr_size ();
+
+            if (!detail::socket::try_connect (handle_, addr, size))
+                detail::system::load_last_error_code (error_);
 
             return error_;
         }
 
     public:
-        void invalidate ()
+        std::error_code listen (int backlog = 8)
         {
-            handle_ = detail::INVALID_HANDLE;
-            type_ = type::NONE;
+            if (!detail::socket::try_listen (handle_, backlog))
+                detail::system::load_last_error_code (error_);
+
+            return error_;
         }
+
+        std::error_code accept (socket &accepted)
+        {
+            address remote;
+            auto addr = (sockaddr *) remote;
+            auto size = remote.sockaddr_size ();
+
+            if (!detail::socket::try_accept (handle_, addr, size, accepted.handle_))
+                detail::system::load_last_error_code (error_);
+
+            return error_;
+        }
+
+    public:
+        address local_address ()
+        {
+            address local;
+            auto addr = (sockaddr *) local;
+            auto size = local.sockaddr_size ();
+
+            if (!detail::socket::try_get_local_address (handle_, addr, size))
+                detail::system::load_last_error_code (error_);
+
+            return local;
+        }
+
+        address remote_address ()
+        {
+            address remote;
+            auto addr = (sockaddr *) remote;
+            auto size = remote.sockaddr_size ();
+
+            if (!detail::socket::try_get_remote_address (handle_, addr, size))
+                detail::system::load_last_error_code (error_);
+
+            return remote;
+        }
+
+    public:
+        operator bool () const { return !error_; }
+        std::error_code error () const { return error_; }
 
     private:
         void map_socket_type (type kind, int &sockfam, int &socktype, int &sockprot)
@@ -264,8 +412,8 @@ class socket
         }
 
     private:
-        handle_type     handle_ = detail::INVALID_HANDLE;
-        socket::type    type_   = type::NONE;
+        handle_type     handle_ = INVALID;
+        socket::type    type_ = type::NONE;
         std::error_code error_;
 };
 
