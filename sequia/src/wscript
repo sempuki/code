@@ -34,6 +34,7 @@ def build(ctx):
     ctx.program(source='main.cpp', target='game', use='error socket',
             includes=INCLUDES, defines=DEFINES)
 
+    # TODO: platform-specific static libraries
     ctx.objects(source='platform/posix/error.cpp', target='error', 
             includes=INCLUDES, defines=DEFINES)
     ctx.objects(source='platform/posix/socket.cpp', target='socket', 
