@@ -299,6 +299,7 @@ class socket
         {
             int sockfam, socktype, sockproto;
             map_socket_type (kind, sockfam, socktype, sockproto);
+            type_ = kind;
 
             if (!detail::socket::try_open (sockfam, socktype, sockproto, handle_))
                 detail::system::load_last_error_code (error_);

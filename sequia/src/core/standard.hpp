@@ -12,7 +12,9 @@
 #include <type_traits>
 #include <utility>
 #include <memory>
+#include <thread>
 
 #include <fstream>
+#include <system_error>
 
 #endif

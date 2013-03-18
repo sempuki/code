@@ -18,6 +18,9 @@
 #include <data/map.hpp>
 #include <data/file/heap_description.hpp>
 
+#include <system/platform.hpp>
+#include <io/net/socket.hpp>
+
 // TODO: per-namespace meta-include file
 
 using namespace std;
@@ -200,5 +203,24 @@ int main (int argc, char **argv)
     cout << "0x" << std::setw(8) << std::setfill('0') << (uint32_t) n8 << endl;
     cout << "0x" << std::setw(8) << std::setfill('0') << (uint32_t) n9 << endl;
 
+    io::net::socket::address addr {"127.0.0.1:8080"};
+    cout << (std::string) addr << endl;
+    cout << addr.host() << endl;
+    cout << addr.port() << endl;
+
+    io::net::socket sock {io::net::socket::type::UDP};
+
+    //scoped_thread network { std::thread { [] { } } };
+
+    //bool quit = false;
+    //std::string command;
+
+    //while (!quit && cin >> command)
+    //{
+    //    if (command == "quit")
+    //        quit = true;
+    //}
+
+    return 0;
     return 0; 
 }
