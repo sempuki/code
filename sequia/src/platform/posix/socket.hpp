@@ -1,5 +1,5 @@
-#ifndef _PLATFORM_POSIX_SOCKET_API_HPP_
-#define _PLATFORM_POSIX_SOCKET_API_HPP_
+#ifndef _PLATFORM_POSIX_SOCKET_HPP_
+#define _PLATFORM_POSIX_SOCKET_HPP_
 
 #include <sys/socket.h>
 #include <netinet/in.h>
