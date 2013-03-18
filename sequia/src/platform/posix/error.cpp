@@ -4,11 +4,11 @@
 
 #include <platform/posix/error.hpp>
 
-namespace platform { namespace posix {
+namespace sequia { namespace platform { namespace posix {
 
     void load_last_error_code (std::error_code &error)
     {
         return error.assign (errno, std::system_category ()); 
     }
 
-} }
+} } }

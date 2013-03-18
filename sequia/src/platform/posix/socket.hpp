@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-namespace platform { namespace posix { namespace socket {
+namespace sequia { namespace platform { namespace posix { namespace socket {
 
     using handle_type = int;
     using size_type = socklen_t;
@@ -28,6 +28,6 @@ namespace platform { namespace posix { namespace socket {
     bool try_get_local_address (handle_type handle, sockaddr *addr, size_type &size);
     bool try_get_remote_address (handle_type handle, sockaddr *addr, size_type &size);
 
-} } }
+} } } }
 
-#endif
+ #endif

@@ -6,7 +6,7 @@
 #include <platform/posix/socket.hpp>
 #include <platform/posix/error.hpp>
 
-namespace platform { namespace posix { namespace socket {
+namespace sequia { namespace platform { namespace posix { namespace socket {
 
     bool try_string_to_inet4 (std::string const &str, address_type &addr)
     {
@@ -135,4 +135,4 @@ namespace platform { namespace posix { namespace socket {
         return success;
     }
 
-} } }
+} } } }
