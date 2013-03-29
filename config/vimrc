@@ -107,8 +107,7 @@ nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 nnoremap <C-f> :cgetexpr system(find."")
 
 "generate local C++ tags files
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f cpp.tags<CR>
-"nnoremap <silent> <Leader>= :!ctags -R --language-force=C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f std.tags /usr/include/c++<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+iamzS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 "generate local C# tags files
@@ -118,6 +117,10 @@ set tags+=./cs.tags,cs.tags
 "generate local Java tags files
 nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+iamzS --extra=+fq -f java.tags<CR>
 set tags+=./java.tags,java.tags
+
+"generate local Python tags files
+nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+iamzS --extra=+fq -f py.tags<CR>
+set tags+=./py.tags,py.tags
 
 "look for global tags files
 if filereadable ("C:/Code/")
