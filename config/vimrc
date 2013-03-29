@@ -107,19 +107,19 @@ nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 nnoremap <C-f> :cgetexpr system(find."")
 
 "generate local C++ tags files
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aizS --extra=+fq -f cpp.tags<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 "generate local C# tags files
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aizS --extra=+fq -f cs.tags<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 "generate local Java tags files
-nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aizS --extra=+fq -f java.tags<CR>
+nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS --extra=+fq -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 "generate local Python tags files
-nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aizS --extra=+fq -f py.tags<CR>
+nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS --extra=+fq -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
 "look for global tags files
