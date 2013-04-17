@@ -37,7 +37,7 @@ let mapleader=","           "comma is more convenient
 
 " Windows GUI tweaks
 if has("gui_win32")
-    autocmd GUIEnter * :simalt ~x
+    "autocmd GUIEnter * :simalt ~x
     set guifont=DejaVu_Sans_Mono:h9:cANSI
     set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif
