@@ -47,13 +47,13 @@ namespace sequia { namespace memory {
 
     //-------------------------------------------------------------------------
 
-    template <typename T, size_t N>
+    template <typename Type, size_t N>
     struct static_buffer
     {
         union 
         {
-            T       items [N];
-            uint8_t bytes [N * sizeof(T)];
+            Type    items [N];
+            uint8_t bytes [N * sizeof(Type)];
         };
 
         static_buffer () {}
@@ -61,82 +61,75 @@ namespace sequia { namespace memory {
         constexpr bool valid () { return true; }
 
         constexpr size_t nitems () { return N; }
-        constexpr size_t nbytes () { return N * sizeof(T); }
+        constexpr size_t nbytes () { return N * sizeof(Type); }
 
-        inline T *begin () { return items; }
-        inline T *end () { return items + N; }
+        inline Type *begin () { return items; }
+        inline Type *end () { return items + N; }
 
-        inline T const *begin () const { return items; }
-        inline T const *end () const { return items + N; }
+        inline Type const *begin () const { return items; }
+        inline Type const *end () const { return items + N; }
 
         inline uint8_t *byte_begin () { return bytes; }
-        inline uint8_t *byte_end () { return bytes + N * sizeof(T); }
+        inline uint8_t *byte_end () { return bytes + N * sizeof(Type); }
 
         inline uint8_t const *byte_begin () const { return bytes; }
-        inline uint8_t const *byte_end () const { return bytes + N * sizeof(T); }
+        inline uint8_t const *byte_end () const { return bytes + N * sizeof(Type); }
 
-        inline bool contains (T *p) const { return p >= items && p < items + N; }
+        inline bool contains (Type *p) const { return p >= items && p < items + N; }
     };
 
     //-------------------------------------------------------------------------
 
-    template <typename T>
+    template <typename Type>
     struct buffer
     {
         union 
         {
-            T           *items;
+            Type        *items;
             uint8_t     *bytes;
-            void const  *address;
+            void const  *address = nullptr;
         };
 
-        size_t  size;
+        size_t  size = 0;
 
-        buffer () : 
-            address {nullptr}, size {0} {}
+        explicit buffer (size_t num) : 
+            size {num} {}
 
-        buffer (size_t num) : 
-            address {nullptr}, size {num} {}
-
-        buffer (T *data, size_t num) : 
+        buffer (Type *data, size_t num) : 
             items {data}, size {num} {}
 
-        buffer (T *begin, T *end) :
+        buffer (Type *begin, Type *end) :
             address {begin}, size {end - begin} 
         {
             ASSERTF (end < begin, "invalid range passed");
         }
 
         buffer (void const *data, size_t bytes) : 
-            address {data}, size {bytes / sizeof(T)} 
+            address {data}, size {bytes / sizeof(Type)} 
         {
-            //WATCHF (bytes == nbytes(), "lost %ld bytes in conversion",
-            //        bytes - nbytes());
+            WATCHF (bytes == nbytes(), "lost %ld bytes in conversion",
+                    bytes - nbytes());
         }
 
         template <typename U>
-        buffer (buffer<U> &copy) :
-            buffer {copy.address, copy.nbytes()} 
-        {
-            //WATCHF (copy.nbytes() == nbytes(), "lost %ld bytes in conversion",
-            //        copy.nbytes() - nbytes());
-        }
+        buffer (buffer<U> const &copy) :
+            buffer {copy.address, copy.nbytes()} {}
 
-        template <size_t N>
-        buffer (static_buffer<T, N> &copy) :
-            address {copy.address}, size {N} {}
-
-        buffer &operator= (buffer &r)
+        template <typename U>
+        buffer &operator= (buffer<U> const &copy)
         {
-            address = r.address;
-            size = r.size;
+            *this = buffer {copy};
             return *this;
         }
 
         template <size_t N>
-        buffer &operator= (static_buffer<T, N> &r)
+        buffer (static_buffer<Type, N> &copy) :
+            address {copy.address}, size {N} {}
+
+        template <size_t N>
+        buffer &operator= (static_buffer<Type, N> &other)
         {
-            address = r.address;
+            address = other.address;
             size = N;
             return *this;
         }
@@ -145,29 +138,22 @@ namespace sequia { namespace memory {
         inline void invalidate () { address = nullptr; }
 
         inline size_t nitems () const { return size; }
-        inline size_t nbytes () const { return size * sizeof(T); }
+        inline size_t nbytes () const { return size * sizeof(Type); }
 
-        inline T *begin () { return items; }
-        inline T *end () { return items + size; }
+        inline Type *begin () { return items; }
+        inline Type *end () { return items + size; }
 
-        inline T const *begin () const { return items; }
-        inline T const *end () const { return items + size; }
+        inline Type const *begin () const { return items; }
+        inline Type const *end () const { return items + size; }
 
         inline uint8_t *byte_begin () { return bytes; }
-        inline uint8_t *byte_end () { return bytes + size * sizeof(T); }
+        inline uint8_t *byte_end () { return bytes + size * sizeof(Type); }
 
         inline uint8_t const *byte_begin () const { return bytes; }
-        inline uint8_t const *byte_end () const { return bytes + size * sizeof(T); }
+        inline uint8_t const *byte_end () const { return bytes + size * sizeof(Type); }
 
-        inline bool contains (T *p) const { return p >= items && p < items + size; }
+        inline bool contains (Type *p) const { return p >= items && p < items + size; }
     };
-
-    template <typename T>
-    void swap (buffer<T> &a, buffer<T> &b)
-    {
-        swap (a.address, b.address);
-        swap (a.size, b.size);
-    }
 
     template <typename U, typename T>
     buffer<U> aligned_buffer (buffer<T> const &buf)

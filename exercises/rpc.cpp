@@ -5,88 +5,110 @@ using namespace std;
 uint32_t htonl (uint32_t value) { return value; }
 uint32_t ntohl (uint32_t value) { return value; }
 
-namespace sequia { namespace data { namespace map { 
+
+namespace memory 
+{
+    template <typename Type>
+    struct buffer
+    {
+        union 
+        {
+            Type    *mem;
+            uint8_t *bytes = nullptr;
+        };
+
+        size_t size = 0;
+
+        buffer (uint8_t *data, size_t bytes) :
+            bytes {data}, size {bytes / sizeof(Type)} {}
+
+        template <typename U> 
+        buffer (buffer<U> const &copy) :
+            buffer {copy.bytes, copy.size * sizeof(U)} {}
+    };
+}
+
+namespace data { namespace map { 
 
     namespace local 
     {
-        uint8_t *operator<< (uint8_t *buffer, int32_t value)
+        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, int32_t value)
         {
-            *reinterpret_cast <int32_t *> (buffer) = value;
-            return buffer + sizeof (int32_t);
+            *reinterpret_cast <int32_t *> (buf.mem) = value;
+            return buf.mem + sizeof (int32_t);
         }
 
-        uint8_t *operator>> (uint8_t *buffer, int32_t &value)
+        memory::buf.mem<uint8_t> operator>> (memory::buffer<uint8_t> buf, int32_t &value)
         {
-            value = *reinterpret_cast <int32_t *> (buffer);
-            return buffer + sizeof (int32_t);
+            value = *reinterpret_cast <int32_t *> (buf.mem);
+            return buf.mem + sizeof (int32_t);
         }
 
-        uint8_t *operator<< (uint8_t *buffer, uint32_t value)
+        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, uint32_t value)
         {
-            *reinterpret_cast <uint32_t *> (buffer) = value;
-            return buffer + sizeof (uint32_t);
+            *reinterpret_cast <uint32_t *> (buf.mem) = value;
+            return buf.mem + sizeof (uint32_t);
         }
 
-        uint8_t *operator>> (uint8_t *buffer, uint32_t &value)
+        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, uint32_t &value)
         {
-            value = *reinterpret_cast <uint32_t *> (buffer);
-            return buffer + sizeof (uint32_t);
+            value = *reinterpret_cast <uint32_t *> (buf.mem);
+            return buf.mem + sizeof (uint32_t);
         }
     }
 
     namespace network 
     {
-        uint8_t *operator<< (uint8_t *buffer, int32_t value)
+        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, int32_t value)
         {
-            *reinterpret_cast <int32_t *> (buffer) = htonl (value);
-            return buffer + sizeof (int32_t);
+            *reinterpret_cast <int32_t *> (buf.mem) = htonl (value);
+            return buf.mem + sizeof (int32_t);
         }
 
-        uint8_t *operator>> (uint8_t *buffer, int32_t &value)
+        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, int32_t &value)
         {
-            value = ntonl (*reinterpret_cast <int32_t *> (buffer));
-            return buffer + sizeof (int32_t);
+            value = ntonl (*reinterpret_cast <int32_t *> (buf.mem));
+            return buf.mem + sizeof (int32_t);
         }
 
-        uint8_t *operator<< (uint8_t *buffer, uint32_t value)
+        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, uint32_t value)
         {
-            *reinterpret_cast <uint32_t *> (buffer) = htonl (value);
-            return buffer + sizeof (uint32_t);
+            *reinterpret_cast <uint32_t *> (buf.mem) = htonl (value);
+            return buf.mem + sizeof (uint32_t);
         }
 
-        uint8_t *operator>> (uint8_t *buffer, uint32_t &value)
+        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, uint32_t &value)
         {
-            value = ntohl (*reinterpret_cast <uint32_t *> (buffer));
-            return buffer + sizeof (uint32_t);
+            value = ntohl (*reinterpret_cast <uint32_t *> (buf.mem));
+            return buf.mem + sizeof (uint32_t);
         }
     }
 
-} } }
+} }
 
-namespace sequia { namespace core {
+namespace core {
 
     template <typename E>
     class stream
     {
         public:
-            stream (E const *buf, int size)
-                : mem_ {buf}, capacity_ {size}, 
-                  size_ {0}, read_ {0}, write_ {0} 
+            stream (memory::buffer<E> const &buf)
+                : mem_ {buf} size_ {0}, read_ {0}, write_ {0} 
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                mem_[write_] << item;
-                ++write_ %= capacity_;
+                buf_.mem[write_] << item;
+                ++write_ %= buf_.size;
                 ++size_;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
-                mem_[read_] >> item;
-                ++read_ %= capacity_;
+                buf_.mem[read_] >> item;
+                ++read_ %= buf_.size;
                 --size_;
             }
 
@@ -95,17 +117,16 @@ namespace sequia { namespace core {
             int size () const { return size_; }
 
         private:
-            E *mem_;
-            int capacity_, size_, read_, write_;
+            memory::buffer<E> buf_;
+            int size_, read_, write_;
     };
 
     template <>
     class stream <uint8_t>
     {
         public:
-            stream (uint8_t const *buf, int size)
-                : mem_ {buf}, read_ {buf}, write_ {buf}, 
-                  capacity_ {size}, size_ {0}, 
+            stream (memory::buffer<uint8_t> const &buf)
+                : mem_ {buf}, read_ {buf}, write_ {buf}, size_ {0} 
             {}
 
             template <typename T>
@@ -131,8 +152,8 @@ namespace sequia { namespace core {
             int size () const { return size_; }
 
         private:
-            uint8_t *mem_, *read_, *write_;
-            int capacity_, size_;
+            memory::buffer<uint8_t> mem_, read_, write_;
+            int size_;
     };
 
     template <>
@@ -141,7 +162,7 @@ namespace sequia { namespace core {
         // TODO
     };
 
-} }
+}
 
 int main (int argc, char **argv)
 {
