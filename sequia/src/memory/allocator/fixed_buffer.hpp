@@ -34,13 +34,13 @@ namespace sequia { namespace memory { namespace allocator {
         public:
             size_t max_size () const 
             { 
-                return mem_.size;
+                return item_count (mem_);
             }
 
             Type *allocate (size_t num, const void* = 0) 
             { 
                 if (!mem_.valid()) // TODO: don't use global heap
-                    mem_.items = new Type[mem_.size];
+                    mem_.items = new Type [max_size ()];
 
                 return mem_.items;
             }

@@ -57,25 +57,7 @@ namespace sequia { namespace memory {
         };
 
         static_buffer () {}
-
-        constexpr bool valid () { return true; }
-
-        constexpr size_t nitems () { return N; }
-        constexpr size_t nbytes () { return N * sizeof(Type); }
-
-        inline Type *begin () { return items; }
-        inline Type *end () { return items + N; }
-
-        inline Type const *begin () const { return items; }
-        inline Type const *end () const { return items + N; }
-
-        inline uint8_t *byte_begin () { return bytes; }
-        inline uint8_t *byte_end () { return bytes + N * sizeof(Type); }
-
-        inline uint8_t const *byte_begin () const { return bytes; }
-        inline uint8_t const *byte_end () const { return bytes + N * sizeof(Type); }
-
-        inline bool contains (Type *p) const { return p >= items && p < items + N; }
+        operator bool () const { return true; }
     };
 
     //-------------------------------------------------------------------------
@@ -90,79 +72,131 @@ namespace sequia { namespace memory {
             void const  *address = nullptr;
         };
 
-        size_t  size = 0;
+        size_t const length = 0;
 
-        explicit buffer (size_t num) : 
-            size {num} {}
+        explicit buffer (size_t num_items) : 
+            items {nullptr}, length {num_items * sizeof (Type)} 
+        {}
 
-        buffer (Type *data, size_t num) : 
-            items {data}, size {num} {}
+        buffer (Type *data, size_t num_items) : 
+            items {data}, length {num_items * sizeof (Type)} 
+        {}
 
         buffer (Type *begin, Type *end) :
-            address {begin}, size {end - begin} 
+            items {begin}, length {(end - begin) * sizeof (Type)} 
         {
             ASSERTF (end < begin, "invalid range passed");
         }
 
-        buffer (void const *data, size_t bytes) : 
-            address {data}, size {bytes / sizeof(Type)} 
-        {
-            WATCHF (bytes == nbytes(), "lost %ld bytes in conversion",
-                    bytes - nbytes());
-        }
+        buffer (void const *data, size_t num_bytes) : 
+            address {data}, length {num_bytes} 
+        {}
 
         template <typename U>
         buffer (buffer<U> const &copy) :
-            buffer {copy.address, copy.nbytes()} {}
+            buffer {copy.address, copy.length} {}
 
-        template <typename U>
-        buffer &operator= (buffer<U> const &copy)
-        {
-            *this = buffer {copy};
-            return *this;
-        }
+        template <typename U, size_t N>
+        buffer (static_buffer<U, N> &copy) :
+            address {copy.address, N / sizeof (U)} {}
 
-        template <size_t N>
-        buffer (static_buffer<Type, N> &copy) :
-            address {copy.address}, size {N} {}
+        operator bool () const { return address != nullptr; }
 
-        template <size_t N>
-        buffer &operator= (static_buffer<Type, N> &other)
-        {
-            address = other.address;
-            size = N;
-            return *this;
-        }
-
-        inline bool valid () const { return address != nullptr; }
-        inline void invalidate () { address = nullptr; }
-
-        inline size_t nitems () const { return size; }
-        inline size_t nbytes () const { return size * sizeof(Type); }
-
-        inline Type *begin () { return items; }
-        inline Type *end () { return items + size; }
-
-        inline Type const *begin () const { return items; }
-        inline Type const *end () const { return items + size; }
-
-        inline uint8_t *byte_begin () { return bytes; }
-        inline uint8_t *byte_end () { return bytes + size * sizeof(Type); }
-
-        inline uint8_t const *byte_begin () const { return bytes; }
-        inline uint8_t const *byte_end () const { return bytes + size * sizeof(Type); }
-
-        inline bool contains (Type *p) const { return p >= items && p < items + size; }
+        void invalidate () { address = nullptr; }
     };
+
+    // TODO: address and space aligned buffers
+
+    //-------------------------------------------------------------------------
+
+    template <typename T, size_t N>
+    size_t item_count (static_buffer<T,N> const &buf) { return N; }
+
+    template <typename T, size_t N>
+    size_t byte_count (static_buffer<T,N> const &buf) { return N * sizeof(T); }
+
+    template <typename T>
+    size_t item_count (buffer<T> const &buf) { return buf.length / sizeof(T); }
+
+    template <typename T>
+    size_t byte_count (buffer<T> const &buf) { return buf.length; }
+
+    //-------------------------------------------------------------------------
+
+    template <typename T, size_t N>
+    T *begin (static_buffer<T,N> &buf) { return buf.items; }
+
+    template <typename T, size_t N>
+    T *end (static_buffer<T,N> &buf) { return buf.items + item_count (buf); }
+
+    template <typename T, size_t N>
+    T const *begin (static_buffer<T,N> const &buf) { return buf.items; }
+
+    template <typename T, size_t N>
+    T const *end (static_buffer<T,N> const &buf) { return buf.items + item_count (buf); }
+
+    template <typename T>
+    T *begin (buffer<T> &buf) { return buf.items; }
+
+    template <typename T>
+    T *end (buffer<T> &buf) { return buf.items + item_count (buf); }
+
+    template <typename T>
+    T const *begin (buffer<T> const &buf) { return buf.items; }
+
+    template <typename T>
+    T const *end (buffer<T> const &buf) { return buf.items + item_count (buf); }
+
+    //-------------------------------------------------------------------------
+
+    template <typename T, size_t N>
+    T *byte_begin (static_buffer<T,N> &buf) { return buf.bytes; }
+
+    template <typename T, size_t N>
+    T *byte_end (static_buffer<T,N> &buf) { return buf.bytes + byte_count (buf); }
+
+    template <typename T, size_t N>
+    T const *byte_begin (static_buffer<T,N> const &buf) { return buf.items; }
+
+    template <typename T, size_t N>
+    T const *byte_end (static_buffer<T,N> const &buf) { return buf.bytes + byte_count (buf); }
+
+    template <typename T>
+    T *byte_begin (buffer<T> &buf) { return buf.items; }
+
+    template <typename T>
+    T *byte_end (buffer<T> &buf) { return buf.items + byte_count (buf); }
+
+    template <typename T>
+    T const *byte_begin (buffer<T> const &buf) { return buf.items; }
+
+    template <typename T>
+    T const *byte_end (buffer<T> const &buf) { return buf.items + byte_count (buf); }
+
+    //-------------------------------------------------------------------------
+
+    template <typename T, size_t N>
+    bool contains (static_buffer<T,N> const &buf, T *pointer) 
+    { 
+        return pointer >= begin (buf) && pointer < end (buf); 
+    }
+
+    template <typename T>
+    bool contains (buffer<T> const &buf, T *pointer) 
+    { 
+        return pointer >= begin (buf) && pointer < end (buf); 
+    }
+    
+    //-------------------------------------------------------------------------
 
     template <typename U, typename T>
     buffer<U> aligned_buffer (buffer<T> const &buf)
     {
         void const *address = next_aligned <U> (buf.address);
         auto overhead = aligned_overhead <U> (buf.address);
-        auto size = (buf.nbytes() > overhead)? buf.nbytes() - overhead : 0;
+        auto length = (byte_count (buf) > overhead)? byte_count (buf) - overhead : 0;
 
-        return buffer<U> {address, size};
+        return buffer<U> {address, length};
     }
 
     template <typename U, typename T>
@@ -171,17 +205,17 @@ namespace sequia { namespace memory {
         size_t pointer_overhead = 0;
         size_t size_overhead = 0;
 
-        auto buf_begin = buf.byte_begin();
-        auto buf_end = buf.byte_end();
-        auto buf_size = buf.nbytes();
+        auto buf_begin = byte_begin (buf);
+        auto buf_end = byte_end (buf);
+        auto buf_length = byte_count (buf);
 
         auto bytes = reinterpret_cast <uint8_t const *> (next_aligned <U> (buf_begin));
-        auto size = (buf_end > bytes)? (buf_end - bytes) / sizeof(U) : 0;
+        auto length = (buf_end > bytes)? (buf_end - bytes) / sizeof(U) : 0;
 
-        if (size > 0)
+        if (length > 0)
         {
             pointer_overhead = bytes - buf_begin;
-            size_overhead = buf_size - size;
+            size_overhead = buf_length - length;
         }
 
         return std::make_pair (pointer_overhead, size_overhead);

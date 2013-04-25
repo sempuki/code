@@ -37,7 +37,7 @@ namespace sequia { namespace memory { namespace allocator {
         public:
             static_item ()
             {
-                ASSERTF (mem_.valid(), "memory not allocated");
+                ASSERTF (mem_, "memory not allocated");
                 ASSERTF (N < (core::one << (core::min_num_bytes(N)*8)),
                         "too many objects for size of free list index type");
                 
@@ -45,7 +45,7 @@ namespace sequia { namespace memory { namespace allocator {
                 for (auto &block : mem_)
                     block.index = ++index;
 
-                head_ = mem_.begin();
+                head_ = begin (mem_);
             }
 
             static_item (static_item const &copy) :
@@ -73,7 +73,7 @@ namespace sequia { namespace memory { namespace allocator {
                 ASSERTF (mem_.contains (head_), "free list is corrupt");
 
                 auto block = head_;
-                head_ = mem_.begin() + head_->index;
+                head_ = begin (mem_) + head_->index;
 
                 return reinterpret_cast <Type *> (block);
             }
@@ -83,10 +83,10 @@ namespace sequia { namespace memory { namespace allocator {
                 auto block = reinterpret_cast <impl::block_type<Type,N> *> (ptr);
 
                 ASSERTF (num == 1, "can only allocate one object per call");
-                ASSERTF (mem_.valid(), "not previously allocated");
+                ASSERTF (mem_, "not previously allocated");
                 ASSERTF (mem_.contains (block), "pointer is not from this heap");
 
-                block->index = head_ - mem_.begin();
+                block->index = head_ - begin (mem_);
                 head_ = block;
             }
 
