@@ -16,14 +16,14 @@ namespace sequia { namespace memory { namespace allocator {
             fixed_buffer () {}
 
             fixed_buffer (size_t const size) :
-                mem_ {size} {}
+                mem_ {nullptr, size} {}
 
             fixed_buffer (fixed_buffer const &copy) :
-                mem_ {copy.max_size()} {}
+                mem_ {nullptr, copy.max_size()} {}
 
             template <class U>
             fixed_buffer (fixed_buffer<U> const &copy) :
-                mem_ {copy.max_size()} {}
+                mem_ {nullptr, copy.max_size()} {}
 
             ~fixed_buffer ()
             {
@@ -39,8 +39,8 @@ namespace sequia { namespace memory { namespace allocator {
 
             Type *allocate (size_t num, const void* = 0) 
             { 
-                if (!mem_.valid()) // TODO: don't use global heap
-                    mem_.items = new Type [max_size ()];
+                // TODO: don't use global heap
+                if (!mem_) mem_.items = new Type [max_size ()];
 
                 return mem_.items;
             }

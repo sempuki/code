@@ -6,47 +6,6 @@ namespace sequia { namespace memory {
 
     //-------------------------------------------------------------------------
 
-    template <typename T>
-    using aligned_storage = typename std::aligned_storage 
-        <sizeof(T), std::alignment_of<T>::value>::type;
-
-    template <typename T, size_t Alignment = sizeof(T)>
-    inline T* make_aligned (void const *pointer)
-    {
-        auto p = reinterpret_cast <uintptr_t const> (pointer);
-        return reinterpret_cast <T *> (p & ~(Alignment-1));
-    }
-
-    template <typename T, size_t Alignment = sizeof(T)>
-    inline T* next_aligned (void const *pointer)
-    {
-        auto p = reinterpret_cast <uintptr_t const> (pointer);
-        return reinterpret_cast <T *> ((p + Alignment-1) & ~(Alignment-1));
-    }
-
-    template <typename T, size_t Alignment = sizeof(T)>
-    inline size_t aligned_offset (void const *pointer)
-    {
-        auto p = reinterpret_cast <uintptr_t const> (pointer);
-        return reinterpret_cast <size_t> (p & (Alignment-1));
-    }
-
-    template <typename T, size_t Alignment = sizeof(T)>
-    inline size_t aligned_overhead (void const *pointer)
-    {
-        auto p = reinterpret_cast <uintptr_t const> (pointer);
-        return reinterpret_cast <size_t> ((Alignment - (p & Alignment-1)) & Alignment-1);
-    }
-
-    template <typename T, size_t Alignment = sizeof(T)>
-    inline bool is_aligned (void const *pointer)
-    {
-        auto p = reinterpret_cast <uintptr_t const> (pointer);
-        return !(p & Alignment-1);
-    }
-
-    //-------------------------------------------------------------------------
-
     template <typename Type, size_t N>
     struct static_buffer
     {
@@ -74,10 +33,6 @@ namespace sequia { namespace memory {
 
         size_t const length = 0;
 
-        explicit buffer (size_t num_items) : 
-            items {nullptr}, length {num_items * sizeof (Type)} 
-        {}
-
         buffer (Type *data, size_t num_items) : 
             items {data}, length {num_items * sizeof (Type)} 
         {}
@@ -104,8 +59,6 @@ namespace sequia { namespace memory {
 
         void invalidate () { address = nullptr; }
     };
-
-    // TODO: address and space aligned buffers
 
     //-------------------------------------------------------------------------
 
@@ -188,38 +141,122 @@ namespace sequia { namespace memory {
     }
     
     //-------------------------------------------------------------------------
+                
+    template <typename T>
+    using aligned_storage = typename std::aligned_storage 
+        <sizeof(T), std::alignment_of<T>::value>::type;
+
+    template <typename T, uintptr_t Alignment = sizeof(T)>
+    inline T* make_aligned (void const *pointer)
+    {
+        auto p = reinterpret_cast <uintptr_t const> (pointer);
+        return reinterpret_cast <T *> (p & ~(Alignment-1));
+    }
+
+    template <typename T, uintptr_t Alignment = sizeof(T)>
+    inline T* next_aligned (void const *pointer)
+    {
+        auto p = reinterpret_cast <uintptr_t const> (pointer);
+        return reinterpret_cast <T *> ((p + Alignment-1) & ~(Alignment-1));
+    }
+
+    inline size_t aligned_offset (void const *pointer, uintptr_t alignment)
+    {
+        auto p = reinterpret_cast <uintptr_t const> (pointer);
+        return reinterpret_cast <size_t> (p & (alignment-1));
+    }
+
+    template <typename T>
+    inline size_t aligned_offset (void const *pointer)
+    {
+        return aligned_offset (pointer, sizeof(T));
+    }
+
+    inline size_t aligned_overhead (void const *pointer, uintptr_t alignment)
+    {
+        auto p = reinterpret_cast <uintptr_t const> (pointer);
+        return reinterpret_cast <size_t> ((alignment - (p & alignment-1)) & alignment-1);
+    }
+
+    template <typename T>
+    inline size_t aligned_overhead (void const *pointer)
+    {
+        return aligned_overhead (pointer, sizeof(T)); 
+    }
+
+    inline bool is_aligned (void const *pointer, uintptr_t alignment)
+    {
+        auto p = reinterpret_cast <uintptr_t const> (pointer);
+        return !(p & alignment-1);
+    }
+
+    template <typename T>
+    inline bool is_aligned (void const *pointer)
+    {
+        return is_aligned (pointer, sizeof(T));
+    }
+
+    //-------------------------------------------------------------------------
+
+    template <typename T>
+    buffer<T> make_pow2_size_buffer (buffer<T> const &buf)
+    {
+        return buffer<T> {buf.items, 1 << bit::log2_floor (item_count (buf))};
+    }
 
     template <typename U, typename T>
-    buffer<U> aligned_buffer (buffer<T> const &buf)
+    buffer<U> make_aligned_buffer (buffer<T> const &buf, uintptr_t alignment)
     {
-        void const *address = next_aligned <U> (buf.address);
-        auto overhead = aligned_overhead <U> (buf.address);
+        auto address = next_aligned<void const *> (buf.address, alignment);
+        auto overhead = aligned_overhead (buf.address, alignment);
         auto length = (byte_count (buf) > overhead)? byte_count (buf) - overhead : 0;
 
         return buffer<U> {address, length};
     }
 
-    template <typename U, typename T>
-    std::pair<size_t,size_t> aligned_overhead (buffer<T> const &buf)
+    //-------------------------------------------------------------------------
+
+    template <typename Type, size_t Alignment>
+    struct aligned_buffer : public buffer
     {
-        size_t pointer_overhead = 0;
-        size_t size_overhead = 0;
+        aligned_buffer (Type *data, size_t num_items) : 
+            buffer {make_aligned_buffer (buffer <Type> (data, num_items), Alignment)} {}
 
-        auto buf_begin = byte_begin (buf);
-        auto buf_end = byte_end (buf);
-        auto buf_length = byte_count (buf);
+        aligned_buffer (Type *begin, Type *end) :
+            buffer {make_aligned_buffer (buffer <Type> (begin, end), Alignment)} {}
 
-        auto bytes = reinterpret_cast <uint8_t const *> (next_aligned <U> (buf_begin));
-        auto length = (buf_end > bytes)? (buf_end - bytes) / sizeof(U) : 0;
+        aligned_buffer (void const *data, size_t num_bytes) : 
+            buffer {make_aligned_buffer (buffer <Type> (data, num_bytes), Alignment)} {}
 
-        if (length > 0)
-        {
-            pointer_overhead = bytes - buf_begin;
-            size_overhead = buf_length - length;
-        }
+        template <typename U>
+        aligned_buffer (buffer<U> const &copy) :
+            buffer {make_aligned_buffer (buffer <Type> (copy), Alignment)}
 
-        return std::make_pair (pointer_overhead, size_overhead);
-    }
+        template <typename U, size_t N>
+        aligned_buffer (static_buffer<U, N> &copy) :
+            buffer {make_aligned_buffer (buffer <Type> (copy), Alignment)}
+    };
+
+    template <typename Type, size_t Alignment>
+    struct pow2_size_buffer : public buffer
+    {
+        pow2_size_buffer (Type *data, size_t num_items) : 
+            buffer {make_pow2_size_buffer (buffer <Type> (data, num_items), Alignment)} {}
+
+        pow2_size_buffer (Type *begin, Type *end) :
+            buffer {make_pow2_size_buffer (buffer <Type> (begin, end), Alignment)} {}
+
+        pow2_size_buffer (void const *data, size_t num_bytes) : 
+            buffer {make_pow2_size_buffer (buffer <Type> (data, num_bytes), Alignment)} {}
+
+        template <typename U>
+        pow2_size_buffer (buffer<U> const &copy) :
+            buffer {make_pow2_size_buffer (buffer <Type> (copy), Alignment)}
+
+        template <typename U, size_t N>
+        pow2_size_buffer (static_buffer<U, N> &copy) :
+            buffer {make_pow2_size_buffer (buffer <Type> (copy), Alignment)}
+    };
 
 } } 
 

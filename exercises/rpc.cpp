@@ -2,85 +2,112 @@
 
 using namespace std;
 
-uint32_t htonl (uint32_t value) { return value; }
-uint32_t ntohl (uint32_t value) { return value; }
-
-
 namespace memory 
 {
+    template <typename Type>
+    Type make_network_byte_order (Type value) { return value; }
+
+    template <typename Type>
+    Type make_host_byte_order (Type value) { return value; }
+
     template <typename Type>
     struct buffer
     {
         union 
         {
-            Type    *mem;
+            Type    *items;
             uint8_t *bytes = nullptr;
         };
 
         size_t size = 0;
 
         buffer (uint8_t *data, size_t bytes) :
-            bytes {data}, size {bytes / sizeof(Type)} {}
+            bytes {data}, size {bytes / sizeof (Type)} {}
 
         template <typename U> 
         buffer (buffer<U> const &copy) :
-            buffer {copy.bytes, copy.size * sizeof(U)} {}
+            buffer {copy.bytes, copy.size * sizeof (Type)} {}
+
+        template <typename U> 
+        buffer &operator= (buffer<U> const &copy)
+        {
+            *this = buffer {copy};
+            return *this;
+        }
     };
+
+    template <typename Type>
+    size_t byte_count (buffer<Type> const &buf) { return buf.size * sizeof (Type); }
+
+    template <typename Type>
+    size_t item_count (buffer<Type> const &buf) { return buf.size; }
+
+    template <typename Type>
+    Type *begin (buffer<Type> &buf) { return buf.items; }
+
+    template <typename Type>
+    Type const *begin (buffer<Type> const &buf) { return buf.items; }
+
+    template <typename Type>
+    Type *end (buffer<Type> &buf) { return buf.items + buf.size; }
+
+    template <typename Type>
+    Type const *end (buffer<Type> const &buf) { return buf.items + buf.size; }
 }
 
 namespace data { namespace map { 
 
-    namespace local 
+    namespace native 
     {
-        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, int32_t value)
+        template <typename Type>
+        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, Type value)
         {
-            *reinterpret_cast <int32_t *> (buf.mem) = value;
-            return buf.mem + sizeof (int32_t);
+            memory::buffer<Type> typed {buf};
+
+            *typed.items = value;
+            ++typed.items;
+            --typed.size;
+
+            return buf;
         }
 
-        memory::buf.mem<uint8_t> operator>> (memory::buffer<uint8_t> buf, int32_t &value)
+        template <typename Type>
+        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, Type &value)
         {
-            value = *reinterpret_cast <int32_t *> (buf.mem);
-            return buf.mem + sizeof (int32_t);
-        }
+             memory::buffer<Type> typed {buf};
 
-        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, uint32_t value)
-        {
-            *reinterpret_cast <uint32_t *> (buf.mem) = value;
-            return buf.mem + sizeof (uint32_t);
-        }
+            value = *typed.items;
+            --typed.items;
+            ++typed.size;
 
-        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, uint32_t &value)
-        {
-            value = *reinterpret_cast <uint32_t *> (buf.mem);
-            return buf.mem + sizeof (uint32_t);
+            return buf;
         }
     }
 
     namespace network 
     {
-        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, int32_t value)
+        template <typename Type>
+        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, Type value)
         {
-            *reinterpret_cast <int32_t *> (buf.mem) = htonl (value);
-            return buf.mem + sizeof (int32_t);
+            memory::buffer<Type> typed {buf};
+
+            *typed.items = make_network_byte_order (value);
+            ++typed.items;
+            --typed.size;
+
+            return buf;
         }
 
-        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, int32_t &value)
+        template <typename Type>
+        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, Type &value)
         {
-            value = ntonl (*reinterpret_cast <int32_t *> (buf.mem));
-            return buf.mem + sizeof (int32_t);
-        }
+             memory::buffer<Type> typed {buf};
 
-        memory::buffer<uint8_t> operator<< (memory::buffer<uint8_t> buf, uint32_t value)
-        {
-            *reinterpret_cast <uint32_t *> (buf.mem) = htonl (value);
-            return buf.mem + sizeof (uint32_t);
-        }
+            value = make_host_byte_order (*typed.items);
+            --typed.items;
+            ++typed.size;
 
-        memory::buffer<uint8_t> operator>> (memory::buffer<uint8_t> buf, uint32_t &value)
-        {
-            value = ntohl (*reinterpret_cast <uint32_t *> (buf.mem));
-            return buf.mem + sizeof (uint32_t);
+            return buf;
         }
     }
 
@@ -93,13 +120,13 @@ namespace core {
     {
         public:
             stream (memory::buffer<E> const &buf)
-                : mem_ {buf} size_ {0}, read_ {0}, write_ {0} 
+                : buf_ {buf}, size_ {0}, read_ {0}, write_ {0} 
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                buf_.mem[write_] << item;
+                buf_.items[write_] << item;
                 ++write_ %= buf_.size;
                 ++size_;
             }
@@ -107,12 +134,12 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                buf_.mem[read_] >> item;
+                buf_.items[read_] >> item;
                 ++read_ %= buf_.size;
                 --size_;
             }
 
-            bool full () const { return size_ == capacity_; }
+            bool full () const { return size_ == buf_.size; }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 
@@ -126,7 +153,7 @@ namespace core {
     {
         public:
             stream (memory::buffer<uint8_t> const &buf)
-                : mem_ {buf}, read_ {buf}, write_ {buf}, size_ {0} 
+                : buf_ {buf}, read_ {buf}, write_ {buf}, size_ {0} 
             {}
 
             template <typename T>
@@ -134,7 +161,7 @@ namespace core {
             {
                 auto next = write_ << item;
                 auto size = next - write_;
-                write_ = next % capacity_;
+                write_ = next % buf_.size;
                 size_ += size;
             }
 
@@ -143,16 +170,16 @@ namespace core {
             {
                 auto next = read_ >> item;
                 auto size = next - read_;
-                read_ = next % capacity_;
+                read_ = next % buf_.size;
                 size_ -= size;
             }
 
-            bool full () const { return size_ == capacity_; }
+            bool full () const { return size_ == buf_.size; }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 
         private:
-            memory::buffer<uint8_t> mem_, read_, write_;
+            memory::buffer<uint8_t> buf_, read_, write_;
             int size_;
     };
 
@@ -166,7 +193,15 @@ namespace core {
 
 int main (int argc, char **argv)
 {
-    //sequia::core::stream<uint8_t> test;
+    using data::map::native::operator<<;
+
+    uint8_t memory[16];
+    memory::buffer<uint8_t> buf {memory, 16};
+    buf << (int32_t) 0xABCDDCBA;
+    cout << "size: " << buf.size << endl;
+
+    for (int i : buf)
+        cout << std::hex << i << endl;
 
     return 0;
 }

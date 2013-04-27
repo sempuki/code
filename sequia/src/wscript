@@ -24,7 +24,7 @@ def configure(ctx):
 
 def build(ctx):
     variant = ctx.variant if len(ctx.variant) > 0 else ctx.env.variant
-    print 'Using build configuration: {}'.format(variant.upper())
+    print 'Using build configuration: {0}'.format(variant.upper())
 
     INCLUDES = '.'
     DEFINES = ctx.env.DEFINES
