@@ -201,7 +201,7 @@ namespace sequia { namespace memory {
     template <typename T>
     buffer<T> make_pow2_size_buffer (buffer<T> const &buf)
     {
-        return buffer<T> {buf.items, 1 << bit::log2_floor (item_count (buf))};
+        return buffer<T> (buf.items, 1 << core::bit::log2_floor (item_count (buf)));
     }
 
     template <typename U, typename T>
@@ -211,51 +211,51 @@ namespace sequia { namespace memory {
         auto overhead = aligned_overhead (buf.address, alignment);
         auto length = (byte_count (buf) > overhead)? byte_count (buf) - overhead : 0;
 
-        return buffer<U> {address, length};
+        return buffer<U> (address, length);
     }
 
     //-------------------------------------------------------------------------
 
-    template <typename Type, size_t Alignment>
-    struct aligned_buffer : public buffer
+    template <typename Type, uintptr_t Alignment>
+    struct aligned_buffer : public buffer<Type>
     {
         aligned_buffer (Type *data, size_t num_items) : 
-            buffer {make_aligned_buffer (buffer <Type> (data, num_items), Alignment)} {}
+            buffer<Type> {make_aligned_buffer (buffer<Type> (data, num_items), Alignment)} {}
 
         aligned_buffer (Type *begin, Type *end) :
-            buffer {make_aligned_buffer (buffer <Type> (begin, end), Alignment)} {}
+            buffer<Type> {make_aligned_buffer (buffer<Type> (begin, end), Alignment)} {}
 
         aligned_buffer (void const *data, size_t num_bytes) : 
-            buffer {make_aligned_buffer (buffer <Type> (data, num_bytes), Alignment)} {}
+            buffer<Type> {make_aligned_buffer (buffer<Type> (data, num_bytes), Alignment)} {}
 
         template <typename U>
         aligned_buffer (buffer<U> const &copy) :
-            buffer {make_aligned_buffer (buffer <Type> (copy), Alignment)}
+            buffer<Type> {make_aligned_buffer (buffer<Type> (copy), Alignment)} {}
 
         template <typename U, size_t N>
         aligned_buffer (static_buffer<U, N> &copy) :
-            buffer {make_aligned_buffer (buffer <Type> (copy), Alignment)}
+            buffer<Type> {make_aligned_buffer (buffer<Type> (copy), Alignment)} {}
     };
 
-    template <typename Type, size_t Alignment>
-    struct pow2_size_buffer : public buffer
+    template <typename Type>
+    struct pow2_size_buffer : public buffer<Type>
     {
         pow2_size_buffer (Type *data, size_t num_items) : 
-            buffer {make_pow2_size_buffer (buffer <Type> (data, num_items), Alignment)} {}
+            buffer<Type> {make_pow2_size_buffer (buffer<Type> (data, num_items))} {}
 
         pow2_size_buffer (Type *begin, Type *end) :
-            buffer {make_pow2_size_buffer (buffer <Type> (begin, end), Alignment)} {}
+            buffer<Type> {make_pow2_size_buffer (buffer<Type> (begin, end))} {}
 
         pow2_size_buffer (void const *data, size_t num_bytes) : 
-            buffer {make_pow2_size_buffer (buffer <Type> (data, num_bytes), Alignment)} {}
+            buffer<Type> {make_pow2_size_buffer (buffer<Type> (data, num_bytes))} {}
 
         template <typename U>
         pow2_size_buffer (buffer<U> const &copy) :
-            buffer {make_pow2_size_buffer (buffer <Type> (copy), Alignment)}
+            buffer<Type> {make_pow2_size_buffer (buffer<Type> (copy))} {}
 
         template <typename U, size_t N>
         pow2_size_buffer (static_buffer<U, N> &copy) :
-            buffer {make_pow2_size_buffer (buffer <Type> (copy), Alignment)}
+            buffer<Type> {make_pow2_size_buffer (buffer<Type> (copy))} {}
     };
 
 } } 

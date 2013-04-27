@@ -16,14 +16,14 @@ namespace sequia { namespace memory { namespace allocator {
             fixed_buffer () {}
 
             fixed_buffer (size_t const size) :
-                mem_ {nullptr, size} {}
+                mem_ {(Type*) nullptr, size} {}
 
             fixed_buffer (fixed_buffer const &copy) :
-                mem_ {nullptr, copy.max_size()} {}
+                mem_ {(Type*) nullptr, copy.max_size()} {}
 
             template <class U>
             fixed_buffer (fixed_buffer<U> const &copy) :
-                mem_ {nullptr, copy.max_size()} {}
+                mem_ {(Type*) nullptr, copy.max_size()} {}
 
             ~fixed_buffer ()
             {
@@ -47,7 +47,7 @@ namespace sequia { namespace memory { namespace allocator {
 
             void deallocate (Type *ptr, size_t num) 
             {
-                ASSERTF (mem_.contains (ptr), "not from this allocator");
+                ASSERTF (contains (mem_, ptr), "not from this allocator");
             }
 
         private:

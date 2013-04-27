@@ -16,14 +16,14 @@ namespace sequia { namespace memory { namespace allocator {
                 fixed_item () {}
 
                 fixed_item (size_t const size) :
-                    mem_ {nullptr, size} {}
+                    mem_ {(Type *) nullptr, size} {}
 
                 fixed_item (fixed_item const &copy) :
-                    mem_ {nullptr, copy.max_size()} {}
+                    mem_ {(Type *) nullptr, copy.max_size()} {}
 
                 template <class U>
                 fixed_item (fixed_item<U> const &copy) :
-                    mem_ {nullptr, copy.max_size()} {}
+                    mem_ {(Type *) nullptr, copy.max_size()} {}
 
                 ~fixed_item ()
                 {

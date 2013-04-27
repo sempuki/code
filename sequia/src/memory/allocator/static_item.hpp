@@ -70,7 +70,7 @@ namespace sequia { namespace memory { namespace allocator {
             Type *allocate (size_t num, const void* = 0) 
             { 
                 ASSERTF (num == 1, "can only allocate one object per call");
-                ASSERTF (mem_.contains (head_), "free list is corrupt");
+                ASSERTF (contains (mem_, head_), "free list is corrupt");
 
                 auto block = head_;
                 head_ = begin (mem_) + head_->index;
@@ -84,7 +84,7 @@ namespace sequia { namespace memory { namespace allocator {
 
                 ASSERTF (num == 1, "can only allocate one object per call");
                 ASSERTF (mem_, "not previously allocated");
-                ASSERTF (mem_.contains (block), "pointer is not from this heap");
+                ASSERTF (contains (mem_, block), "pointer is not from this heap");
 
                 block->index = head_ - begin (mem_);
                 head_ = block;

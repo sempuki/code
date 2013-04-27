@@ -3,9 +3,9 @@
 
 #include <core/debug.hpp>
 #include <core/standard.hpp>
-#include <memory/core.hpp>
 #include <core/types.hpp>
 #include <core/bits.hpp>
+#include <memory/core.hpp>
 #include <core/hash.hpp>
 #include <core/name.hpp>
 #include <core/container.hpp>
