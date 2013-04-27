@@ -10,7 +10,7 @@ namespace sequia { namespace core {
             explicit stream (memory::buffer<E> const buf) 
                 : size_ {0}, read_ {0}, write_ {0}, mem_ {buf}
             {
-                WATCHF (item_count (mem_) == item_count (buf), "using buffer size %d (of possible %zd)", 
+                WATCHF (item_count (mem_) == item_count (buf), "only using %zd of %zd bytes",
                         item_count (mem_), item_count (buf));
             }
 
