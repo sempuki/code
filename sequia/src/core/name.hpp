@@ -30,10 +30,10 @@ namespace sequia { namespace core {
 
                 uint32_t hash = core::crc32c;
 
-                auto length = strlen (str);
-                memory::buffer <uint32_t const> buf {str, length};
+                auto bytes = strlen (str);
+                memory::buffer <uint32_t const> buf {str, bytes};
 
-                auto remainder = length - byte_count (buf);
+                auto remainder = bytes - count_bytes (buf);
                 memory::buffer <uint8_t const> post {end (buf), remainder};
 
                 hash = block_hash_32 (buf, hash, core::crc32c);

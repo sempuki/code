@@ -9,14 +9,11 @@ namespace sequia { namespace memory {
     template <typename Type, size_t N>
     struct static_buffer
     {
-        union 
-        {
-            Type    items [N];
-            uint8_t bytes [N * sizeof(Type)];
-        };
+        Type items [N];
 
         static_buffer () {}
         operator bool () const { return true; }
+        size_t size () const { return N; }
     };
 
     //-------------------------------------------------------------------------
@@ -26,30 +23,27 @@ namespace sequia { namespace memory {
     {
         union 
         {
-            Type        *items;
-            uint8_t     *bytes;
-            void const  *address = nullptr;
+            Type *const items = nullptr;
+            void const *const address;
         };
 
-        size_t const length = 0;
+        size_t const bytes = 0;
 
         buffer (Type *data, size_t num_items) : 
-            items {data}, length {num_items * sizeof (Type)} 
-        {}
+            items {data}, bytes {num_items * sizeof (Type)} {}
 
         buffer (Type *begin, Type *end) :
-            items {begin}, length {(end - begin) * sizeof (Type)} 
+            items {begin}, bytes {(end - begin) * sizeof (Type)} 
         {
             ASSERTF (end < begin, "invalid range passed");
         }
 
         buffer (void const *data, size_t num_bytes) : 
-            address {data}, length {num_bytes} 
-        {}
+            address {data}, bytes {num_bytes} {}
 
         template <typename U>
         buffer (buffer<U> const &copy) :
-            buffer {copy.address, copy.length} {}
+            buffer {copy.address, copy.bytes} {}
 
         template <typename U, size_t N>
         buffer (static_buffer<U, N> &copy) :
@@ -57,22 +51,44 @@ namespace sequia { namespace memory {
 
         operator bool () const { return address != nullptr; }
 
-        void invalidate () { address = nullptr; }
+        void invalidate () { const_cast<void const *&> (address) = nullptr; }
+
+        size_t size () const { return bytes / sizeof (Type); }
     };
 
     //-------------------------------------------------------------------------
 
-    template <typename T, size_t N>
-    size_t item_count (static_buffer<T,N> const &buf) { return N; }
+    template <typename T, typename U>
+    void swap (buffer<T> &lhs, buffer<U> &rhs)
+    {
+        auto &address1 = const_cast<void const *&> (lhs.address);
+        auto &address2 = const_cast<void const *&> (rhs.address);
+        std::swap (address1, address2);
+
+        auto &bytes1 = const_cast<size_t &> (lhs.bytes);
+        auto &bytes2 = const_cast<size_t &> (rhs.bytes);
+        std::swap (bytes1, bytes2);
+    }
+
+    //-------------------------------------------------------------------------
 
     template <typename T, size_t N>
-    size_t byte_count (static_buffer<T,N> const &buf) { return N * sizeof(T); }
+    size_t count (static_buffer<T,N> const &buf) { return N; }
+
+    template <typename U, typename T, size_t N>
+    size_t count (static_buffer<T,N> const &buf) { return (N * sizeof(T)) / sizeof(U); }
+
+    template <typename T, size_t N>
+    size_t count_bytes (static_buffer<T,N> const &buf) { return N * sizeof(T); }
 
     template <typename T>
-    size_t item_count (buffer<T> const &buf) { return buf.length / sizeof(T); }
+    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(T); }
+
+    template <typename U, typename T>
+    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(U); }
 
     template <typename T>
-    size_t byte_count (buffer<T> const &buf) { return buf.length; }
+    size_t count_bytes (buffer<T> const &buf) { return buf.bytes; }
 
     //-------------------------------------------------------------------------
 
@@ -80,51 +96,25 @@ namespace sequia { namespace memory {
     T *begin (static_buffer<T,N> &buf) { return buf.items; }
 
     template <typename T, size_t N>
-    T *end (static_buffer<T,N> &buf) { return buf.items + item_count (buf); }
+    T *end (static_buffer<T,N> &buf) { return begin (buf) + count (buf); }
 
     template <typename T, size_t N>
     T const *begin (static_buffer<T,N> const &buf) { return buf.items; }
 
     template <typename T, size_t N>
-    T const *end (static_buffer<T,N> const &buf) { return buf.items + item_count (buf); }
+    T const *end (static_buffer<T,N> const &buf) { return begin (buf) + count (buf); }
 
     template <typename T>
     T *begin (buffer<T> &buf) { return buf.items; }
 
     template <typename T>
-    T *end (buffer<T> &buf) { return buf.items + item_count (buf); }
+    T *end (buffer<T> &buf) { return begin (buf) + count (buf); }
 
     template <typename T>
     T const *begin (buffer<T> const &buf) { return buf.items; }
 
     template <typename T>
-    T const *end (buffer<T> const &buf) { return buf.items + item_count (buf); }
-
-    //-------------------------------------------------------------------------
-
-    template <typename T, size_t N>
-    T *byte_begin (static_buffer<T,N> &buf) { return buf.bytes; }
-
-    template <typename T, size_t N>
-    T *byte_end (static_buffer<T,N> &buf) { return buf.bytes + byte_count (buf); }
-
-    template <typename T, size_t N>
-    T const *byte_begin (static_buffer<T,N> const &buf) { return buf.items; }
-
-    template <typename T, size_t N>
-    T const *byte_end (static_buffer<T,N> const &buf) { return buf.bytes + byte_count (buf); }
-
-    template <typename T>
-    T *byte_begin (buffer<T> &buf) { return buf.items; }
-
-    template <typename T>
-    T *byte_end (buffer<T> &buf) { return buf.items + byte_count (buf); }
-
-    template <typename T>
-    T const *byte_begin (buffer<T> const &buf) { return buf.items; }
-
-    template <typename T>
-    T const *byte_end (buffer<T> const &buf) { return buf.items + byte_count (buf); }
+    T const *end (buffer<T> const &buf) { return begin (buf) + count (buf); }
 
     //-------------------------------------------------------------------------
 
@@ -201,7 +191,7 @@ namespace sequia { namespace memory {
     template <typename T>
     buffer<T> make_pow2_size_buffer (buffer<T> const &buf)
     {
-        return buffer<T> (buf.items, 1 << core::bit::log2_floor (item_count (buf)));
+        return buffer<T> (buf.items, 1 << core::bit::log2_floor (buf.size ()));
     }
 
     template <typename U, typename T>
@@ -209,9 +199,9 @@ namespace sequia { namespace memory {
     {
         auto address = next_aligned<void const *> (buf.address, alignment);
         auto overhead = aligned_overhead (buf.address, alignment);
-        auto length = (byte_count (buf) > overhead)? byte_count (buf) - overhead : 0;
+        auto bytes = (count_bytes (buf) > overhead)? count_bytes (buf) - overhead : 0;
 
-        return buffer<U> (address, length);
+        return buffer<U> (address, bytes);
     }
 
     //-------------------------------------------------------------------------

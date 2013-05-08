@@ -10,8 +10,8 @@ namespace sequia { namespace core {
             explicit stream (memory::buffer<E> const buf) 
                 : size_ {0}, read_ {0}, write_ {0}, mem_ {buf}
             {
-                WATCHF (item_count (mem_) == item_count (buf), "only using %zd of %zd bytes",
-                        item_count (mem_), item_count (buf));
+                WATCHF (mem_.size() == buf.size(), "buffer shrunk to pow2 (%zd <- %zd)",
+                        mem_.size(), buf.size());
             }
 
             template <typename T>
@@ -20,7 +20,7 @@ namespace sequia { namespace core {
                 ASSERTF (!full(), "writing to a full stream");
 
                 mem_.items[write_] << item;
-                ++write_ &= (item_count (mem_) - 1);
+                ++write_ &= (count (mem_) - 1);
                 ++size_;
             }
 
@@ -30,11 +30,11 @@ namespace sequia { namespace core {
                 ASSERTF (!empty(), "reading from an empty stream");
 
                 mem_.items[read_] >> item;
-                ++read_ &= (item_count (mem_) - 1);
+                ++read_ &= (count (mem_),- 1);
                 --size_;
             }
 
-            bool full () const { return size_ == item_count (mem_); }
+            bool full () const { return size_ == mem_.size(); }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 

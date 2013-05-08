@@ -34,14 +34,16 @@ namespace sequia { namespace memory { namespace allocator {
             public:
                 size_t max_size () const 
                 { 
-                    return item_count (mem_);
+                    return mem_.size ();
                 }
 
                 Type *allocate (size_t num, const void* = 0) 
                 { 
                     if (!mem_)
                     {
-                        mem_.items = new impl::block_32 <Type> [max_size ()];
+                        // TODO: don't use global heap...
+                        auto mem = new impl::block_32 <Type> [max_size ()]; 
+                        swap (mem_, memory::buffer<Type> (mem, max_size ()));
 
                         auto index = 0;
                         for (auto &block : mem_)
@@ -52,8 +54,7 @@ namespace sequia { namespace memory { namespace allocator {
 
                     ASSERTF (num == 1, "can only allocate one object per call");
                     ASSERTF (contains (mem_, head_), "free list is corrupt");
-                    ASSERTF (item_count (mem_) < 
-                            (core::one << (core::min_num_bytes (max_size ()) * 8)),
+                    ASSERTF (count (mem_) < (1 << (core::min_num_bytes (max_size ()) * 8)),
                             "too many objects for size of free list index type");
 
                     auto block = head_;
