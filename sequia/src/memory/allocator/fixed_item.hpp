@@ -16,19 +16,19 @@ namespace sequia { namespace memory { namespace allocator {
                 fixed_item () {}
 
                 fixed_item (size_t const size) :
-                    mem_ {(Type *) nullptr, size} {}
+                    mem_ {(impl::block_32<Type> *) nullptr, size} {}
 
                 fixed_item (fixed_item const &copy) :
-                    mem_ {(Type *) nullptr, copy.max_size()} {}
+                    mem_ {(impl::block_32<Type> *) nullptr, copy.max_size()} {}
 
                 template <class U>
                 fixed_item (fixed_item<U> const &copy) :
-                    mem_ {(Type *) nullptr, copy.max_size()} {}
+                    mem_ {(impl::block_32<Type> *) nullptr, copy.max_size()} {}
 
                 ~fixed_item ()
                 {
                     delete [] mem_.items;
-                    mem_.invalidate ();
+                    mem_.reset ();
                 }
 
             public:
@@ -41,9 +41,9 @@ namespace sequia { namespace memory { namespace allocator {
                 { 
                     if (!mem_)
                     {
-                        // TODO: don't use global heap...
-                        auto mem = new impl::block_32 <Type> [max_size ()]; 
-                        swap (mem_, memory::buffer<Type> (mem, max_size ()));
+                        auto size = max_size (); 
+                        auto data = new impl::block_32 <Type> [size]; // TODO: don't new
+                        mem_.reset (memory::buffer<impl::block_32 <Type>> (data, size)); 
 
                         auto index = 0;
                         for (auto &block : mem_)

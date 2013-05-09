@@ -28,7 +28,7 @@ namespace sequia { namespace memory { namespace allocator {
             ~fixed_buffer ()
             {
                 delete [] mem_.items;
-                mem_.invalidate ();
+                mem_.reset ();
             }
 
         public:
@@ -41,9 +41,9 @@ namespace sequia { namespace memory { namespace allocator {
             { 
                 if (!mem_) 
                 {
-                    // TODO: don't use global heap...
-                    auto mem = new Type [max_size ()]; 
-                    swap (mem_, memory::buffer<Type> (mem, max_size ()));
+                    auto size = max_size (); 
+                    auto data = new Type [size]; // TODO: don't use global heap...
+                    mem_.reset (memory::buffer<Type> (data, size));
                 }
 
                 return mem_.items;

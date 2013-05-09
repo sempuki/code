@@ -49,26 +49,22 @@ namespace sequia { namespace memory {
         buffer (static_buffer<U, N> &copy) :
             address {copy.address, N / sizeof (U)} {}
 
-        operator bool () const { return address != nullptr; }
-
-        void invalidate () { const_cast<void const *&> (address) = nullptr; }
-
+        operator bool () const { return address != nullptr && bytes != 0; }
         size_t size () const { return bytes / sizeof (Type); }
+        
+        template <typename U>
+        void reset (buffer<U> const &other)
+        { 
+            const_cast<void const *&> (address) = other.address; 
+            const_cast<size_t &> (bytes) = other.bytes; 
+        }
+        
+        void reset () 
+        { 
+            const_cast<void const *&> (address) = nullptr; 
+            const_cast<size_t &> (bytes) = 0; 
+        }
     };
-
-    //-------------------------------------------------------------------------
-
-    template <typename T, typename U>
-    void swap (buffer<T> &lhs, buffer<U> &rhs)
-    {
-        auto &address1 = const_cast<void const *&> (lhs.address);
-        auto &address2 = const_cast<void const *&> (rhs.address);
-        std::swap (address1, address2);
-
-        auto &bytes1 = const_cast<size_t &> (lhs.bytes);
-        auto &bytes2 = const_cast<size_t &> (rhs.bytes);
-        std::swap (bytes1, bytes2);
-    }
 
     //-------------------------------------------------------------------------
 

@@ -6,6 +6,16 @@ namespace sequia { namespace core {
     //=====================================================================
 
     //---------------------------------------------------------------------
+    // Weakening of const semantics where const object can be exchanged;
+    //   use with caution.
+
+    template <typename Type>
+    void const_swap (Type const &a, Type const &b)
+    {
+        std::swap (const_cast <Type &> (a), const_cast <Type &> (b));
+    }
+
+    //---------------------------------------------------------------------
     // Convenience alias for rebindable types
 
     template <typename Type, typename T>

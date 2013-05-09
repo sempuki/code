@@ -153,14 +153,14 @@ int main (int argc, char **argv)
     cout << endl;
 
     auto v2 = core::make_fixed_vector<int> (10);
-    //core::fixed_vector<int> v3 = v2;
+    core::fixed_vector<int> v3 = v2;
+    
+    for (int i=0; i < 10; ++i)
+        v3.push_back (i);
 
-    //for (int i=0; i < 10; ++i)
-    //    v3.push_back (i);
-
-    //for (int i=0; i < 10; i++)
-    //    cout << v3[i] << ",";
-    //cout << endl;
+    for (int i=0; i < 10; i++)
+        cout << v3[i] << ",";
+    cout << endl;
 
     core::static_map<int, int, 10> m1;
 
@@ -171,14 +171,14 @@ int main (int argc, char **argv)
         cout << m1[i] << ",";
     cout << endl;
 
-    //auto m2 = core::make_fixed_map<int,int> (10);
+    auto m2 = core::make_fixed_map<int,int> (10);
 
-    //for (int i=0; i < 10; ++i)
-    //    m2[i] = i;
+    for (int i=0; i < 10; ++i)
+        m2[i] = i;
 
-    //for (int i=0; i < 10; i++)
-    //    cout << m2[i] << ",";
-    //cout << endl;
+    for (int i=0; i < 10; i++)
+        cout << m2[i] << ",";
+    cout << endl;
 
     core::name n0 ("521");
     core::name n1 ("01293e121.,m.1e,23332l4k342oi7ccf");
