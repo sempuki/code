@@ -1,6 +1,9 @@
 #include <iostream>
+#include <typeinfo>
+#include <cxxabi.h>
 
-using namespace std;
+using std::cout;
+using std::endl;
 
 namespace memory 
 {
@@ -15,32 +18,42 @@ namespace memory
     {
         union 
         {
-            Type    *items;
-            uint8_t *bytes = nullptr;
+            Type *items = nullptr;
+            void const *address;
         };
 
-        size_t size = 0;
+        size_t bytes = 0;
 
-        buffer (uint8_t *data, size_t bytes) :
-            bytes {data}, size {bytes / sizeof (Type)} {}
+        buffer () {}
+
+        buffer (Type *data, size_t num_items) : 
+            items {data}, bytes {num_items * sizeof (Type)} {}
+
+        buffer (void const *data, size_t num_bytes) :
+            address {data}, bytes {num_bytes} {}
 
         template <typename U> 
         buffer (buffer<U> const &copy) :
-            buffer {copy.bytes, copy.size * sizeof (Type)} {}
+            buffer {copy.address, copy.bytes} {}
 
-        template <typename U> 
-        buffer &operator= (buffer<U> const &copy)
-        {
-            *this = buffer {copy};
-            return *this;
-        }
+        //operator bool () const { return address != nullptr && bytes != 0; }
+        size_t size () const { return bytes / sizeof (Type); }
     };
 
-    template <typename Type>
-    size_t byte_count (buffer<Type> const &buf) { return buf.size * sizeof (Type); }
+    struct bufdiff
+    {
+        ptrdiff_t addr;
+        size_t size;
+    };
 
-    template <typename Type>
-    size_t item_count (buffer<Type> const &buf) { return buf.size; }
+    template <typename T>
+    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(T); }
+
+    template <typename U, typename T>
+    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(U); }
+
+    template <typename T>
+    size_t count_bytes (buffer<T> const &buf) { return buf.bytes; }
 
     template <typename Type>
     Type *begin (buffer<Type> &buf) { return buf.items; }
@@ -49,10 +62,46 @@ namespace memory
     Type const *begin (buffer<Type> const &buf) { return buf.items; }
 
     template <typename Type>
-    Type *end (buffer<Type> &buf) { return buf.items + buf.size; }
+    Type *end (buffer<Type> &buf) { return begin (buf) + count (buf); }
 
     template <typename Type>
-    Type const *end (buffer<Type> const &buf) { return buf.items + buf.size; }
+    Type const *end (buffer<Type> const &buf) { return begin (buf) + count (buf); }
+
+    template <typename Type>
+    buffer<Type> shrink (buffer<Type> const &buf, int amount)
+    {
+        return buffer<Type> {begin (buf), count (buf) - amount};
+    }
+
+    template <typename Type>
+    buffer<Type> grow (buffer<Type> const &buf, int amount)
+    {
+        return buffer<Type> {begin (buf), count (buf) + amount};
+    }
+
+    template <typename Type>
+    buffer<Type> offset (buffer<Type> const &buf, int amount)
+    {
+        return buffer<Type> {begin (buf) + amount, count (buf)};
+    }
+
+    template <typename Type>
+    buffer<Type> advance (buffer<Type> const &buf, int amount = 1)
+    {
+        return buffer<Type> {begin (buf) + amount, count (buf) - amount};
+    }
+
+    template <typename Type>
+    buffer<Type> retreat (buffer<Type> const &buf, int amount = 1)
+    {
+        return buffer<Type> {begin (buf) - amount, count (buf) + amount};
+    }
+
+    template <typename Type>
+    bufdiff difference (buffer<Type> const &a, buffer<Type> const &b)
+    {
+        return {std::abs (begin (a) - begin (b)), std::abs (count (a) - count (b))};
+    }
 }
 
 namespace data { namespace map { 
@@ -64,9 +113,11 @@ namespace data { namespace map {
         {
             memory::buffer<Type> typed {buf};
 
+            cout << "writing: " << value << " to " << (uintptr_t) buf.items << endl;
+
+            //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
             *typed.items = value;
-            ++typed.items;
-            --typed.size;
+            buf = memory::advance (typed);
 
             return buf;
         }
@@ -76,9 +127,9 @@ namespace data { namespace map {
         {
              memory::buffer<Type> typed {buf};
 
+            //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
             value = *typed.items;
-            --typed.items;
-            ++typed.size;
+            buf = memory::retreat (typed);
 
             return buf;
         }
@@ -91,9 +142,9 @@ namespace data { namespace map {
         {
             memory::buffer<Type> typed {buf};
 
+            //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
             *typed.items = make_network_byte_order (value);
-            ++typed.items;
-            --typed.size;
+            buf = memory::advance (typed);
 
             return buf;
         }
@@ -101,11 +152,11 @@ namespace data { namespace map {
         template <typename Type>
         memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, Type &value)
         {
-             memory::buffer<Type> typed {buf};
+            memory::buffer<Type> typed {buf};
 
+            //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
             value = make_host_byte_order (*typed.items);
-            --typed.items;
-            ++typed.size;
+            buf = memory::retreat (typed);
 
             return buf;
         }
@@ -127,19 +178,21 @@ namespace core {
             stream &operator<< (T const &item)
             {
                 buf_.items[write_] << item;
-                ++write_ %= buf_.size;
+                ++write_ %= count (buf_);
                 ++size_;
+                return *this;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
                 buf_.items[read_] >> item;
-                ++read_ %= buf_.size;
+                ++read_ %= count (buf_);
                 --size_;
+                return *this;
             }
 
-            bool full () const { return size_ == buf_.size; }
+            bool full () const { return size_ == count (buf_); }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 
@@ -153,34 +206,36 @@ namespace core {
     {
         public:
             stream (memory::buffer<uint8_t> const &buf)
-                : buf_ {buf}, read_ {buf}, write_ {buf}, size_ {0} 
+                : buf_ {buf}, read_ {0}, write_ {0}, size_ {0} 
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                auto next = write_ << item;
-                auto size = next - write_;
-                write_ = next % buf_.size;
-                size_ += size;
+                auto curr = (memory::advance (buf_, write_) << item);
+                auto size = (memory::difference (buf_, curr).addr);
+                write_ += size;
+                write_ %= count (buf_);
+                size_ += size;;
+                return *this;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
-                auto next = read_ >> item;
-                auto size = next - read_;
-                read_ = next % buf_.size;
-                size_ -= size;
+                //offset (buf_, read_) >> item;
+                //++read_ %= count (buf_);
+                //--size_;
+                return *this;
             }
 
-            bool full () const { return size_ == buf_.size; }
+            bool full () const { return size_ == count (buf_); }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 
         private:
-            memory::buffer<uint8_t> buf_, read_, write_;
-            int size_;
+            memory::buffer<uint8_t> buf_;
+            int size_, read_, write_;
     };
 
     template <>
@@ -193,15 +248,22 @@ namespace core {
 
 int main (int argc, char **argv)
 {
-    using data::map::native::operator<<;
+    using namespace data::map::native;
 
-    uint8_t memory[16];
-    memory::buffer<uint8_t> buf {memory, 16};
-    buf << (int32_t) 0xABCDDCBA;
-    cout << "size: " << buf.size << endl;
+    size_t size = 16;
+    uint8_t memory[size];
 
-    for (int i : buf)
-        cout << std::hex << i << endl;
+    std::fill_n (memory, size, 0);
+    core::stream<uint8_t> stream {{memory, size}};
+
+    stream << (int32_t) 0xABCDDCBA;
+    stream << (int32_t) 0xFF00FF00;
+    stream << (int32_t) 0x00FF00FF;
+    stream << (int32_t) 0xAABBAABB;
+
+    std::cout << std::hex;
+    for (int i : memory)
+        std::cout << i << std::endl;
 
     return 0;
 }
