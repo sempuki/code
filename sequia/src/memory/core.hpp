@@ -29,6 +29,8 @@ namespace sequia { namespace memory {
 
         size_t const bytes = 0;
 
+        buffer () {}
+
         buffer (Type *data, size_t num_items) : 
             items {data}, bytes {num_items * sizeof (Type)} {}
 
@@ -52,17 +54,10 @@ namespace sequia { namespace memory {
         operator bool () const { return address != nullptr && bytes != 0; }
         size_t size () const { return bytes / sizeof (Type); }
         
-        template <typename U>
-        void reset (buffer<U> const &other)
+        void reset (buffer<Type> const &other = {})
         { 
             const_cast<void const *&> (address) = other.address; 
             const_cast<size_t &> (bytes) = other.bytes; 
-        }
-        
-        void reset () 
-        { 
-            const_cast<void const *&> (address) = nullptr; 
-            const_cast<size_t &> (bytes) = 0; 
         }
     };
 

@@ -41,9 +41,8 @@ namespace sequia { namespace memory { namespace allocator {
             { 
                 if (!mem_) 
                 {
-                    auto size = max_size (); 
-                    auto data = new Type [size]; // TODO: don't use global heap...
-                    mem_.reset (memory::buffer<Type> (data, size));
+                    auto const N = max_size ();
+                    mem_.reset ({new Type [N], N}); // TODO: don't use global heap...
                 }
 
                 return mem_.items;

@@ -41,9 +41,8 @@ namespace sequia { namespace memory { namespace allocator {
                 { 
                     if (!mem_)
                     {
-                        auto size = max_size (); 
-                        auto data = new impl::block_32 <Type> [size]; // TODO: don't new
-                        mem_.reset (memory::buffer<impl::block_32 <Type>> (data, size)); 
+                        auto const N = max_size ();
+                        mem_.reset ({new impl::block_32 <Type> [N], N}); // TODO: don't new
 
                         auto index = 0;
                         for (auto &block : mem_)
