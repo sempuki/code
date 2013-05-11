@@ -36,15 +36,21 @@ namespace memory
         buffer (buffer<U> const &copy) :
             buffer {copy.address, copy.bytes} {}
 
-        //operator bool () const { return address != nullptr && bytes != 0; }
+        operator bool () const { return address != nullptr && bytes != 0; }
         size_t size () const { return bytes / sizeof (Type); }
     };
 
     struct bufdiff
     {
-        ptrdiff_t addr;
+        size_t addr;
         size_t size;
     };
+
+    template <typename Type>
+    void print (std::ostream &out, buffer<Type> const &buf)
+    {
+        out << std::hex << (intptr_t) buf.address << " (" << std::dec << buf.bytes << ")\n";
+    }
 
     template <typename T>
     size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(T); }
@@ -68,31 +74,31 @@ namespace memory
     Type const *end (buffer<Type> const &buf) { return begin (buf) + count (buf); }
 
     template <typename Type>
-    buffer<Type> shrink (buffer<Type> const &buf, int amount)
+    buffer<Type> shrink (buffer<Type> &buf, int amount)
     {
         return buffer<Type> {begin (buf), count (buf) - amount};
     }
 
     template <typename Type>
-    buffer<Type> grow (buffer<Type> const &buf, int amount)
+    buffer<Type> grow (buffer<Type> &buf, int amount)
     {
         return buffer<Type> {begin (buf), count (buf) + amount};
     }
 
     template <typename Type>
-    buffer<Type> offset (buffer<Type> const &buf, int amount)
+    buffer<Type> offset (buffer<Type> &buf, int amount)
     {
         return buffer<Type> {begin (buf) + amount, count (buf)};
     }
 
     template <typename Type>
-    buffer<Type> advance (buffer<Type> const &buf, int amount = 1)
+    buffer<Type> advance (buffer<Type> &buf, int amount = 1)
     {
         return buffer<Type> {begin (buf) + amount, count (buf) - amount};
     }
 
     template <typename Type>
-    buffer<Type> retreat (buffer<Type> const &buf, int amount = 1)
+    buffer<Type> retreat (buffer<Type> &buf, int amount = 1)
     {
         return buffer<Type> {begin (buf) - amount, count (buf) + amount};
     }
@@ -100,7 +106,9 @@ namespace memory
     template <typename Type>
     bufdiff difference (buffer<Type> const &a, buffer<Type> const &b)
     {
-        return {std::abs (begin (a) - begin (b)), std::abs (count (a) - count (b))};
+        ptrdiff_t ptrdiff = begin (a) - begin (b); 
+        ssize_t sizediff = count (a) - count (b);
+        return {(size_t) std::abs (ptrdiff), (size_t) std::abs (sizediff)};
     }
 }
 
@@ -113,7 +121,7 @@ namespace data { namespace map {
         {
             memory::buffer<Type> typed {buf};
 
-            cout << "writing: " << value << " to " << (uintptr_t) buf.items << endl;
+            cout << std::hex << value << " -> " << (uintptr_t) buf.items << "\n";
 
             //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
             *typed.items = value;
@@ -164,6 +172,8 @@ namespace data { namespace map {
 
 } }
 
+using namespace data::map::native;
+
 namespace core {
 
     template <typename E>
@@ -206,36 +216,30 @@ namespace core {
     {
         public:
             stream (memory::buffer<uint8_t> const &buf)
-                : buf_ {buf}, read_ {0}, write_ {0}, size_ {0} 
+                : readbuf_ {buf}, writebuf_ {buf}, max_ {buf.bytes}
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                auto curr = (memory::advance (buf_, write_) << item);
-                auto size = (memory::difference (buf_, curr).addr);
-                write_ += size;
-                write_ %= count (buf_);
-                size_ += size;;
+                writebuf_ << item;
                 return *this;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
-                //offset (buf_, read_) >> item;
-                //++read_ %= count (buf_);
-                //--size_;
+                readbuf_ >> item;
                 return *this;
             }
 
-            bool full () const { return size_ == count (buf_); }
-            bool empty () const { return size_ == 0; }
-            int size () const { return size_; }
+            bool full () const { return begin (writebuf_) - begin (readbuf_) == max_; }
+            bool empty () const { return begin (writebuf_) - begin (readbuf_) == 0; }
+            int size () const { return begin (writebuf_) - begin (readbuf_); }
 
         private:
-            memory::buffer<uint8_t> buf_;
-            int size_, read_, write_;
+            memory::buffer<uint8_t> readbuf_, writebuf_;
+            size_t max_;
     };
 
     template <>
@@ -248,8 +252,6 @@ namespace core {
 
 int main (int argc, char **argv)
 {
-    using namespace data::map::native;
-
     size_t size = 16;
     uint8_t memory[size];
 
@@ -261,9 +263,9 @@ int main (int argc, char **argv)
     stream << (int32_t) 0x00FF00FF;
     stream << (int32_t) 0xAABBAABB;
 
-    std::cout << std::hex;
+    cout << std::hex;
     for (int i : memory)
-        std::cout << i << std::endl;
+        cout << i << endl;
 
     return 0;
 }
