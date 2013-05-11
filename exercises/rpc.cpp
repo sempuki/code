@@ -86,21 +86,21 @@ namespace memory
     }
 
     template <typename Type>
-    buffer<Type> offset (buffer<Type> &buf, int amount)
+    buffer<Type> advance (buffer<Type> &buf, int amount)
     {
         return buffer<Type> {begin (buf) + amount, count (buf)};
     }
 
     template <typename Type>
-    buffer<Type> advance (buffer<Type> &buf, int amount = 1)
+    buffer<Type> retreat (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf) + amount, count (buf) - amount};
+        return buffer<Type> {begin (buf) - amount, count (buf)};
     }
 
     template <typename Type>
-    buffer<Type> retreat (buffer<Type> &buf, int amount = 1)
+    buffer<Type> offset (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf) - amount, count (buf) + amount};
+        return buffer<Type> {begin (buf) + amount, count (buf) - amount};
     }
 
     template <typename Type>
@@ -121,11 +121,9 @@ namespace data { namespace map {
         {
             memory::buffer<Type> typed {buf};
 
-            cout << std::hex << value << " -> " << (uintptr_t) buf.items << "\n";
-
             //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
             *typed.items = value;
-            buf = memory::advance (typed);
+            buf = memory::offset (typed, 1);
 
             return buf;
         }
@@ -137,7 +135,7 @@ namespace data { namespace map {
 
             //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
             value = *typed.items;
-            buf = memory::retreat (typed);
+            buf = memory::offset (typed, 1);
 
             return buf;
         }
@@ -152,7 +150,7 @@ namespace data { namespace map {
 
             //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
             *typed.items = make_network_byte_order (value);
-            buf = memory::advance (typed);
+            buf = memory::offset (typed, 1);
 
             return buf;
         }
@@ -164,7 +162,7 @@ namespace data { namespace map {
 
             //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
             value = make_host_byte_order (*typed.items);
-            buf = memory::retreat (typed);
+            buf = memory::offset (typed, 1);
 
             return buf;
         }
