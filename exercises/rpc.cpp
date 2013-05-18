@@ -7,6 +7,8 @@ using std::endl;
 
 namespace memory 
 {
+    // TODO: specialize template for ntoh/hton type or passthrough
+
     template <typename Type>
     Type make_network_byte_order (Type value) { return value; }
 
@@ -40,26 +42,11 @@ namespace memory
         size_t size () const { return bytes / sizeof (Type); }
     };
 
-    struct bufdiff
-    {
-        size_t addr;
-        size_t size;
-    };
-
-    template <typename Type>
-    void print (std::ostream &out, buffer<Type> const &buf)
-    {
-        out << std::hex << (intptr_t) buf.address << " (" << std::dec << buf.bytes << ")\n";
-    }
-
     template <typename T>
-    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(T); }
+    size_t size (buffer<T> const &buf) { return buf.bytes / sizeof(T); }
 
     template <typename U, typename T>
-    size_t count (buffer<T> const &buf) { return buf.bytes / sizeof(U); }
-
-    template <typename T>
-    size_t count_bytes (buffer<T> const &buf) { return buf.bytes; }
+    size_t size (buffer<T> const &buf) { return buf.bytes / sizeof(U); }
 
     template <typename Type>
     Type *begin (buffer<Type> &buf) { return buf.items; }
@@ -68,101 +55,126 @@ namespace memory
     Type const *begin (buffer<Type> const &buf) { return buf.items; }
 
     template <typename Type>
-    Type *end (buffer<Type> &buf) { return begin (buf) + count (buf); }
+    Type *end (buffer<Type> &buf) { return begin (buf) + size (buf); }
 
     template <typename Type>
-    Type const *end (buffer<Type> const &buf) { return begin (buf) + count (buf); }
+    Type const *end (buffer<Type> const &buf) { return begin (buf) + size (buf); }
 
     template <typename Type>
     buffer<Type> shrink (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf), count (buf) - amount};
+        return {begin (buf), size (buf) - amount};
     }
 
     template <typename Type>
     buffer<Type> grow (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf), count (buf) + amount};
+        return {begin (buf), size (buf) + amount};
     }
 
     template <typename Type>
     buffer<Type> advance (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf) + amount, count (buf)};
+        return {begin (buf) + amount, size (buf)};
     }
 
     template <typename Type>
     buffer<Type> retreat (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf) - amount, count (buf)};
+        return {begin (buf) - amount, size (buf)};
     }
 
     template <typename Type>
     buffer<Type> offset (buffer<Type> &buf, int amount)
     {
-        return buffer<Type> {begin (buf) + amount, count (buf) - amount};
+        return {begin (buf) + amount, size (buf) - amount};
     }
 
-    template <typename Type>
-    bufdiff difference (buffer<Type> const &a, buffer<Type> const &b)
+    template <typename T, typename U>
+    bool is_before (buffer<T> const &a, buffer<U> const &b)
     {
-        ptrdiff_t ptrdiff = begin (a) - begin (b); 
-        ssize_t sizediff = count (a) - count (b);
-        return {(size_t) std::abs (ptrdiff), (size_t) std::abs (sizediff)};
+        return a.address < b.address;
+    }
+
+    template <typename T, typename U>
+    bool is_smaller (buffer<T> const &a, buffer<U> const &b)
+    {
+        return a.bytes < b.bytes;
+    }
+
+    template <typename T, typename U>
+    ptrdiff_t distance (buffer<T> const &a, buffer<U> const &b)
+    {
+        return reinterpret_cast<intptr_t> (b.address) - 
+            reinterpret_cast<intptr_t> (a.address);
+    }
+    
+    template <typename T, typename U>
+    ssize_t difference (buffer<T> const &a, buffer<U> const &b)
+    {
+        return b.bytes - a.bytes;
     }
 }
 
-namespace data { namespace map { 
+namespace data { namespace map {
 
-    namespace native 
+    namespace basic
     {
-        template <typename Type>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, Type value)
+        template <typename T>
+        memory::buffer<T> &operator<< (memory::buffer<T> &buf, T value)
         {
-            memory::buffer<Type> typed {buf};
-
-            //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
-            *typed.items = value;
-            buf = memory::offset (typed, 1);
+            if (buf.bytes >= sizeof (T))
+            {
+                *begin (buf) = value; 
+                buf = offset (buf, 1);
+            }
+            else
+                buf = {};
 
             return buf;
         }
 
-        template <typename Type>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, Type &value)
+        template <typename T>
+        memory::buffer<T> &operator>> (memory::buffer<T> &buf, T &value)
         {
-             memory::buffer<Type> typed {buf};
-
-            //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
-            value = *typed.items;
-            buf = memory::offset (typed, 1);
+            if (buf.bytes >= sizeof (T))
+            {
+                value = *begin (buf);
+                buf = offset (buf, 1);
+            }
+            else
+                buf = {};
 
             return buf;
         }
     }
 
-    namespace network 
+    namespace network
     {
-        template <typename Type>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, Type value)
+        template <typename T>
+        memory::buffer<T> &operator<< (memory::buffer<T> &buf, T value)
         {
-            memory::buffer<Type> typed {buf};
-
-            //ASSERTF (typed.size(), "no room to write type size of %d", sizeof (Type));
-            *typed.items = make_network_byte_order (value);
-            buf = memory::offset (typed, 1);
+            if (buf.bytes >= sizeof (T))
+            {
+                *begin (buf) = make_network_byte_order (value); 
+                buf = offset (buf, 1);
+            }
+            else
+                buf = {};
 
             return buf;
         }
 
-        template <typename Type>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, Type &value)
+        template <typename T>
+        memory::buffer<T> &operator>> (memory::buffer<T> &buf, T &value)
         {
-            memory::buffer<Type> typed {buf};
-
-            //ASSERTF (typed.size(), "no room to read type size of %d", sizeof (Type));
-            value = make_host_byte_order (*typed.items);
-            buf = memory::offset (typed, 1);
+            if (buf.bytes >= sizeof (T))
+            {
+                value = make_host_byte_order (*begin (buf));
+                buf = offset (buf, 1);
+            }
+            else
+                buf = {};
 
             return buf;
         }
@@ -170,12 +182,48 @@ namespace data { namespace map {
 
 } }
 
-using namespace data::map::native;
-
 namespace core {
 
-    template <typename E>
-    class stream
+    namespace policy { namespace data { namespace dispatch {
+
+        struct basic
+        {
+            template <typename Destination, typename Type>
+            Destination &on_insert (Destination &destination, Type input)
+            {
+                using ::data::map::basic::operator<<;
+                return destination << input;
+            }
+            
+            template <typename Source, typename Type>
+            Source &on_extract (Source &source, Type &output)
+            {
+                using ::data::map::basic::operator>>;
+                return source >> output;
+            }
+        };
+
+        struct network
+        {
+            template <typename Destination, typename Type>
+            Destination &on_insert (Destination &destination, Type input)
+            {
+                using ::data::map::network::operator<<;
+                return destination << input;
+            }
+            
+            template <typename Source, typename Type>
+            Source &on_extract (Source &source, Type &output)
+            {
+                using ::data::map::network::operator>>;
+                return source >> output;
+            }
+        };
+
+    } } }
+
+    template <typename E, typename Dispatcher>
+    class stream : private Dispatcher
     {
         public:
             stream (memory::buffer<E> const &buf)
@@ -185,22 +233,26 @@ namespace core {
             template <typename T>
             stream &operator<< (T const &item)
             {
-                buf_.items[write_] << item;
-                ++write_ %= count (buf_);
+                Dispatcher::on_insert (buf_.items[write_], item);
+
+                ++write_ %= size (buf_);
                 ++size_;
+
                 return *this;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
-                buf_.items[read_] >> item;
-                ++read_ %= count (buf_);
+                Dispatcher::on_extract (buf_.items[read_], item);
+
+                ++read_ %= size (buf_);
                 --size_;
+
                 return *this;
             }
 
-            bool full () const { return size_ == count (buf_); }
+            bool full () const { return size_ == size (buf_); }
             bool empty () const { return size_ == 0; }
             int size () const { return size_; }
 
@@ -209,43 +261,77 @@ namespace core {
             int size_, read_, write_;
     };
 
-    template <>
-    class stream <uint8_t>
+    template <typename Dispatcher>
+    class stream <uint8_t, Dispatcher> : private Dispatcher
     {
         public:
             stream (memory::buffer<uint8_t> const &buf)
-                : readbuf_ {buf}, writebuf_ {buf}, max_ {buf.bytes}
+                : buf_ {buf}, read_ {begin (buf), 0}, write_ {buf}
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                writebuf_ << item;
+                memory::buffer<T> curr {write_};
+                memory::buffer<T> next = Dispatcher::on_insert (curr, item);
+
+                if (!next && is_before (read_, write_))
+                {
+                    auto window_size = (size_t) std::abs (distance (buf_, read_));
+                    curr = {buf_.address, window_size};
+                    next = Dispatcher::on_insert (curr, item);
+                }
+
+                if (next) 
+                {
+                    size_ += distance (curr, next);
+                    write_ = next;
+                }
+
                 return *this;
             }
 
             template <typename T>
             stream &operator>> (T &item)
             {
-                readbuf_ >> item;
+                memory::buffer<T> curr {read_};
+                memory::buffer<T> next = Dispatcher::on_extract (curr, item);
+
+                if (!next && is_before (write_, read_))
+                {
+                    auto window_size = (size_t) std::abs (distance (buf_, read_));
+                    curr = {buf_.address, window_size};
+                    next = Dispatcher::on_extract (curr, item);
+                }
+
+                if (next) 
+                {
+                    size_ -= distance (curr, next);
+                    read_ = next;
+                }
+
                 return *this;
             }
 
-            bool full () const { return begin (writebuf_) - begin (readbuf_) == max_; }
-            bool empty () const { return begin (writebuf_) - begin (readbuf_) == 0; }
-            int size () const { return begin (writebuf_) - begin (readbuf_); }
+            bool full () const { return size_ == size (buf_); }
+            bool empty () const { return size_ == 0; }
+            int size () const { return size_; }
 
         private:
-            memory::buffer<uint8_t> readbuf_, writebuf_;
-            size_t max_;
+            memory::buffer<uint8_t> buf_, read_, write_;
+            int size_;
     };
 
-    template <>
-    class stream <bool>
+    template <typename Dispatcher>
+    class stream <bool, Dispatcher> : private Dispatcher
     {
         // TODO
     };
 
+    template <typename E>
+    using basicstream = stream <E, policy::data::dispatch::basic>;
+    using bytestream = stream <uint8_t, policy::data::dispatch::basic>;
+    using bitstream = stream <bool, policy::data::dispatch::basic>;
 }
 
 int main (int argc, char **argv)
@@ -254,7 +340,7 @@ int main (int argc, char **argv)
     uint8_t memory[size];
 
     std::fill_n (memory, size, 0);
-    core::stream<uint8_t> stream {{memory, size}};
+    core::bytestream stream {{memory, size}};
 
     stream << (int32_t) 0xABCDDCBA;
     stream << (int32_t) 0xFF00FF00;
