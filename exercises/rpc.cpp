@@ -272,20 +272,21 @@ namespace core {
             template <typename T>
             stream &operator<< (T const &item)
             {
-                memory::buffer<T> curr {write_};
-                memory::buffer<T> next = Dispatcher::on_insert (curr, item);
+                memory::buffer<T> basebuf, writebuf;
 
-                if (!next && is_before (read_, write_))
+                basebuf = writebuf = write_;
+                Dispatcher::on_insert (writebuf, item);
+
+                if (!writebuf && is_before (read_, write_))
                 {
-                    auto window_size = (size_t) std::abs (distance (buf_, read_));
-                    curr = {buf_.address, window_size};
-                    next = Dispatcher::on_insert (curr, item);
+                    basebuf = writebuf = {buf_.address, (size_t) distance (buf_, read_)};
+                    Dispatcher::on_insert (writebuf, item);
                 }
 
-                if (next) 
+                if (writebuf) 
                 {
-                    size_ += distance (curr, next);
-                    write_ = next;
+                    size_ += distance (basebuf, writebuf);
+                    write_ = writebuf;
                 }
 
                 return *this;
@@ -294,20 +295,21 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                memory::buffer<T> curr {read_};
-                memory::buffer<T> next = Dispatcher::on_extract (curr, item);
+                memory::buffer<T> basebuf, readbuf;
+                    
+                basebuf = readbuf = read_;
+                Dispatcher::on_extract (basebuf, item);
 
-                if (!next && is_before (write_, read_))
+                if (!readbuf && is_before (write_, read_))
                 {
-                    auto window_size = (size_t) std::abs (distance (buf_, read_));
-                    curr = {buf_.address, window_size};
-                    next = Dispatcher::on_extract (curr, item);
+                    basebuf = readbuf = {buf_.address, (size_t) distance (buf_, write_)};
+                    Dispatcher::on_extract (readbuf, item);
                 }
 
-                if (next) 
+                if (readbuf) 
                 {
-                    size_ -= distance (curr, next);
-                    read_ = next;
+                    size_ -= distance (basebuf, readbuf);
+                    read_ = readbuf;
                 }
 
                 return *this;
