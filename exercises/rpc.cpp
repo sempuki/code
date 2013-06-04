@@ -15,6 +15,8 @@ namespace memory
     template <typename Type>
     Type make_host_byte_order (Type value) { return value; }
 
+    // buffer =================================================================
+    
     template <typename Type>
     struct buffer
     {
@@ -27,7 +29,7 @@ namespace memory
 
         size_t bytes = 0;
 
-        buffer () {}
+        buffer () = default;
 
         buffer (Type *data, size_t num_items) : 
             items {data}, bytes {num_items * sizeof (Type)} {}
@@ -45,7 +47,7 @@ namespace memory
         buffer (buffer<U> const &copy) :
             buffer {copy.pointer, copy.bytes} {}
 
-        operator bool () const { return pointer != nullptr; }
+        explicit operator bool () const { return pointer != nullptr; }
         size_t size () const { return bytes / sizeof (Type); }
     };
 
@@ -108,81 +110,139 @@ namespace memory
     {
         return a.bytes < b.bytes;
     }
+    
+    // bit buffer ============================================================
+    
+    struct bitbuffer
+    {
+        uint8_t *base = nullptr;
+        uint16_t offset = 0;
+        uint16_t limit = 0;
+
+        bitbuffer () = default;
+
+        bitbuffer (uint8_t *data, uint16_t size) : 
+            base {data}, limit {size * sizeof (uint8_t)} {}
+
+        bitbuffer (uint8_t *begin, uint8_t *end) : 
+            base {begin}, limit {(end - begin) * sizeof (uint8_t)} {}
+    };
+
+    size_t size (bitbuffer const &buf)
+    {
+        return buf.limit - buf.offset;
+    }
 }
 
 namespace data { namespace map {
 
     namespace native
     {
-        // Buffer .............................................................
+        // buffer .............................................................
 
         template <typename T>
-        size_t commit_size (memory::buffer<T> const &buf, T value)
+        size_t commit_size (memory::buffer<uint8_t> const &buf, T value)
         {
             return sizeof (value);
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<T> const &buf, T value)
+        bool can_insert (memory::buffer<uint8_t> const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<T> &operator<< (memory::buffer<T> &buf, T value)
+        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
         {
-            *begin (buf) = value; 
-            return buf = offset (buf, 1);
+            memory::buffer<T> typed = buf;
+            *begin (typed) = value; 
+            return buf = offset (typed, 1);
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<T> const &buf, T value)
+        bool can_extract (memory::buffer<uint8_t> const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<T> &operator>> (memory::buffer<T> &buf, T &value)
+        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
         {
-            value = *begin (buf); 
-            return buf = offset (buf, 1);
+            memory::buffer<T> typed = buf;
+            value = *begin (typed); 
+            return buf = offset (typed, 1);
+        }
+
+        // bitbuffer  .........................................................
+
+        template <typename T>
+        size_t commit_size (memory::bitbuffer const &buf, T value)
+        {
+            return sizeof (value);
+        }
+
+        template <typename T>
+        bool can_insert (memory::bitbuffer const &buf, T value)
+        {
+            return (size (buf) / 8) >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
+        {
+            return buf;
+        }
+
+        template <typename T>
+        bool can_extract (memory::bitbuffer const &buf, T value)
+        {
+            return (size (buf) / 8) >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bitbuffer &operator>> (memory::bitbuffer &buf, T &value)
+        {
+            return buf;
         }
     }
 
     namespace network
     {
-        // Buffer .............................................................
+        // buffer .............................................................
 
         template <typename T>
-        size_t commit_size (memory::buffer<T> &buf, T value)
+        size_t commit_size (memory::buffer<uint8_t> &buf, T value)
         {
             return sizeof (value);
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<T> &buf, T value)
+        bool can_insert (memory::buffer<uint8_t> &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<T> &operator<< (memory::buffer<T> &buf, T value)
+        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
         {
-            *begin (buf) = make_network_byte_order (value); 
-            return buf = offset (buf, 1);
+            memory::buffer<T> typed = buf;
+            *begin (typed) = make_network_byte_order (value); 
+            return buf = offset (typed, 1);
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<T> &buf, T value)
+        bool can_extract (memory::buffer<uint8_t> &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<T> &operator>> (memory::buffer<T> &buf, T &value)
+        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
         {
-            value = make_host_byte_order (*begin (buf)); 
-            return buf = offset (buf, 1);
+            memory::buffer<T> typed = buf;
+            value = make_host_byte_order (*begin (typed)); 
+            return buf = offset (typed, 1);
         }
     }
 
@@ -275,16 +335,20 @@ namespace core {
     {
         public:
             stream (memory::buffer<E> const &buf)
-                : buf_ {buf}, size_ {0}, rdpos_ {0}, wrpos_ {0} 
+                : buf_ {buf}
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                IO::insert (buf_.items[wrpos_], item);
+                if (wrpos_ != size (buf_))
+                {
+                    IO::insert (buf_.items[wrpos_], item);
 
-                ++wrpos_ %= size (buf_);
-                ++size_;
+                    ++wrpos_ %= size (buf_);
+                    ++size_;
+                }
+                // TODO: set error flags
 
                 return *this;
             }
@@ -292,10 +356,14 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                IO::extract (buf_.items[rdpos_], item);
+                if (rdpos_ != wrpos_)
+                {
+                    IO::extract (buf_.items[rdpos_], item);
 
-                ++rdpos_ %= size (buf_);
-                --size_;
+                    ++rdpos_ %= size (buf_);
+                    --size_;
+                }
+                // TODO: set error flags
 
                 return *this;
             }
@@ -303,12 +371,15 @@ namespace core {
             bool full () const { return size_ == size (buf_); }
             bool empty () const { return size_ == 0; }
 
-            size_t in_capacity () const { return size_; }
-            size_t out_capacity () const { return size (buf_) - size_; } 
+            size_t capacity () const { return size (buf_); }
+            size_t occupied () const { return size_; }
+            size_t vacant () const { return size (buf_) - size_; } 
+
+            void reset () { size_ = rdpos_ = wrpos_ = 0; }
 
         private:
             memory::buffer<E> buf_;
-            int size_, rdpos_, wrpos_;
+            size_t size_ = 0, rdpos_ = 0, wrpos_ = 0;
     };
 
     template <typename IO>
@@ -316,28 +387,22 @@ namespace core {
     {
         public:
             stream (memory::buffer<uint8_t> const &buf)
-                : buf_ {buf}, rdpos_ {0}, wrpos_ {0}, size_ {0}
+                : buf_ {buf}
             {}
 
             template <typename T>
             stream &operator<< (T const &item)
             {
-                auto forward = rdpos_ <= wrpos_;
-                auto rdbegin = begin (buf_) + rdpos_;
                 auto wrbegin = begin (buf_) + wrpos_;
-                auto wrend = forward? end (buf_) : rdbegin;
-                auto wrbuf = memory::buffer<T> {wrbegin, wrend};
-
-                if (!IO::can_insert (wrbuf, item) && forward) // try wrap-around
-                    wrbuf = {begin (buf_), rdbegin};
+                auto wrend = end (buf_);
+                memory::buffer<uint8_t> wrbuf {wrbegin, wrend};
 
                 if (IO::can_insert (wrbuf, item))
                 {
                     IO::insert (wrbuf, item);
-                    wrpos_ = wrbuf.address - buf_.address;
-                    size_ += IO::commit_size (wrbuf, item);
+                    wrpos_ += IO::commit_size (wrbuf, item);
                 }
-                // TODO: else set error flags
+                // TODO: set error flags
 
                 return *this;
             }
@@ -345,42 +410,78 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                auto forward = rdpos_ <= wrpos_;
-                auto wrbegin = begin (buf_) + wrpos_;
                 auto rdbegin = begin (buf_) + rdpos_;
-                auto rdend = forward? wrbegin : end (buf_);
-
-                auto rdbuf = memory::buffer<T> {rdbegin, rdend};
-
-                if (!IO::can_extract (rdbuf, item) && !forward) // try wrap-around
-                    rdbuf = {begin (buf_), wrbegin};
+                auto rdend = begin (buf_) + wrpos_;
+                memory::buffer<uint8_t> rdbuf {rdbegin, rdend};
 
                 if (IO::can_extract (rdbuf, item))
                 {
                     IO::extract (rdbuf, item);
-                    rdpos_ = rdbuf.address - buf_.address;
-                    size_ -= IO::commit_size (rdbuf, item);
+                    rdpos_ += IO::commit_size (rdbuf, item);
                 }
-                // TODO: else set error flags
+                // TODO: set error flags
 
                 return *this;
             }
 
-            bool full () const { return size_ == 0; }
-            bool empty () const { return size_ == 0; }
+            bool full () const { return wrpos_ == size (buf_); }
+            bool empty () const { return wrpos_ == rdpos_; }
 
-            size_t in_capacity () const { return size_; }
-            size_t out_capacity () const { return size (buf_) - size_; } 
+            size_t capacity () const { return size (buf_); }
+            size_t occupied () const { return wrpos_ - rdpos_; }
+            size_t vacant () const { return size (buf_) - wrpos_; } 
+
+            void reset () { rdpos_ = wrpos_ = 0; }
 
         private:
-            memory::buffer<uint8_t> buf_;//, rdbuf_, wrbuf_;
-            int rdpos_, wrpos_, size_;
+            memory::buffer<uint8_t> buf_;
+            size_t rdpos_ = 0, wrpos_ = 0;
     };
 
     template <typename IO>
     class stream <bool, IO> : private IO
     {
-        // TODO
+        public:
+            stream (memory::buffer<uint8_t> const &buf)
+                : buf_ {buf}
+            {}
+
+            template <typename T>
+            stream &operator<< (T const &item)
+            {
+                auto 
+                return *this;
+            }
+
+            template <typename T>
+            stream &operator>> (T &item)
+            {
+                auto rdbegin = begin (buf_) + rdpos_;
+                auto rdend = begin (buf_) + wrpos_;
+                memory::buffer<uint8_t> rdbuf {rdbegin, rdend};
+
+                if (IO::can_extract (rdbuf, item))
+                {
+                    IO::extract (rdbuf, item);
+                    rdpos_ += IO::commit_size (rdbuf, item);
+                }
+                // TODO: set error flags
+
+                return *this;
+            }
+
+            bool full () const { return wrpos_ == size (buf_); }
+            bool empty () const { return wrpos_ == rdpos_; }
+
+            size_t capacity () const { return size (buf_); }
+            size_t occupied () const { return wrpos_ - rdpos_; }
+            size_t vacant () const { return size (buf_) - wrpos_; } 
+
+            void reset () { rdpos_ = wrpos_ = 0; }
+
+        private:
+            memory::buffer<uint8_t> buf_;
+            size_t rdpos_ = 0, wrpos_ = 0;
     };
 
     template <typename E>
@@ -402,12 +503,12 @@ int main (int argc, char **argv)
     stream << (int32_t) 0x00FF00FF;
     stream << (int32_t) 0xAABBAABB;
 
-    //for (uint8_t i = 0; i < size; ++i)
-    //    stream << i;
-
     uint8_t i = 0;
     while (!stream.empty ())
         stream >> i, cout << std::hex << (int) i << endl;
+
+    for (uint8_t i = 0; i < 16; ++i)
+        stream << i;
 
     cout << std::hex;
     for (int i : memory)
