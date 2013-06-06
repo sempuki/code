@@ -140,6 +140,81 @@ namespace memory
     uint8_t const *end (bitbuffer const &buf) { return buf.base + (buf.limit >> 3); }
 }
 
+namespace data { namespace encoding { namespace bit {
+
+    enum class type : uint8_t
+    {
+        zero,       //  0000
+        one,        //  0001
+        fixedu4,    //  0010
+        fixeds4,    //  0011
+        fixedu8,    //  0100
+        fixeds8,    //  0101
+        fixedu16,   //  0110
+        fixeds16,   //  0111
+        fixedu32,   //  1000
+        fixeds32,   //  1001
+        fixedu64,   //  1010
+        fixeds64,   //  1011
+        fixedu128,  //  1100
+        fixedu256,  //  1101
+        variable8,  //  1110
+        variable12, //  1111
+        error       // 10000
+    };
+
+    uint8_t type_to_encoding (type header) { return static_cast <uint8_t> (header); }
+    type encoding_to_type (uint8_t header) { return static_cast <type> (header & 0x0F); }
+
+    bool is_constant (uint8_t header) { return header < 0x02; }
+    bool is_fixed (uint8_t header) { return header >= 0x02 && header < 0x0E }
+    bool is_variable (uint8_t header) { return header >= 0x0E; }
+    bool is_error (uint8_t header) { return header >= 0x10; }
+
+    bool is_signed (uint8_t header) 
+    { 
+        // assert (is_fixed (header))
+        return header & 0x01; 
+    }
+
+    int constant (uint8_t header) 
+    { 
+        // assert (is_constant (header))
+        return header;
+    }
+
+    int fixed_width (uint8_t header)
+    {
+        // assert (is_fixed (header))
+        return (2 << (header >> 1));
+    }
+
+    int variable_encoding_width (uint8_t header)
+    {
+        // assert (is_variable (header))
+        return (header & 0x01) 12 : 8;
+    }
+
+    uint8_t header_encoding (uint64_t value)
+    {
+        constexpr uint64_t one {1};
+
+        return type_to_encoding 
+            ((value == 0)? type::zero :
+             (value == 1)? type::one :
+             (value < (one << 4))? type::fixedu4 :
+             (value < (one << 8))? type::fixedu8 :
+             (value < (one << 16))? type::fixedu16 :
+             (value < (one << 32))? type::fixedu32 : type::fixedu64);
+    }
+
+    uint8_t header_encoding (int64_t value)
+    {
+        return header_encoding (std::abs (value)) | (value < 0);
+    }
+
+} } }
+
 namespace data { namespace map {
 
     namespace native
@@ -195,7 +270,9 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value);
+        
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, uint64_t value)
         {
             return buf;
         }
