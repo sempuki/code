@@ -8,14 +8,6 @@ using std::endl;
 
 namespace memory 
 {
-    // TODO: specialize template for ntoh/hton type or passthrough
-
-    template <typename Type>
-    Type make_network_byte_order (Type value) { return value; }
-
-    template <typename Type>
-    Type make_host_byte_order (Type value) { return value; }
-
     // buffer =================================================================
     
     template <typename Type>
