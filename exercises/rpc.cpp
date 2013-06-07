@@ -656,7 +656,7 @@ namespace core {
             template <typename Container, typename Type>
             size_t commit_size (Container const &container, Type const &type)
             {
-                using ::data::map::native::commit_size;
+                using ::data::map::network::commit_size;
                 return commit_size (container, type);
             }
 
