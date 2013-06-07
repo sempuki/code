@@ -1,6 +1,7 @@
 #include <iostream>
 #include <typeinfo>
 #include <cxxabi.h>
+#include <cstdlib>
 
 using std::cout;
 using std::endl;
@@ -138,7 +139,124 @@ namespace memory
     
     uint8_t *end (bitbuffer &buf) { return buf.base + (buf.limit >> 3); }
     uint8_t const *end (bitbuffer const &buf) { return buf.base + (buf.limit >> 3); }
+
+    uint8_t byte_offset (bitbuffer const &buf) { return buf.offset & 7; }
+
+    bitbuffer offset (bitbuffer &buf, int amount) { buf.offset += amount; return buf; }
 }
+
+namespace data { namespace endian {
+
+    enum class type { little, big };
+
+    type detect () 
+    { 
+        union convert
+        {
+            uint32_t word;
+            uint8_t byte [sizeof(word)];
+        };
+        
+        return (convert {.word = 1}.byte[0] = 0)? type::big : type::little;
+    }
+
+    constexpr bool is_big = false;      // TODO: use platform defines to set this
+    constexpr bool is_little = !is_big;
+
+    struct big {};          // tag type for big endian conversion
+    struct little {};       // tag type for little endian conversion
+    using network = big;    // network endian set to big endian
+    using native = std::conditional<is_big, big, little>::type;
+
+    uint16_t byte_swap16 (uint16_t value) 
+    { 
+        // TODO: VC: _byteswap_ushort
+        // TODO: GCC 4.8: __builtin_bswap16
+        return (value << 8) | (value >> 8);
+    }
+
+    uint32_t byte_swap32 (uint32_t value)
+    {
+        // TODO: VC: _byteswap_ulong
+        return __builtin_bswap32 (value);
+    }
+
+    uint64_t byte_swap64 (uint64_t value)
+    {
+        // TODO: VC: _byteswap_uint64
+        return __builtin_bswap64 (value);
+    }
+
+    template <typename T> T byte_swap (T);
+    template <> uint8_t byte_swap (uint8_t value) { return value; }
+    template <> uint16_t byte_swap (uint16_t value) { return byte_swap16 (value); }
+    template <> uint32_t byte_swap (uint32_t value) { return byte_swap32 (value); }
+    template <> uint64_t byte_swap (uint64_t value) { return byte_swap64 (value); }
+    template <> int8_t byte_swap (int8_t value) { return value; }
+    template <> int16_t byte_swap (int16_t value) { return byte_swap16 (value); }
+    template <> int32_t byte_swap (int32_t value) { return byte_swap32 (value); }
+    template <> int64_t byte_swap (int64_t value) { return byte_swap64 (value); }
+
+    static_assert (sizeof (float) == sizeof (uint32_t), "float is not 4 bytes");
+    template <> float byte_swap (float value) 
+    { 
+        union convert 
+        { 
+            float real; 
+            uint32_t integer; 
+        };
+
+        convert cast {.real = value};
+        cast.integer = byte_swap32 (cast.integer); 
+        return cast.real;
+    }
+
+    static_assert (sizeof (double) == sizeof (uint64_t), "double is not 8 bytes");
+    template <> double byte_swap (double value) 
+    { 
+        union convert 
+        { 
+            double real; 
+            uint64_t integer; 
+        };
+
+        convert cast {.real = value};
+        cast.integer = byte_swap64 (cast.integer); 
+        return cast.real; 
+    }
+
+    template <typename From, typename To>
+    struct map;
+
+    template <>
+    struct map<big, big>
+    {
+        template <typename T>
+        static T convert (T value) { return value; }
+    };
+    
+    template <>
+    struct map<big, little>
+    {
+        template <typename T>
+        static T convert (T value) { return byte_swap (value); } 
+    };
+
+    template <>
+    struct map<little, big>
+    {
+        template <typename T>
+        static T convert (T value) { return byte_swap (value); }
+    };
+    
+    template <>
+    struct map<little, little>
+    {
+        template <typename T>
+        static T convert (T value) { return value; }
+    };
+
+} }
 
 namespace data { namespace encoding { namespace bit {
 
@@ -146,28 +264,103 @@ namespace data { namespace encoding { namespace bit {
     {
         zero,       //  0000
         one,        //  0001
-        fixedu4,    //  0010
-        fixeds4,    //  0011
-        fixedu8,    //  0100
-        fixeds8,    //  0101
-        fixedu16,   //  0110
-        fixeds16,   //  0111
-        fixedu32,   //  1000
-        fixeds32,   //  1001
-        fixedu64,   //  1010
-        fixeds64,   //  1011
-        fixedu128,  //  1100
-        fixedu256,  //  1101
+        fixed4u,    //  0010
+        fixed4s,    //  0011
+        fixed8u,    //  0100
+        fixed8s,    //  0101
+        fixed16u,   //  0110
+        fixed16s,   //  0111
+        fixed32u,   //  1000
+        fixed32s,   //  1001
+        fixed64u,   //  1010
+        fixed64s,   //  1011
+        fixed128,   //  1100
+        fixed256,   //  1101
         variable8,  //  1110
         variable12, //  1111
         error       // 10000
     };
 
     uint8_t type_to_encoding (type header) { return static_cast <uint8_t> (header); }
-    type encoding_to_type (uint8_t header) { return static_cast <type> (header & 0x0F); }
+    type encoding_to_type (uint8_t header) { return static_cast <type> (header); }
+
+    struct fixed_type
+    {
+        type header = type::error;
+
+        union
+        {
+            uint8_t  word8;
+            uint16_t word16;
+            uint32_t word32;
+            uint64_t word64;
+            uint32_t word128[4];
+            uint64_t word256[4];
+        };
+
+        template <typename T>
+        bool load (T value)
+        {
+            // assert (std::is_integral<T>::value)
+            bool success = false;
+            switch (header)
+            {
+                case type::fixed4u:
+                case type::fixed4s:
+                    word8 = value;
+                    success = true;
+                    break;
+
+                case type::fixed8u:
+                case type::fixed8s:
+                    word8 = value; 
+                    success = true;
+                    break;
+
+                case type::fixed16u:
+                case type::fixed16s:
+                    word16 = value; 
+                    success = true;
+                    break;
+
+                case type::fixed32u:
+                case type::fixed32s:
+                    word32 = value; 
+                    success = true;
+                    break;
+
+                case type::fixed64u:
+                case type::fixed64s:
+                    word64 = value; 
+                    success = true;
+                    break;
+            }
+
+            return success;
+        }
+
+        size_t width () const 
+        { 
+            return (2 << (type_to_encoding (header) >> 1)); 
+        }
+    };
+
+    namespace impl
+    {
+        static constexpr type fixed_type_table [] = 
+        { 
+            type::zero, 
+            type::one, 
+            type::fixed4u,
+            type::fixed8u,
+            type::fixed16u,
+            type::fixed32u,
+            type::fixed64u
+        };
+    }
 
     bool is_constant (uint8_t header) { return header < 0x02; }
-    bool is_fixed (uint8_t header) { return header >= 0x02 && header < 0x0E }
+    bool is_fixed (uint8_t header) { return header >= 0x02 && header < 0x0E; }
     bool is_variable (uint8_t header) { return header >= 0x0E; }
     bool is_error (uint8_t header) { return header >= 0x10; }
 
@@ -192,25 +385,97 @@ namespace data { namespace encoding { namespace bit {
     int variable_encoding_width (uint8_t header)
     {
         // assert (is_variable (header))
-        return (header & 0x01) 12 : 8;
+        return (header & 0x01)? 12 : 8;
     }
 
-    uint8_t header_encoding (uint64_t value)
+    type header_type (uint64_t value)
     {
-        constexpr uint64_t one {1};
+        int index = 
+            ((value >> 0) > 0) +
+            ((value >> 1) > 0) +
+            ((value >> 4) > 0) +
+            ((value >> 8) > 0) +
+            ((value >> 16) > 0) +
+            ((value >> 32) > 0);
 
-        return type_to_encoding 
-            ((value == 0)? type::zero :
-             (value == 1)? type::one :
-             (value < (one << 4))? type::fixedu4 :
-             (value < (one << 8))? type::fixedu8 :
-             (value < (one << 16))? type::fixedu16 :
-             (value < (one << 32))? type::fixedu32 : type::fixedu64);
+        return impl::fixed_type_table [index];
     }
 
-    uint8_t header_encoding (int64_t value)
+    type header_type (uint32_t value)
     {
-        return header_encoding (std::abs (value)) | (value < 0);
+        int index = 
+            ((value >> 0) > 0) +
+            ((value >> 1) > 0) +
+            ((value >> 4) > 0) +
+            ((value >> 8) > 0) +
+            ((value >> 16) > 0);
+
+        return impl::fixed_type_table [index];
+    }
+
+    type header_type (uint16_t value)
+    {
+        int index = 
+            ((value >> 0) > 0) +
+            ((value >> 1) > 0) +
+            ((value >> 4) > 0) +
+            ((value >> 8) > 0);
+
+        return impl::fixed_type_table [index];
+    }
+
+    type header_type (uint8_t value)
+    {
+        int index = 
+            ((value >> 0) > 0) +
+            ((value >> 1) > 0) +
+            ((value >> 4) > 0);
+
+        return impl::fixed_type_table [index];
+    }
+
+    type header_type (bool value)
+    {
+        int index = value? 1 : 0;
+
+        return impl::fixed_type_table [index];
+    }
+
+    type sign_encode (type header, bool negative) 
+    { 
+        return encoding_to_type (type_to_encoding (header) | negative);
+    }
+
+    type header_type (int64_t value)
+    {
+        uint64_t magnitude = std::abs (value);
+        uint8_t negative = value < 0;
+
+        return sign_encode (header_type (magnitude), negative);
+    }
+
+    type header_type (int32_t value)
+    {
+        uint32_t magnitude = std::abs (value);
+        uint8_t negative = value < 0;
+
+        return sign_encode (header_type (magnitude), negative);
+    }
+
+    type header_type (int16_t value)
+    {
+        uint16_t magnitude = std::abs (value);
+        uint8_t negative = value < 0;
+
+        return sign_encode (header_type (magnitude), negative);
+    }
+
+    type header_type (int8_t value)
+    {
+        uint8_t magnitude = std::abs (value);
+        uint8_t negative = value < 0;
+
+        return sign_encode (header_type (magnitude), negative);
     }
 
 } } }
@@ -257,6 +522,22 @@ namespace data { namespace map {
 
         // bitbuffer  .........................................................
 
+        namespace impl
+        {
+            namespace bit4
+            {
+                using data::encoding::bit::fixed_type;
+
+                bool store (fixed_type const &data, uint8_t *bytes)
+                {
+                }
+
+                bool load (fixed_type &data, uint8_t const *bytes)
+                {
+                }
+            }
+        }
+
         template <typename T>
         size_t commit_size (memory::bitbuffer const &buf, T value)
         {
@@ -270,10 +551,15 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value);
-        
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, uint64_t value)
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
         {
+            return buf;
+        }
+        
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, uint8_t value)
+        {
+           using namespace data::encoding::bit;
+
             return buf;
         }
 
