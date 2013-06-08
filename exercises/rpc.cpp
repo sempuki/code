@@ -409,12 +409,7 @@ namespace data { namespace encoding { namespace bit {
         return sign_encode (header_type (magnitude), negative);
     }
 
-    struct value
-    {
-        type header = type::error;
-    };
-
-    struct fixed_value : public value
+    struct fixed_value
     {
         union
         {
@@ -427,7 +422,17 @@ namespace data { namespace encoding { namespace bit {
             uint8_t bytes [sizeof(word256)];
         };
 
-        void load (uint8_t value) { type = header_type (value); word8 = encoding::map<native,little>::conver (value); }
+        type header = type::error;
+
+        template <typename T>
+        fixed_value (T value) :
+            header {header_type (value)},
+            word64 (value) 
+        {
+            // packs smaller ints towards the beginning, for compression
+            // this has to happen *after* zero or sign extension to 64 bits
+            word64 = endian::map<endian::native,endian::little>::convert (word64);
+        }
 
         size_t size () const { return fixed_width (type_to_encoding (header)); }
     };
@@ -506,17 +511,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value);
-        
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, uint64_t value)
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
         {
            using namespace data::endian;
            using namespace data::encoding::bit;
 
-           fixed_value fixed;
-           fixed.load (value);
-
-           impl::bit4::store (fixed, );
+           fixed_value fixed {value};
+           impl::bit4::store (fixed, 0);
 
             return buf;
         }
