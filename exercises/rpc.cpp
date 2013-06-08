@@ -276,27 +276,6 @@ namespace data { namespace encoding { namespace bit {
     uint8_t type_to_encoding (type header) { return static_cast <uint8_t> (header); }
     type encoding_to_type (uint8_t header) { return static_cast <type> (header); }
     
-    struct value
-    {
-        type header = type::error;
-    };
-
-    struct fixed_value : public value
-    {
-        union
-        {
-            uint8_t  word8;
-            uint16_t word16;
-            uint32_t word32;
-            uint64_t word64;
-            uint32_t word128[4];
-            uint64_t word256[4];
-            uint8_t bytes [sizeof(word256)];
-        };
-
-        size_t size () const { return fixed_width (header); }
-    };
-
     namespace impl
     {
         static constexpr type fixed_type_table [] = 
@@ -328,13 +307,13 @@ namespace data { namespace encoding { namespace bit {
         return header;
     }
 
-    int fixed_width (uint8_t header)
+    size_t fixed_width (uint8_t header)
     {
         // assert (is_fixed (header))
         return (2 << (header >> 1));
     }
 
-    int variable_encoding_width (uint8_t header)
+    size_t variable_encoding_width (uint8_t header)
     {
         // assert (is_variable (header))
         return (header & 0x01)? 12 : 8;
@@ -430,6 +409,29 @@ namespace data { namespace encoding { namespace bit {
         return sign_encode (header_type (magnitude), negative);
     }
 
+    struct value
+    {
+        type header = type::error;
+    };
+
+    struct fixed_value : public value
+    {
+        union
+        {
+            uint8_t  word8;
+            uint16_t word16;
+            uint32_t word32;
+            uint64_t word64;
+            uint32_t word128[4];
+            uint64_t word256[4];
+            uint8_t bytes [sizeof(word256)];
+        };
+
+        void load (uint8_t value) { type = header_type (value); word8 = encoding::map<native,little>::conver (value); }
+
+        size_t size () const { return fixed_width (type_to_encoding (header)); }
+    };
+
 } } }
 
 namespace data { namespace map {
@@ -504,14 +506,17 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value);
+        
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, uint64_t value)
         {
            using namespace data::endian;
            using namespace data::encoding::bit;
 
-           auto header = header_type (value);
-           auto little = map<native,little>::convert (value);
-           impl::bit4::store (header, &little, );
+           fixed_value fixed;
+           fixed.load (value);
+
+           impl::bit4::store (fixed, );
 
             return buf;
         }
