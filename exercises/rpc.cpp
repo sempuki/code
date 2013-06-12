@@ -627,7 +627,10 @@ namespace data { namespace map {
         memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
         {
             data::encoding::bit::value parsed {value};
-            return buf = memory::offset (buf, impl::bit4::store (parsed, buf));
+
+            auto bits = impl::bit4::store (parsed, buf);
+
+            return buf = memory::offset (buf, bits);
         }
         
         template <typename T>
@@ -640,6 +643,7 @@ namespace data { namespace map {
         memory::bitbuffer &operator>> (memory::bitbuffer &buf, T &value)
         {
             data::encoding::bit::value parsed;
+
             auto bits = impl::bit4::load (buf, parsed);
             parsed.load (value);
 
