@@ -290,33 +290,39 @@ namespace data { namespace encoding { namespace bit {
         };
     }
 
-    bool is_constant (uint8_t header) { return header < 0x02; }
-    bool is_fixed (uint8_t header) { return header >= 0x02 && header < 0x0E; }
-    bool is_variable (uint8_t header) { return header >= 0x0E; }
-    bool is_error (uint8_t header) { return header >= 0x10; }
+    bool is_constant (type header) { return type_to_encoding (header) < 0x02; }
+    bool is_fixed (type header) { return type_to_encoding (header) >= 0x02 && type_to_encoding (header) < 0x0E; }
+    bool is_variable (type header) { return type_to_encoding (header) >= 0x0E; }
+    bool is_error (type header) { return type_to_encoding (header) >= 0x10; }
 
-    bool is_signed (uint8_t header) 
+    bool is_signed (type header) 
     { 
         // assert (is_fixed (header))
-        return header & 0x01; 
+        return type_to_encoding (header) & 0x01; 
     }
 
-    int constant (uint8_t header) 
+    int constant (type header) 
     { 
         // assert (is_constant (header))
-        return header;
+        return type_to_encoding (header);
     }
 
-    size_t fixed_width (uint8_t header)
+    uint16_t fixed_width (type header)
     {
         // assert (is_fixed (header))
-        return (2 << (header >> 1));
+        return (2 << (type_to_encoding (header) >> 1));
     }
 
-    size_t variable_encoding_width (uint8_t header)
+    uint16_t variable_encoding_width (type header)
     {
         // assert (is_variable (header))
-        return (header & 0x01)? 12 : 8;
+        return (type_to_encoding (header) & 0x01)? 12 : 8;
+    }
+
+    type header_type (uint8_t *pointer, size_t bytes)
+    {
+        // assert (pointer && bytes != 0 && bytes < 0x2000)
+        return (bytes < 0x100)? type::variable8 : type::variable12;
     }
 
     type header_type (uint64_t value)
@@ -409,32 +415,138 @@ namespace data { namespace encoding { namespace bit {
         return sign_encode (header_type (magnitude), negative);
     }
 
-    struct fixed_value
+    struct value
     {
+        type header = type::error;
+        uint16_t bitwidth = 0;
+
         union
         {
-            uint8_t  word8;
-            uint16_t word16;
-            uint32_t word32;
-            uint64_t word64;
+            bool     word1;
+            uint8_t  word8u;
+            int8_t   word8s;
+            uint16_t word16u;
+            int16_t  word16s;
+            uint32_t word32u;
+            int32_t  word32s;
+            uint64_t word64u;
+            int64_t  word64s;
             uint32_t word128[4];
             uint64_t word256[4];
             uint8_t bytes [sizeof(word256)];
+            uint8_t *variable;
         };
 
-        type header = type::error;
+        value (bool value) : 
+            header {header_type (value)}, 
+            bitwidth {1},
+            word1 {value} {}
 
-        template <typename T>
-        fixed_value (T value) :
-            header {header_type (value)},
-            word64 (value) 
+        value (uint8_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word8u {value} {}
+
+        value (int8_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word8s (value) {}
+
+        value (uint16_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word16u {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (int16_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word16s {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (uint32_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word32u {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (int32_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word32s {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (uint64_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word64u {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (int64_t value) : 
+            header {header_type (value)}, 
+            bitwidth {fixed_width (header)},
+            word64s {endian::map<endian::native,endian::little>::convert (value)} {}
+
+        value (uint8_t *pointer, uint16_t bytes) :
+            header {header_type (pointer, bytes)}, 
+            bitwidth {(uint16_t) (bytes * 8)},
+            variable {pointer} {}
+
+        void load (bool &value) 
         {
-            // packs smaller ints towards the beginning, for compression
-            // this has to happen *after* zero or sign extension to 64 bits
-            word64 = endian::map<endian::native,endian::little>::convert (word64);
+            // assert (is_constant (header) && bitwidth == 1)
+            value = word1;
         }
 
-        size_t size () const { return fixed_width (type_to_encoding (header)); }
+        void load (uint8_t &value)
+        {
+            // assert (is_fixed (header) && !is_signed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word8u;
+        }
+
+        void load (int8_t &value)
+        {
+            // assert (is_fixed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word8s;
+        }
+
+        void load (uint16_t &value) 
+        {
+            // assert (is_fixed (header) && !is_signed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word16u;
+        }
+
+        void load (int16_t &value)
+        {
+            // assert (is_fixed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word16s;
+        }
+
+        void load (uint32_t &value)
+        {
+            // assert (is_fixed (header) && !is_signed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word32u;
+        }
+
+        void load (int32_t &value)
+        {
+            // assert (is_fixed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word32s;
+        }
+
+        void load (uint64_t &value)
+        {
+            // assert (is_fixed (header) && !is_signed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word64u;
+        }
+
+        void load (int64_t &value)
+        {
+            // assert (is_fixed (header) && bitwidth <= (sizeof (value) * 8))
+            value = word64s;
+        }
+
+        void load (uint8_t *pointer, size_t bytes)
+        {
+        }
+
+        size_t size () const { return bitwidth; }
+        uint8_t *data () { return is_variable (header)? variable : bytes; }
     };
 
 } } }
@@ -485,15 +597,16 @@ namespace data { namespace map {
         {
             namespace bit4
             {
-                using data::encoding::bit::fixed_value;
-                //using data::encoding::bit::variable_value;
+                using data::encoding::bit::value;
 
-                void store (fixed_value const &value, uint8_t *bytes)
+                size_t store (value const &container, memory::bitbuffer &buf)
                 {
+                    return 0;
                 }
 
-                void load (fixed_value &value, uint8_t const *bytes)
+                size_t load (memory::bitbuffer const &buf, value &container)
                 {
+                    return 0;
                 }
             }
         }
@@ -513,13 +626,8 @@ namespace data { namespace map {
         template <typename T>
         memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
         {
-           using namespace data::endian;
-           using namespace data::encoding::bit;
-
-           fixed_value fixed {value};
-           impl::bit4::store (fixed, 0);
-
-            return buf;
+            data::encoding::bit::value parsed {value};
+            return buf = memory::offset (buf, impl::bit4::store (parsed, buf));
         }
         
         template <typename T>
@@ -531,7 +639,11 @@ namespace data { namespace map {
         template <typename T>
         memory::bitbuffer &operator>> (memory::bitbuffer &buf, T &value)
         {
-            return buf;
+            data::encoding::bit::value parsed;
+            auto bits = impl::bit4::load (buf, parsed);
+            parsed.load (value);
+
+            return buf = memory::offset (buf, bits);
         }
     }
 
