@@ -103,6 +103,10 @@ namespace memory
     {
         return a.bytes < b.bytes;
     }
+
+    // byte buffer ===========================================================
+    
+    using bytebuffer = buffer<uint8_t>;
     
     // bit buffer ============================================================
     
@@ -114,11 +118,11 @@ namespace memory
 
         bitbuffer () = default;
 
-        bitbuffer (uint8_t *data, uint32_t size, uint32_t begin = 0) : 
-            base {data}, limit {size}, offset {begin} {}
+        bitbuffer (uint8_t *data, size_t size, size_t begin = 0) : 
+            base {data}, limit (size), offset (begin) {}
 
         bitbuffer (uint8_t *begin, uint8_t *end) : 
-            base {begin}, limit {((uintptr_t) end - (uintptr_t) begin) * 8} {}
+            base {begin}, limit (((uintptr_t) end - (uintptr_t) begin) * 8) {}
     };
 
     size_t size (bitbuffer const &buf)
@@ -564,13 +568,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<uint8_t> const &buf, T value)
+        bool can_insert (memory::bytebuffer const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
         {
             memory::buffer<T> typed = buf;
             *begin (typed) = value; 
@@ -578,13 +582,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<uint8_t> const &buf, T value)
+        bool can_extract (memory::bytebuffer const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
         {
             memory::buffer<T> typed = buf;
             value = *begin (typed); 
@@ -656,19 +660,19 @@ namespace data { namespace map {
         // buffer .............................................................
 
         template <typename T>
-        size_t commit_size (memory::buffer<uint8_t> &buf, T value)
+        size_t commit_size (memory::bytebuffer &buf, T value)
         {
             return sizeof (value);
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<uint8_t> &buf, T value)
+        bool can_insert (memory::bytebuffer &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
         {
             memory::buffer<T> typed = buf;
             *begin (typed) = make_network_byte_order (value); 
@@ -676,13 +680,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<uint8_t> &buf, T value)
+        bool can_extract (memory::bytebuffer &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
         {
             memory::buffer<T> typed = buf;
             value = make_host_byte_order (*begin (typed)); 
@@ -774,6 +778,8 @@ namespace core {
 
     } } }
 
+    // streams ----------------------------------------------------------------
+    
     template <typename E, typename IO>
     class stream : private IO
     {
@@ -836,7 +842,7 @@ namespace core {
     class stream <uint8_t, IO> : private IO
     {
         public:
-            stream (memory::buffer<uint8_t> const &buf)
+            stream (memory::bytebuffer const &buf)
                 : buf_ {buf}
             {}
 
@@ -846,7 +852,7 @@ namespace core {
             template <typename T>
             stream &operator<< (T const &item)
             {
-                memory::buffer<uint8_t> wrbuf {begin (buf_) + wrpos_, size (buf_)};
+                memory::bytebuffer wrbuf {begin (buf_) + wrpos_, size (buf_)};
                 error_ = error_ || IO::can_insert (wrbuf, item) == false;
 
                 if (!error_)
@@ -861,7 +867,7 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                memory::buffer<uint8_t> rdbuf {begin (buf_) + rdpos_, wrpos_};
+                memory::bytebuffer rdbuf {begin (buf_) + rdpos_, wrpos_};
                 error_ = error_ || IO::can_extract (rdbuf, item) == false;
 
                 if (!error_)
@@ -883,7 +889,7 @@ namespace core {
             void reset () { error_ = false; rdpos_ = wrpos_ = 0; }
 
         private:
-            memory::buffer<uint8_t> buf_;
+            memory::bytebuffer buf_;
             size_t rdpos_ = 0, wrpos_ = 0;
             bool error_ = false;
     };
@@ -948,7 +954,63 @@ namespace core {
     using basicstream = stream <E, policy::data::mapper::native>;
     using bytestream = stream <uint8_t, policy::data::mapper::native>;
     using bitstream = stream <bool, policy::data::mapper::native>;
+
+    // serialization ----------------------------------------------------------
+    
+    template <typename Stream, typename T>
+    bool serialize (Stream &stream, T arg)
+    {
+        return (bool) (stream << arg);
+    }
+
+    template <typename Stream, typename T, typename ...Types>
+    bool serialize (Stream &stream, T arg, Types ...args)
+    {
+        return (stream << arg) && serialize (stream, std::forward<Types> (args)...);
+    }
+
+    template <typename Stream, typename T>
+    bool deserialize (Stream &stream, T arg)
+    {
+        return (bool) (stream >> arg);
+    }
+
+    template <typename Stream, typename T, typename ...Types>
+    bool deserialize (Stream &stream, T arg, Types ...args)
+    {
+        return (stream >> arg) && deserialize (stream, std::forward<Types> (args)...);
+    }
+
 }
+
+namespace io { namespace net {
+
+    struct message
+    {
+        int id;
+        memory::bytebuffer buffer;
+    };
+
+    namespace rpc
+    {
+        template <typename ...Types>
+        bool serialize (message &msg, Types ...args)
+        {
+            core::bytestream stream {msg.buffer};
+
+            return serialize (stream, std::forward<Types> (args)...);
+        }
+        
+        template <typename ...Types>
+        bool deserialize (message &msg, Types ...args)
+        {
+            core::bytestream stream {msg.buffer};
+
+            return deserialize (stream, std::forward<Types> (args)...);
+        }
+    }
+
+} }
 
 int main (int argc, char **argv)
 {
@@ -959,23 +1021,28 @@ int main (int argc, char **argv)
         std::fill_n (memory, size, 0);
         core::bytestream stream {{memory, size}};
 
-        stream << (int32_t) 0xABCDDCBA;
-        stream << (int32_t) 0xFF00FF00;
-        stream << (int32_t) 0x00FF00FF;
-        stream << (int32_t) 0xAABBAABB;
+        //stream << (int32_t) 0xABCDDCBA;
+        //stream << (int32_t) 0xFF00FF00;
+        //stream << (int32_t) 0x00FF00FF;
+        //stream << (int32_t) 0xAABBAABB;
 
-        uint8_t i = 0;
-        while (!stream.empty ())
-            stream >> i, cout << std::hex << (int) i << endl;
+        //uint8_t i = 0;
+        //while (!stream.empty ())
+        //    stream >> i, cout << std::hex << (int) i << endl;
 
-        stream.reset ();
-        for (uint8_t i = 0; i < 16; ++i)
-            stream << i;
+        //stream.reset ();
+        //for (uint8_t i = 0; i < 16; ++i)
+        //    stream << i;
+
+        io::net::message msg {1, {memory, size}};
+        bool ok = io::net::rpc::serialize (msg, 0xABCDDCBA, 0xFF00FF00, 0x00FF00FF, 0xAABBAABB);
 
         cout << std::hex;
         for (int i : memory)
             cout << i << endl;
     }
+    
+    std::cout << "-----------------------------------------" << std::endl;
 
     {
         std::fill_n (memory, size, 0);
