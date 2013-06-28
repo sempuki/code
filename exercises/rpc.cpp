@@ -104,6 +104,10 @@ namespace memory
         return a.bytes < b.bytes;
     }
     
+    // byte buffer ===========================================================
+
+    using bytebuffer = buffer<uint8_t>;
+    
     // bit buffer ============================================================
     
     struct bitbuffer
@@ -558,19 +562,19 @@ namespace data { namespace map {
         // buffer .............................................................
 
         template <typename T>
-        size_t commit_size (memory::buffer<uint8_t> const &buf, T value)
+        size_t commit_size (memory::bytebuffer const &buf, T value)
         {
             return sizeof (value);
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<uint8_t> const &buf, T value)
+        bool can_insert (memory::bytebuffer const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
         {
             memory::buffer<T> typed = buf;
             *begin (typed) = value; 
@@ -578,13 +582,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<uint8_t> const &buf, T value)
+        bool can_extract (memory::bytebuffer const &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
         {
             memory::buffer<T> typed = buf;
             value = *begin (typed); 
@@ -656,19 +660,19 @@ namespace data { namespace map {
         // buffer .............................................................
 
         template <typename T>
-        size_t commit_size (memory::buffer<uint8_t> &buf, T value)
+        size_t commit_size (memory::bytebuffer &buf, T value)
         {
             return sizeof (value);
         }
 
         template <typename T>
-        bool can_insert (memory::buffer<uint8_t> &buf, T value)
+        bool can_insert (memory::bytebuffer &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator<< (memory::buffer<uint8_t> &buf, T value)
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
         {
             memory::buffer<T> typed = buf;
             *begin (typed) = make_network_byte_order (value); 
@@ -676,13 +680,13 @@ namespace data { namespace map {
         }
 
         template <typename T>
-        bool can_extract (memory::buffer<uint8_t> &buf, T value)
+        bool can_extract (memory::bytebuffer &buf, T value)
         {
             return buf.bytes >= commit_size (buf, value);
         }
 
         template <typename T>
-        memory::buffer<uint8_t> &operator>> (memory::buffer<uint8_t> &buf, T &value)
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
         {
             memory::buffer<T> typed = buf;
             value = make_host_byte_order (*begin (typed)); 
@@ -836,7 +840,7 @@ namespace core {
     class stream <uint8_t, IO> : private IO
     {
         public:
-            stream (memory::buffer<uint8_t> const &buf)
+            stream (memory::bytebuffer const &buf)
                 : buf_ {buf}
             {}
 
@@ -846,7 +850,7 @@ namespace core {
             template <typename T>
             stream &operator<< (T const &item)
             {
-                memory::buffer<uint8_t> wrbuf {begin (buf_) + wrpos_, size (buf_)};
+                memory::bytebuffer wrbuf {begin (buf_) + wrpos_, size (buf_)};
                 error_ = error_ || IO::can_insert (wrbuf, item) == false;
 
                 if (!error_)
@@ -861,7 +865,7 @@ namespace core {
             template <typename T>
             stream &operator>> (T &item)
             {
-                memory::buffer<uint8_t> rdbuf {begin (buf_) + rdpos_, wrpos_};
+                memory::bytebuffer rdbuf {begin (buf_) + rdpos_, wrpos_};
                 error_ = error_ || IO::can_extract (rdbuf, item) == false;
 
                 if (!error_)
@@ -883,7 +887,7 @@ namespace core {
             void reset () { error_ = false; rdpos_ = wrpos_ = 0; }
 
         private:
-            memory::buffer<uint8_t> buf_;
+            memory::bytebuffer buf_;
             size_t rdpos_ = 0, wrpos_ = 0;
             bool error_ = false;
     };
