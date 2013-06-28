@@ -14,7 +14,7 @@ struct bit_traits<int8_t>
 {
     constexpr static uint8_t zeros = 0;
     constexpr static uint8_t ones = ~zeros;
-    constexpr static size_t size = sizeof (uint8_t) * 8;
+    constexpr static size_t size = sizeof (int8_t) * 8;
     constexpr static size_t size_log2 = 3;
 };
 
@@ -32,7 +32,7 @@ struct bit_traits<int16_t>
 {
     constexpr static uint16_t zeros = 0;
     constexpr static uint16_t ones = ~zeros;
-    constexpr static size_t size = sizeof (uint16_t) * 8;
+    constexpr static size_t size = sizeof (int16_t) * 8;
     constexpr static size_t size_log2 = 4;
 };
 
@@ -50,7 +50,7 @@ struct bit_traits<int32_t>
 {
     constexpr static uint32_t zeros = 0;
     constexpr static uint32_t ones = ~zeros;
-    constexpr static size_t size = sizeof (uint32_t) * 8;
+    constexpr static size_t size = sizeof (int32_t) * 8;
     constexpr static size_t size_log2 = 5;
 };
 
@@ -68,7 +68,7 @@ struct bit_traits<int64_t>
 {
     constexpr static uint64_t zeros = 0;
     constexpr static uint64_t ones = ~zeros;
-    constexpr static size_t size = sizeof (uint64_t) * 8;
+    constexpr static size_t size = sizeof (int64_t) * 8;
     constexpr static size_t size_log2 = 6;
 };
 
