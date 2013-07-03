@@ -9,14 +9,18 @@
 #include <core/hash.hpp>
 #include <core/name.hpp>
 #include <core/container.hpp>
-#include <core/stream.hpp>
 #include <state/state.hpp>
 
 #include <memory/layout.hpp>
 #include <io/file/chunk.hpp>
 #include <io/file/format.hpp>
+#include <data/endian.hpp>
+#include <data/encoding/bit.hpp>
 #include <data/map.hpp>
 #include <data/file/heap_description.hpp>
+
+#include <policy/data/mapper.hpp>
+#include <core/stream.hpp>
 
 #include <system/platform.hpp>
 #include <io/net/socket.hpp>
@@ -106,20 +110,24 @@ namespace traits
 
 int main (int argc, char **argv)
 {
-    const int N = 10;
-    int memory[N];
-    core::stream<int> s1 {memory::buffer<int> {memory, N}};
+    size_t size = 16;
+    uint8_t memory[size];
 
-    for (int i=0; i < 5; ++i)
-        s1 << i;
+    std::fill_n (memory, size, 0);
+    core::bytestream stream {{memory, size}};
 
-    for (int i=0; i < 5; ++i)
-        s1 >> i, cout << i << ",";
-    cout << endl;
+    stream << (int32_t) 0xABCDDCBA;
+    stream << (int32_t) 0xFF00FF00;
+    stream << (int32_t) 0x00FF00FF;
+    stream << (int32_t) 0xAABBAABB;
 
-    for (int i=0; i < 5; ++i)
-        s1 << i;
-    cout << "stream size: " << s1.size() << endl;
+    uint8_t i = 0;
+    while (!stream.empty ())
+        stream >> i, cout << std::hex << (int) i << endl;
+
+    stream.reset ();
+    for (uint8_t i = 0; i < size; ++i)
+        stream << i;
 
     std::fstream file ("test.txt", std::ios_base::in);
 

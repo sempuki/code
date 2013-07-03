@@ -53,7 +53,7 @@ namespace sequia { namespace memory { namespace allocator {
 
                     ASSERTF (num == 1, "can only allocate one object per call");
                     ASSERTF (contains (mem_, head_), "free list is corrupt");
-                    ASSERTF (count (mem_) < (1 << (core::min_num_bytes (max_size ()) * 8)),
+                    ASSERTF (size (mem_) < (1 << (core::min_num_bytes (max_size ()) * 8)),
                             "too many objects for size of free list index type");
 
                     auto block = head_;

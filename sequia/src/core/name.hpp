@@ -1,5 +1,5 @@
-#ifndef _NAME_HPP_
-#define _NAME_HPP_
+#ifndef CORE_NAME_HPP_
+#define CORE_NAME_HPP_
 
 namespace sequia { namespace core {
 
@@ -33,7 +33,7 @@ namespace sequia { namespace core {
                 auto bytes = strlen (str);
                 memory::buffer <uint32_t const> buf {str, bytes};
 
-                auto remainder = bytes - count_bytes (buf);
+                auto remainder = bytes - buf.bytes;
                 memory::buffer <uint8_t const> post {end (buf), remainder};
 
                 hash = block_hash_32 (buf, hash, core::crc32c);

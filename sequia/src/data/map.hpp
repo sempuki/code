@@ -1,5 +1,5 @@
-#ifndef _DATA_MAP_HPP_
-#define _DATA_MAP_HPP_
+#ifndef DATA_MAP_HPP_
+#define DATA_MAP_HPP_
 
 namespace sequia { namespace data { namespace map {
 
@@ -37,6 +37,120 @@ namespace sequia { namespace data { namespace map {
         obj << stream;
         return stream;
     } 
+
+    namespace native
+    {
+        // buffer .............................................................
+
+        template <typename T>
+        size_t commit_size (memory::bytebuffer const &buf, T value)
+        {
+            return sizeof (value);
+        }
+
+        template <typename T>
+        bool can_insert (memory::bytebuffer const &buf, T value)
+        {
+            return buf.bytes >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
+        {
+            memory::buffer<T> typed = buf;
+            *begin (typed) = value; 
+            return buf.reset (offset (typed, 1));
+        }
+
+        template <typename T>
+        bool can_extract (memory::bytebuffer const &buf, T value)
+        {
+            return buf.bytes >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
+        {
+            memory::buffer<T> typed = buf;
+            value = *begin (typed); 
+            return buf.reset (offset (typed, 1));
+        }
+
+        // bitbuffer  .........................................................
+
+        template <typename T>
+        size_t commit_size (memory::bitbuffer const &buf, T value)
+        {
+            return sizeof (value) * 8;
+        }
+
+        template <typename T>
+        bool can_insert (memory::bitbuffer const &buf, T value)
+        {
+            return size (buf) >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bitbuffer &operator<< (memory::bitbuffer &buf, T value)
+        {
+            data::encoding::bit::value parsed {value};
+
+            return buf;
+        }
+        
+        template <typename T>
+        bool can_extract (memory::bitbuffer const &buf, T value)
+        {
+            return size (buf) >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bitbuffer &operator>> (memory::bitbuffer &buf, T &value)
+        {
+            data::encoding::bit::value parsed;
+
+            return buf;
+        }
+    }
+
+    namespace network
+    {
+        // buffer .............................................................
+
+        template <typename T>
+        size_t commit_size (memory::bytebuffer &buf, T value)
+        {
+            return sizeof (value);
+        }
+
+        template <typename T>
+        bool can_insert (memory::bytebuffer &buf, T value)
+        {
+            return buf.bytes >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bytebuffer &operator<< (memory::bytebuffer &buf, T value)
+        {
+            memory::buffer<T> typed = buf;
+            *begin (typed) = make_network_byte_order (value); 
+            return buf.reset (offset (typed, 1));
+        }
+
+        template <typename T>
+        bool can_extract (memory::bytebuffer &buf, T value)
+        {
+            return buf.bytes >= commit_size (buf, value);
+        }
+
+        template <typename T>
+        memory::bytebuffer &operator>> (memory::bytebuffer &buf, T &value)
+        {
+            memory::buffer<T> typed = buf;
+            value = make_host_byte_order (*begin (typed)); 
+            return buf.reset (offset (typed, 1));
+        }
+    }
 
 } } }
 
