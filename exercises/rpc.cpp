@@ -10,30 +10,49 @@ namespace thread
     template <typename Type>
     class queue
     {
+        public 
+            using const_iterator = std::deque<Type>::const_iterator;
+
+            const_iterator begin () const { return std::begin (queue_); }
+            const_iterator end () const { return std::end (queue_); }
+            std::mutex mutex () const { return mtx_; }
+
         public:
             size_t size () const 
             {
-                std::lock_guard<std::mutex> lck (mtx_);
+                std::lock_guard<std::mutex> lck {mtx_};
                 return queue_.size ();
             }
 
             bool empty () const 
             {
-                std::lock_guard<std::mutex> lck (mtx_);
+                std::lock_guard<std::mutex> lck {mtx_};
                 return queue_.empty ();
             }
 
             void push (Type value)
             {
-                std::lock_guard<std::mutex> lck (mtx_);
+                std::lock_guard<std::mutex> lck {mtx_};
                 queue_.push_back (value);
+            }
+
+            void push (const_iterator begin, const_iterator end)
+            {
+                std::lock_guard<std::mutex> lck {mtx_};
+                queue_.insert (std::end (queue_), begin, end);
             }
 
             Type pop ()
             {
-                std::lock_guard<std::mutex> lck (mtx_);
+                std::lock_guard<std::mutex> lck {mtx_};
                 Type value = queue_.front (), queue_.pop ();
                 return value;
+            }
+
+            void resize (size_t size)
+            {
+                std::lock_guard<std::mutex> lck {mtx_};
+                queue_.resize (size);
             }
 
         private:
@@ -46,8 +65,8 @@ namespace rpc
 {
     struct message
     {
-        int const session_id;
         int const method_id;
+        int const session_id;
 
         uint8_t  *data;
         size_t    size;
@@ -93,7 +112,7 @@ namespace rpc
             auto send (typename Type::request request) -> typename Type::response
             {
                 typename Type::response response;
-                client::state state = available.pop ();
+                client::state state = available.pop (); // TODO: block if none available
 
                 size_t bytessent = request.serialize (state.message);
 
@@ -108,41 +127,71 @@ namespace rpc
                 return response;
             }
 
-            void dispatch (std::deque<rpc::message> &send, std::deque<rpc::message> &recv)
+            void dispatch (thread::queue<rpc::message> &send, thread::queue<rpc::message> &recv)
             {
                 while (!pending_send.empty())
                 {
                     client::state state = pending_send.pop ();
                     pending_recv.push (state);
-                    send.push_back (state);
+                    send.push (state);
                 }
 
                 while (!recv.empty())
                 {
-                    // find existing method and session id in pending_recv
+                    rpc::message message = recv.pop ();
+
+                    auto matching = [message] (rpc::message m) 
+                    { 
+                        return message.method_id == m.method_id &&
+                            message.session_id == m.session_id; 
+                    };
+
+                    thread::queue<Type>::const_iterator expected = 
+                        std::find_if (std::begin (pending_recv), std::end (pending_recv), matching);
+
+                    if (expected != std::end (pending_recv))
+                        expected.response.set_value (message);
+
+                    else; // TODO: received a reply we weren't expecting
                 }
             }
         };
     }
 }
 
+thread::queue<rpc::message> network_buffer_up;
+thread::queue<rpc::message> network_buffer_down;
+
+static void client_sender (rpc::client::channel &client)
+{
+    client.send (rpc::hello {});
+};
+
+static void client_dispatcher (rpc::client::channel &client)
+{
+    while (true)
+    {
+        { 
+            // simulate network connectivity / flush up -> back down
+            std::lock_guard<std::mutex> lck {network_buffer_up.mutex ()};
+            network_buffer_down.push (std::begin (network_buffer_up), std::end (network_buffer_up));
+            network_buffer_up.resize (0);
+        }
+
+        client.dispatch (network_buffer_up, network_buffer_down);
+        std::this_thread::sleep_for (std::milliseconds {500});
+    }
+}
 
 int main (int argc, char **argv)
 {
-    // simulate client/server with thread-safe message queue
-
-    bool is_server = true;
-    if (is_server)
-    {
         // listen to incoming connection, and enqueue messages to shared queue
         // dispatch: match id to task, deserialize arguments, do computation, serialize result
         // move task to reply queue along with "session/call" id
-    }
-    else
-    {
-        // create two threads, have each rpc call create a packaged task, and block on future
-        // have dispatch thread poll queue and multiplex calls over connection, set promise 
-    }
+
+    rpc::client::channel client;
+    std::thread {client_sender, client}.detach();
+    std::thread {client_dispatcher, client}.detach();
 
     return 0;
 }
