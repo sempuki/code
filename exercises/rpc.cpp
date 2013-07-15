@@ -1,8 +1,12 @@
 #include <iostream>
 #include <cstdint>
 #include <functional>
+#include <algorithm>
 #include <thread>
+#include <future>
 #include <mutex>
+#include <chrono>
+#include <vector>
 #include <deque>
 
 namespace thread
@@ -10,12 +14,12 @@ namespace thread
     template <typename Type>
     class queue
     {
-        public 
-            using const_iterator = std::deque<Type>::const_iterator;
+            using const_iterator = typename std::deque<Type>::const_iterator;
+        public:
 
             const_iterator begin () const { return std::begin (queue_); }
             const_iterator end () const { return std::end (queue_); }
-            std::mutex mutex () const { return mtx_; }
+            std::mutex &mutex () const { return mtx_; }
 
         public:
             size_t size () const 
@@ -29,14 +33,15 @@ namespace thread
                 std::lock_guard<std::mutex> lck {mtx_};
                 return queue_.empty ();
             }
-
+            
             void push (Type value)
             {
                 std::lock_guard<std::mutex> lck {mtx_};
                 queue_.push_back (value);
             }
 
-            void push (const_iterator begin, const_iterator end)
+            template <typename Iterator>
+            void push (Iterator begin, Iterator end)
             {
                 std::lock_guard<std::mutex> lck {mtx_};
                 queue_.insert (std::end (queue_), begin, end);
@@ -45,7 +50,7 @@ namespace thread
             Type pop ()
             {
                 std::lock_guard<std::mutex> lck {mtx_};
-                Type value = queue_.front (), queue_.pop ();
+                Type value = queue_.front (); queue_.pop ();
                 return value;
             }
 
@@ -56,7 +61,7 @@ namespace thread
             }
 
         private:
-            std::mutex mtx_;
+            mutable std::mutex mtx_;
             std::deque<Type> queue_;
     };
 };
@@ -65,8 +70,8 @@ namespace rpc
 {
     struct message
     {
-        int const method_id;
-        int const session_id;
+        int method_id;
+        int session_id;
 
         uint8_t  *data;
         size_t    size;
@@ -104,55 +109,78 @@ namespace rpc
 
         struct channel
         {
-            thread::queue<client::state> available;
-            thread::queue<client::state> pending_send;
-            thread::queue<client::state> pending_recv;
+            thread::queue<client::state *> pending_send;
+            thread::queue<client::state *> pending_recv;
 
             template <typename Type>
             auto send (typename Type::request request) -> typename Type::response
             {
-                typename Type::response response;
-                client::state state = available.pop (); // TODO: block if none available
+                static int session = 0;
 
-                size_t bytessent = request.serialize (state.message);
+                typename Type::response response;
+                client::state state {{Type::id, ++session, nullptr, 0}, {}};
+
+                size_t bytessent = request.serialize (state.request);
 
                 std::future<rpc::message> reply = state.response.get_future ();
-                pending_send.push (state);
+                pending_send.push (&state);
                 reply.wait ();
 
                 size_t bytesrecv = response.deserialize (reply.get());
-
-                available.push (state);
 
                 return response;
             }
 
             void dispatch (thread::queue<rpc::message> &send, thread::queue<rpc::message> &recv)
             {
-                while (!pending_send.empty())
-                {
-                    client::state state = pending_send.pop ();
-                    pending_recv.push (state);
-                    send.push (state);
+                std::vector<rpc::client::state *> sending;
+                std::vector<rpc::client::state *> waiting;
+                std::vector<rpc::message> outgoing;
+                std::vector<rpc::message> incoming;
+                
+                if (!pending_send.empty())
+                { 
+                    std::lock_guard<std::mutex> lck {pending_send.mutex()};
+                    for (auto state : pending_send)
+                        sending.push_back (state);
+                    pending_send.resize (0);
                 }
 
-                while (!recv.empty())
+                if (!pending_recv.empty())
                 {
-                    rpc::message message = recv.pop ();
+                    std::lock_guard<std::mutex> lck {pending_recv.mutex()};
+                    for (auto state : pending_recv)
+                        waiting.push_back (state);
+                    pending_recv.resize (0);
+                }
 
-                    auto matching = [message] (rpc::message m) 
-                    { 
-                        return message.method_id == m.method_id &&
-                            message.session_id == m.session_id; 
-                    };
+                if (!recv.empty())
+                {
+                    std::lock_guard<std::mutex> lck {recv.mutex()};
+                    for (auto message : recv)
+                        incoming.insert (std::end (incoming), message);
+                    recv.resize (0);
+                }
 
-                    thread::queue<Type>::const_iterator expected = 
-                        std::find_if (std::begin (pending_recv), std::end (pending_recv), matching);
+                for (auto state : sending) 
+                    outgoing.insert (std::end (outgoing), state->request);
 
-                    if (expected != std::end (pending_recv))
-                        expected.response.set_value (message);
+                pending_recv.push (std::begin (sending), std::end (sending));
+                send.push (std::begin (outgoing), std::end (outgoing));
 
-                    else; // TODO: received a reply we weren't expecting
+                for (auto reply : incoming)
+                {
+                    bool found = false;
+                    for (auto client : waiting)
+                    {
+                        if (reply.method_id == client->request.method_id && 
+                            reply.session_id == client->request.session_id) 
+                        {
+                            client->response.set_value (reply);
+                            found = true;
+                            break;
+                        }
+                    }
                 }
             }
         };
@@ -164,7 +192,7 @@ thread::queue<rpc::message> network_buffer_down;
 
 static void client_sender (rpc::client::channel &client)
 {
-    client.send (rpc::hello {});
+    client.send<rpc::hello> (rpc::hello::request {});
 };
 
 static void client_dispatcher (rpc::client::channel &client)
@@ -179,7 +207,7 @@ static void client_dispatcher (rpc::client::channel &client)
         }
 
         client.dispatch (network_buffer_up, network_buffer_down);
-        std::this_thread::sleep_for (std::milliseconds {500});
+        std::this_thread::sleep_for (std::chrono::milliseconds {500});
     }
 }
 
@@ -190,8 +218,8 @@ int main (int argc, char **argv)
         // move task to reply queue along with "session/call" id
 
     rpc::client::channel client;
-    std::thread {client_sender, client}.detach();
-    std::thread {client_dispatcher, client}.detach();
+    std::thread {client_sender, std::ref (client)}.detach();
+    std::thread {client_dispatcher, std::ref (client)}.detach();
 
     return 0;
 }
