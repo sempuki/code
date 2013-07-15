@@ -19,49 +19,49 @@ namespace thread
 
             const_iterator begin () const { return std::begin (queue_); }
             const_iterator end () const { return std::end (queue_); }
-            std::mutex &mutex () const { return mtx_; }
+            std::recursive_mutex &mutex () const { return mtx_; }
 
         public:
             size_t size () const 
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 return queue_.size ();
             }
 
             bool empty () const 
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 return queue_.empty ();
             }
             
             void push (Type value)
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 queue_.push_back (value);
             }
 
             template <typename Iterator>
             void push (Iterator begin, Iterator end)
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 queue_.insert (std::end (queue_), begin, end);
             }
 
             Type pop ()
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 Type value = queue_.front (); queue_.pop ();
                 return value;
             }
 
             void resize (size_t size)
             {
-                std::lock_guard<std::mutex> lck {mtx_};
+                std::lock_guard<std::recursive_mutex> lck {mtx_};
                 queue_.resize (size);
             }
 
         private:
-            mutable std::mutex mtx_;
+            mutable std::recursive_mutex mtx_;
             std::deque<Type> queue_;
     };
 };
@@ -121,6 +121,8 @@ namespace rpc
                 client::state state {{Type::id, ++session, nullptr, 0}, {}};
 
                 size_t bytessent = request.serialize (state.request);
+                std::cout << "sending method id: " << state.request.method_id 
+                          << " session id: " << state.request.session_id << std::endl;
 
                 std::future<rpc::message> reply = state.response.get_future ();
                 pending_send.push (&state);
@@ -133,6 +135,7 @@ namespace rpc
 
             void dispatch (thread::queue<rpc::message> &send, thread::queue<rpc::message> &recv)
             {
+                std::cout << "dispatching" << std::endl;
                 std::vector<rpc::client::state *> sending;
                 std::vector<rpc::client::state *> waiting;
                 std::vector<rpc::message> outgoing;
@@ -140,7 +143,8 @@ namespace rpc
                 
                 if (!pending_send.empty())
                 { 
-                    std::lock_guard<std::mutex> lck {pending_send.mutex()};
+                    std::cout << "have pending send: " << pending_send.size() << std::endl;
+                    std::lock_guard<std::recursive_mutex> lck {pending_send.mutex()};
                     for (auto state : pending_send)
                         sending.push_back (state);
                     pending_send.resize (0);
@@ -148,7 +152,8 @@ namespace rpc
 
                 if (!pending_recv.empty())
                 {
-                    std::lock_guard<std::mutex> lck {pending_recv.mutex()};
+                    std::cout << "have pending recv: " << pending_recv.size() << std::endl;
+                    std::lock_guard<std::recursive_mutex> lck {pending_recv.mutex()};
                     for (auto state : pending_recv)
                         waiting.push_back (state);
                     pending_recv.resize (0);
@@ -156,7 +161,7 @@ namespace rpc
 
                 if (!recv.empty())
                 {
-                    std::lock_guard<std::mutex> lck {recv.mutex()};
+                    std::lock_guard<std::recursive_mutex> lck {recv.mutex()};
                     for (auto message : recv)
                         incoming.insert (std::end (incoming), message);
                     recv.resize (0);
@@ -176,6 +181,10 @@ namespace rpc
                         if (reply.method_id == client->request.method_id && 
                             reply.session_id == client->request.session_id) 
                         {
+                            std::cout << "found client waiting for method id: " 
+                                << reply.method_id << " session id: " 
+                                << reply.session_id << std::endl;
+
                             client->response.set_value (reply);
                             found = true;
                             break;
@@ -192,16 +201,19 @@ thread::queue<rpc::message> network_buffer_down;
 
 static void client_sender (rpc::client::channel &client)
 {
+    std::cout << "client sender" << std::endl;
     client.send<rpc::hello> (rpc::hello::request {});
+    std::cout << "got return" << std::endl;
 };
 
 static void client_dispatcher (rpc::client::channel &client)
 {
+    std::cout << "client dispatcher" << std::endl;
     while (true)
     {
         { 
             // simulate network connectivity / flush up -> back down
-            std::lock_guard<std::mutex> lck {network_buffer_up.mutex ()};
+            std::lock_guard<std::recursive_mutex> lck {network_buffer_up.mutex ()};
             network_buffer_down.push (std::begin (network_buffer_up), std::end (network_buffer_up));
             network_buffer_up.resize (0);
         }
@@ -218,8 +230,11 @@ int main (int argc, char **argv)
         // move task to reply queue along with "session/call" id
 
     rpc::client::channel client;
-    std::thread {client_sender, std::ref (client)}.detach();
-    std::thread {client_dispatcher, std::ref (client)}.detach();
+    std::thread application {client_sender, std::ref (client)};
+    std::thread dispatcher {client_dispatcher, std::ref (client)};
+
+    application.join();
+    dispatcher.join();
 
     return 0;
 }
