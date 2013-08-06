@@ -2,7 +2,7 @@
 export HISTCONTROL=erasedups
 export LD_LIBRARY_PATH=/usr/local/lib
 export LIBRARY_PATH=/usr/local/lib
-export CPATH=/usr/local/includ
+export CPATH=/usr/local/include
 
 # User specific aliases and functions
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
