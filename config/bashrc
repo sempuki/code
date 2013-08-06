@@ -7,14 +7,23 @@ export CPATH=/usr/local/include
 # User specific aliases and functions
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
 
+function grep_() { 
+    ${GREP_COMMAND} "$@" 
+}
+function grep_recurse_here_() { 
+    ${GREP_COMMAND} -ER "${1}" * 
+}
+function grep_by_filename_() { 
+    ${GREP_COMMAND} -E "${1}" $(find -L . -name "${2}") 
+}
+
 alias ll='ls -l --color'
 alias pd='pushd'
 alias p='popd'
 alias v='gvim'
-alias g='${GREP_COMMAND} $@'
-alias gr='${GREP_COMMAND} -ER ${1} *'
-alias gf='${GREP_COMMAND} -FR ${1} *'
-alias gfn='${GREP_COMMAND} -E "${1}" $(find -L . -name "${2}")'
+alias g='grep_'
+alias gr='grep_recurse_here_'
+alias gf='grep_by_filename_'
 alias pb="curl -F 'sprunge=<-' http://sprunge.us"
 
 # Source global definitions
