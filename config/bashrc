@@ -10,7 +10,7 @@ export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn
 alias ll='ls -l --color'
 alias pd='pushd'
 alias p='popd'
-alias v='gvim.bat'
+alias v='gvim'
 alias g='${GREP_COMMAND} $@'
 alias gr='${GREP_COMMAND} -ER ${1} *'
 alias gf='${GREP_COMMAND} -FR ${1} *'
