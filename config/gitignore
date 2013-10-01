@@ -1,6 +1,8 @@
 # Visual studio -specific ignores.
-# *.vcproj
 # *.sln
+# *.vcxproj
+*.vcproj.filters
+*.vcxproj.filters
 *.suo
 *.sdf
 *.ncb
@@ -61,6 +63,17 @@ ui_*.h
 
 # Python files
 *.pyc
+
+# Java files
+*.cache
+*.class
+*.ap_
+*.apk
+*.dex
+
+# eclipse directories
+.settings
+.metadata
 
 # editor files
 tags
