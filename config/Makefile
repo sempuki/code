@@ -15,7 +15,7 @@ application-packages:
 	sudo yum -y install pidgin pidgin-otr
 
 desktop-packages:
-	sudo yum -y install gnome-tweak-tool
+	sudo yum -y install gnome-tweak-tool dconf-editor
 
 copy-configuration:
 	cp vimrc ~/.vimrc
