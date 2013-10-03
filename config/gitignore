@@ -14,12 +14,12 @@
 *.log
 *.tlog
 *.lastbuildstate
-*/Debug/
-*/Release/
+Debug/
+Release/
 
 # Windows -specific data
 *.dll
-*.exe
+*.exe*
 
 # Unix-specific build objects
 Makefile
