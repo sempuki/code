@@ -64,12 +64,16 @@ ui_*.h
 # Python files
 *.pyc
 
-# Java files
+# Java and Android files
 *.cache
-*.class
-*.ap_
-*.apk
-*.dex
+*.class*
+*.ap_*
+*.apk*
+*.dex*
+R.java*
+R.txt*
+proguard.txt
+dexedLibs/
 
 # eclipse directories
 .settings
