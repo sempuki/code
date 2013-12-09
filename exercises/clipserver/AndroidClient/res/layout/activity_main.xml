@@ -1,0 +1,143 @@
+<LinearLayout xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/lightgrey"
+    android:orientation="vertical" >
+
+    <ScrollView
+        android:id="@+id/scrollView1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_gravity="fill_vertical"
+        android:layout_weight="1" >
+
+        <RadioGroup
+            android:id="@+id/radioClips"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content" >
+
+            <RadioButton
+                android:id="@+id/clipView4"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                android:layout_gravity="end"
+                android:layout_margin="@dimen/simpleMargin"
+                android:background="@color/black_overlay"
+				android:paddingBottom="@dimen/simpleMargin"
+                android:paddingLeft="@dimen/radioPadding"
+                android:paddingRight="@dimen/simpleMargin"
+                android:paddingTop="@dimen/simpleMargin"
+                android:text="@string/clipText4"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/white" />
+
+<!--                 android:visibility="gone" /> -->
+                
+
+            <RadioButton
+                android:id="@+id/clipView3"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/simpleMargin"
+                android:background="@color/black_overlay"
+				android:paddingBottom="@dimen/simpleMargin"
+                android:paddingLeft="@dimen/radioPadding"
+                android:paddingRight="@dimen/simpleMargin"
+                android:paddingTop="@dimen/simpleMargin"
+                android:text="@string/clipText3"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/white" />
+<!--                 android:visibility="gone" /> -->
+
+            <RadioButton
+                android:id="@+id/clipView2"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/simpleMargin"
+                android:background="@color/black_overlay"
+				android:paddingBottom="@dimen/simpleMargin"
+                android:paddingLeft="@dimen/radioPadding"
+                android:paddingRight="@dimen/simpleMargin"
+                android:paddingTop="@dimen/simpleMargin"
+                android:text="@string/clipText2"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/white" />
+<!--                 android:visibility="gone" /> -->
+
+            <RadioButton
+                android:id="@+id/clipView1"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/simpleMargin"
+                android:background="@color/black_overlay"
+				android:paddingBottom="@dimen/simpleMargin"
+                android:paddingLeft="@dimen/radioPadding"
+                android:paddingRight="@dimen/simpleMargin"
+                android:paddingTop="@dimen/simpleMargin"                
+                android:text="@string/clipText1"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/white" />
+<!--                 android:visibility="gone" /> -->
+
+            <RadioButton
+                android:id="@+id/clipView0"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_margin="@dimen/simpleMargin"
+                android:background="@color/black_overlay"
+                android:paddingBottom="@dimen/simpleMargin"
+                android:paddingLeft="@dimen/radioPadding"
+                android:paddingRight="@dimen/simpleMargin"
+                android:paddingTop="@dimen/simpleMargin"
+                android:text="@string/clipText0"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/white" />
+
+<!--                 android:visibility="gone" /> -->
+        </RadioGroup>
+    </ScrollView>
+
+    <RelativeLayout
+        style="@attr/buttonBarStyle"
+        android:layout_width="fill_parent"
+        android:layout_height="40dp"
+        android:layout_gravity="bottom"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/sendToWirelessButton"
+            style="@attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="@string/toWirelessClipboardButtonText"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/deleteClipButton"
+            style="@attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:text="@string/deleteClipButtonText"
+            android:textSize="16sp" />
+        
+        <Button
+            android:id="@+id/sendToClipButton"
+            style="@attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_toLeftOf="@+id/deleteClipButton"
+            android:layout_toRightOf="@id/sendToWirelessButton"
+            android:gravity="center_vertical|center_horizontal"
+            android:text="@string/toClipboardButtonText"
+            android:textSize="16sp" />
+        
+    </RelativeLayout>
+
+</LinearLayout>
