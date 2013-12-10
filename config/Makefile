@@ -1,6 +1,6 @@
 all: install-packages copy-configuration
 
-install-packages: update-packages basic-packages development-packages desktop-packages application-packages
+install-packages: update-packages basic-packages development-packages desktop-packages font-packages media-packages application-packages
 
 update-packages:
 	sudo yum -y update
@@ -16,6 +16,12 @@ application-packages:
 
 desktop-packages:
 	sudo yum -y install gnome-tweak-tool dconf-editor
+
+font-packages:
+	sudo yum -y install fonts-tweak-tool freetype-freeworld
+
+media-packages:
+	sudo yum -y install gstreamer-ffmpeg gstreamer-plugins-ugly
 
 copy-configuration:
 	cp vimrc ~/.vimrc
