@@ -15,7 +15,7 @@ application-packages:
 	sudo yum -y install pidgin pidgin-otr
 
 desktop-packages:
-	sudo yum -y install gnome-tweak-tool dconf-editor
+	sudo yum -y install redshift-gtk gnome-tweak-tool dconf-editor
 
 # requires rpmfusion.org repo
 font-packages:
