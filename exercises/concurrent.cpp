@@ -44,7 +44,7 @@ class bounded_queue
         void push (value_type const &value)
         {
             auto head = head_++;
-            while (size_ >= N && (head - tail_) >= N);
+            while (size_ == N || (head - tail_) >= N);
             buffer_[head % N] = value;
             size_++;
         }
@@ -62,7 +62,7 @@ class bounded_queue
         void pop (value_type &value)
         {
             auto tail = tail_++;
-            while (size_ <= 0 && (head_ - tail) <= 0);
+            while (size_ == 0 || (head_ - tail) <= 0);
             value = buffer_[tail % N];
             size_--;
         }
@@ -99,8 +99,8 @@ int main (int argc, char **argv)
 
     std::atomic<bool> start {false};
 
-    size_t const consumption = 100000;
-    size_t const production = 100000;
+    size_t const consumption = 100;
+    size_t const production = 100;
 
     std::thread producer {[&]
         {
@@ -108,7 +108,10 @@ int main (int argc, char **argv)
             std::cout << "starting producer" << std::endl;
 
             for (int i=0; i < production; ++i)
+            {
+                std::cout << '.' << std::flush;
                 queue.push (i);
+            }
 
             std::cout << "finished producer" << std::endl;
         }};
@@ -122,6 +125,7 @@ int main (int argc, char **argv)
             for (int i=0; i < consumption; ++i)
             {
                 queue.pop (result);
+                std::cout << '-' << std::flush;
                 if (result != i) 
                     std::cout << result << " / " << i << std::endl;
             }
