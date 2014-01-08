@@ -1,11 +1,12 @@
 #include <iostream>
-#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <condition_variable>
 #include <vector>
+#include <algorithm>
 
 constexpr static size_t cache_width = 64;
 
@@ -29,7 +30,9 @@ class spin_mutex
 // empty and full are disambiguated using a size count
 // sequentially consistent atomics are used
 
-template <typename T, size_t N>
+#define TEST
+
+template <typename T, int N>
 class bounded_queue
 {
     public:
@@ -43,10 +46,21 @@ class bounded_queue
     public:
         void push (value_type const &value)
         {
+#ifdef TEST
+            std::unique_lock<std::mutex> lock {mutex};
+            available_room.wait (lock, [this] { return !full(); });
+
+            buffer_[head_++ % N] = value;
+            size_++;
+
+            available_data.notify_one();
+#else
             auto head = head_++;
             while (size_ == N || (head - tail_) >= N);
+            assert (size_ >= 0 && size_ <= N);
             buffer_[head % N] = value;
             size_++;
+#endif
         }
 
         bool try_push (value_type const &value)
@@ -61,10 +75,21 @@ class bounded_queue
 
         void pop (value_type &value)
         {
+#ifdef TEST
+            std::unique_lock<std::mutex> lock {mutex};
+            available_data.wait (lock, [this] { return !empty(); });
+
+            value = buffer_[tail_++ % N];
+            size_--;
+
+            available_room.notify_one();
+#else
             auto tail = tail_++;
             while (size_ == 0 || (head_ - tail) <= 0);
+            assert (size_ >= 0 && size_ <= N);
             value = buffer_[tail % N];
             size_--;
+#endif
         }
 
         bool try_pop (value_type &value)
@@ -83,10 +108,18 @@ class bounded_queue
         size_type empty () const { return size_ == 0; }
 
     private:
-        // eliminate false sharing by giving each variable its own cache line
-        union { std::atomic<uint64_t> tail_;    cacheline padding1; };
-        union { std::atomic<uint64_t> head_;    cacheline padding2; };
-        union { std::atomic<int32_t> size_;     cacheline padding3; };
+#ifdef TEST
+        int64_t tail_;
+        int64_t head_;
+        int32_t size_;
+        std::mutex mutex;
+        std::condition_variable available_data;
+        std::condition_variable available_room;
+#else
+        std::atomic<int64_t> tail_;
+        std::atomic<int64_t> head_;
+        std::atomic<int32_t> size_;
+#endif
 
     private:
         std::array<T,N> buffer_;
@@ -99,8 +132,8 @@ int main (int argc, char **argv)
 
     std::atomic<bool> start {false};
 
-    size_t const consumption = 100;
-    size_t const production = 100;
+    size_t const consumption = 10000000;
+    size_t const production = 10000000;
 
     std::thread producer {[&]
         {
@@ -108,10 +141,7 @@ int main (int argc, char **argv)
             std::cout << "starting producer" << std::endl;
 
             for (int i=0; i < production; ++i)
-            {
-                std::cout << '.' << std::flush;
                 queue.push (i);
-            }
 
             std::cout << "finished producer" << std::endl;
         }};
@@ -125,7 +155,6 @@ int main (int argc, char **argv)
             for (int i=0; i < consumption; ++i)
             {
                 queue.pop (result);
-                std::cout << '-' << std::flush;
                 if (result != i) 
                     std::cout << result << " / " << i << std::endl;
             }
