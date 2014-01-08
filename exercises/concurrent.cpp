@@ -30,8 +30,6 @@ class spin_mutex
 // empty and full are disambiguated using a size count
 // sequentially consistent atomics are used
 
-#define TEST
-
 template <typename T, int N>
 class bounded_queue
 {
