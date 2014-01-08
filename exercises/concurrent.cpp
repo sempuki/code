@@ -24,6 +24,11 @@ class spin_mutex
         std::atomic<bool> locked_ {false};
 };
 
+// Multi-producer/Multi-consumer fixed size cirucular queue
+// push-on-full and pop-on-empty will spin; try_push/pop will return wait free
+// empty and full are disambiguated using a size count
+// sequentially consistent atomics are used
+
 template <typename T, size_t N>
 class bounded_queue
 {
@@ -33,222 +38,100 @@ class bounded_queue
 
     public:
         bounded_queue () :
-            tail_ {0}, head_ {0} {}
+            head_ {0}, tail_ {0}, size_ {0} {}
 
     public:
-        void push (value_type value)
+        void push (value_type const &value)
         {
-            size_type head = head_.fetch_add (1, std::memory_order_seq_cst);
-
-            buf_[head % N].first = value;
-            buf_[head % N].second = head;
-            std::atomic_thread_fence (std::memory_order_release);
+            auto head = head_++;
+            while (size_ >= N && (head - tail_) >= N);
+            buffer_[head % N] = value;
+            size_++;
         }
 
-        value_type pop ()
+        bool try_push (value_type const &value)
         {
-            value_type value;
-            size_type head, tail, index;
-            ssize_t max = N, size = 0; 
-
-            bool head_overrun_condition;
-            bool tail_overrun_condition;
-            bool index_mistmatch_condition;
-            bool retry = false;
-
-            do
+            if (full ()) return false;
+            else
             {
-                ++poptries;
-                tail = tail_.fetch_add (1, std::memory_order_seq_cst);
-
-                do // wait for head to catch up if necessary
-                {
-                    std::atomic_thread_fence (std::memory_order_acquire);
-                    value = buf_[tail % N].first;
-                    index = buf_[tail % N].second;
-
-                    head = head_.load (std::memory_order_seq_cst);
-                    size = head - tail;
-
-                    head_overrun_condition      = size <= 0;
-                    tail_overrun_condition      = size > max;
-                    index_mistmatch_condition   = index != tail;
-
-                    if (head_overrun_condition) hoverruns++;
-                    if (index_mistmatch_condition) imistmatch++;
-                }
-                while ((head_overrun_condition || index_mistmatch_condition) && !tail_overrun_condition); 
-
-                if (tail_overrun_condition) 
-                {
-                    toverruns++;
-                    retry = true; 
-
-                    size_type fast_forward_steps = 1;
-                    bool tail_bounds_condition;
-                    bool tail_unique_condition;
-
-                    do // fast-forward tail to an in bounds index
-                    {
-                        ++fftries;
-                        head = head_.load (std::memory_order_seq_cst);
-
-                        tail_bounds_condition = (head - tail) > max;
-                        tail_unique_condition = tail_.compare_exchange_strong (tail, 
-                                head - max + fast_forward_steps,
-                                std::memory_order_seq_cst); // tail updated in exchange
-                        
-                        fast_forward_steps = std::min (fast_forward_steps * 2, N / 2);
-                    }
-                    while (tail_bounds_condition && !tail_unique_condition);
-                }
+                push (value); 
+                return true;
             }
-            while (retry);
+        }
 
-            return value;
+        void pop (value_type &value)
+        {
+            auto tail = tail_++;
+            while (size_ <= 0 && (head_ - tail) <= 0);
+            value = buffer_[tail % N];
+            size_--;
+        }
+
+        bool try_pop (value_type &value)
+        {
+            if (empty ()) return false;
+            else
+            {
+                pop (value); 
+                return true;
+            }
         }
 
     public:
-        size_type size () const { head_ - tail_; }
-        bool empty () const { return size() <= 0; }
-        bool full () const { return size() >= N; }
-
-        std::array<std::pair<T, size_type>, N> &data () { return buf_; }
+        size_type size () const { return size_; }
+        size_type full () const { return size_ == N; }
+        size_type empty () const { return size_ == 0; }
 
     private:
-        std::array<std::pair<T, size_type>, N> buf_;
-
         // eliminate false sharing by giving each variable its own cache line
-        union { std::atomic<size_type> tail_;   cacheline padding2; };
-        union { std::atomic<size_type> head_;   cacheline padding3; };
-        
-    public:
-        int fftries = 0;
-        int poptries = 0;
-        int hoverruns = 0;
-        int toverruns = 0;
-        int imistmatch = 0;
+        union { std::atomic<uint64_t> tail_;    cacheline padding1; };
+        union { std::atomic<uint64_t> head_;    cacheline padding2; };
+        union { std::atomic<int32_t> size_;     cacheline padding3; };
+
+    private:
+        std::array<T,N> buffer_;
+
 };
 
 int main (int argc, char **argv)
 {
-    constexpr int itersize = 100000;
-    constexpr int datasize = 100;
-    constexpr int queuesize = 100000;
-    const int nthreads = 3;
+    bounded_queue<int, 10> queue;
 
-    std::atomic<int> start_count {0}, finish_count {0};
-    bounded_queue<int,queuesize> queue;
+    std::atomic<bool> start {false};
 
-    int output1[datasize];
-    int output2[datasize];
-    int output3[datasize];
-
-    for (int i=0; i < datasize; ++i)
-        output1[i] = output2[i] = 0;
+    size_t const consumption = 100000;
+    size_t const production = 100000;
 
     std::thread producer {[&]
         {
-            int i = 0;
-            while (start_count < nthreads);
-            while (finish_count < nthreads)
-            {
-                queue.push (i++);
-            }
-            std::cout << "producer finished" << std::endl;
+            start = true;
+            std::cout << "starting producer" << std::endl;
+
+            for (int i=0; i < production; ++i)
+                queue.push (i);
+
+            std::cout << "finished producer" << std::endl;
         }};
 
-    std::thread consumer1 {[&]
+    std::thread consumer {[&]
         {
-            start_count ++;
-            for (int i = 0; i < itersize; ++i)
-            {
-                //std::cout << '.';
-                if (queue.empty())
-                    output1[i % datasize] = queue.pop ();
-            }
-            finish_count ++;
-            std::cout << "consumer 1 finished" << std::endl;
-        }};
+            int result = 0;
+            while (start == false);
+            std::cout << "starting consumer" << std::endl;
 
-    std::thread consumer2 {[&]
-        {
-            start_count ++;
-            for (int i = 0; i < itersize; ++i)
+            for (int i=0; i < consumption; ++i)
             {
-                //std::cout << '!';
-                if (queue.empty())
-                    output2[i % datasize] = queue.pop ();
+                queue.pop (result);
+                if (result != i) 
+                    std::cout << result << " / " << i << std::endl;
             }
-            finish_count ++;
-            std::cout << "consumer 2 finished" << std::endl;
-        }};
 
-    std::thread consumer3 {[&]
-        {
-            start_count ++;
-            for (int i = 0; i < itersize; ++i)
-            {
-                //std::cout << '?';
-                if (queue.empty())
-                    output3[i % datasize] = queue.pop ();
-            }
-            finish_count ++;
-            std::cout << "consumer 3 finished" << std::endl;
+            std::cout << std::endl;
+            std::cout << "finished consumer" << std::endl;
         }};
 
     producer.join();
-    consumer1.join();
-    consumer2.join();
-    consumer3.join();
-
-    std::cout << "-----------------------" << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        std::cout << output1[i] << ", ";
-    std::cout << std::endl;
-
-    std::cout << "-----------------------" << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        std::cout << output2[i] << ", ";
-    std::cout << std::endl;
-
-    std::cout << "-----------------------" << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        std::cout << output3[i] << ", ";
-    std::cout << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output2, output2 + datasize, output1[i]) != output2 + datasize)
-            std::cout << "dupe in output 2: " << output1[i] << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output3, output3 + datasize, output1[i]) != output3 + datasize)
-            std::cout << "dupe in output 3: " << output1[i] << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output1, output1 + datasize, output2[i]) != output1 + datasize)
-            std::cout << "dupe in output 1: " << output2[i] << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output3, output3 + datasize, output2[i]) != output3 + datasize)
-            std::cout << "dupe in output 3: " << output2[i] << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output2, output2 + datasize, output3[i]) != output2 + datasize)
-            std::cout << "dupe in output 2: " << output3[i] << std::endl;
-
-    for (int i = 0; i < datasize; ++i)
-        if (std::find (output1, output1 + datasize, output3[i]) != output1 + datasize)
-            std::cout << "dupe in output 1: " << output3[i] << std::endl;
-
-    std::cout << "queue poptries: " << queue.poptries << std::endl;
-    std::cout << "queue hoverruns: " << queue.hoverruns << std::endl;
-    std::cout << "queue toverruns: " << queue.toverruns << std::endl;
-    std::cout << "queue imismatch: " << queue.imistmatch << std::endl;
-    std::cout << "queue fftries: " << queue.fftries << std::endl;
+    consumer.join();
 
     return 0;
 }
