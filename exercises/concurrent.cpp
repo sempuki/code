@@ -68,6 +68,9 @@ class bounded_queue
 
             assert (size() >= 0 && size() <= N);
             buffer_[ticket % N] = value;
+
+            std::atomic_thread_fence (std::memory_order_release);
+
             head_++;
 #endif
         }
@@ -104,6 +107,9 @@ class bounded_queue
 
             assert (size() >= 0 && size() <= N);
             value = buffer_[tail % N];
+            
+            std::atomic_thread_fence (std::memory_order_release);
+
             tail_++;
 #endif
         }
