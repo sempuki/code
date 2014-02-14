@@ -72,8 +72,8 @@ nnoremap <silent> <C-P> :bprevious<CR>
 nnoremap <silent> <C-X> :bdelete!<CR>
 
 "additional scrolling 
-nnoremap <silent> <C-Backspace> <PageUp>
-nnoremap <silent> <C-Space> <PageDown> 
+nnoremap <silent> <Backspace> <PageUp>
+nnoremap <silent> <Space> <PageDown> 
 
 "window resizing
 nnoremap <C-u> :resize +10<CR>
