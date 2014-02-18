@@ -1,11 +1,19 @@
-" Plugins:
-" - a.vim                   "automatically switch header/impl files
-" - gtags.vim               "GNU Global tags (with GTAGSFORCECPP)
-" - matchit.vim             "extend vim's matching operator
-" - OmniCppComplete         "C++ omnifunc
-" - eclim                   "Eclipse server
+" Base .vimrc -- Ryan McDougall
 
 colorscheme slate
+
+" Set up vundle
+filetype off
+set rtp+=~/.vim/bundle/vundle
+call vundle#rc()
+
+" Install bundles
+Bundle 'gmarik/vundle'
+Bundle 'a.vim'
+Bundle 'gtags.vim'
+Bundle 'fugitive.vim'
+Bundle 'matchit.zip'
+Bundle 'OmniCppComplete'
 
 filetype plugin indent on   "autoguess by file extension
 set nocompatible            "use VIM settings
