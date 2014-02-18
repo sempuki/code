@@ -8,5 +8,5 @@ find . \
     -name '*.hpp' -or \
     -name '*.hxx' -or \
     -name '*.hh' -or \
-    -name '*.h' > cpp-files.txt
-gtags -f cpp-files.txt
+    -name '*.h' >> gtags-files.txt
+gtags -f gtags-files.txt
