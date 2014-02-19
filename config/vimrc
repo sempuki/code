@@ -7,7 +7,7 @@ filetype off
 set rtp+=~/.vim/bundle/vundle
 call vundle#rc()
 
-" Install bundles
+" To install bundles run :BundleInstall
 Bundle 'gmarik/vundle'
 Bundle 'a.vim'
 Bundle 'gtags.vim'

@@ -11,7 +11,7 @@ function grep_() {
     ${GREP_COMMAND} "$@" 
 }
 function grep_recurse_here_() { 
-    ${GREP_COMMAND} -ER "${1}" * 
+    ${GREP_COMMAND} -ER "$@" * 
 }
 function grep_by_filename_() { 
     ${GREP_COMMAND} -E "${1}" $(find -L . -name "${2}") 
