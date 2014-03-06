@@ -1,5 +1,4 @@
 #!/bin/bash
-rm -f gtags-file
 find . \
     -name '*.py' -or \
     -name '*.java' -or \

@@ -30,3 +30,50 @@
 
 * Dependency injection/mapping
 - memory mapper reads layout file and constructs allocators components request by name
+
+* Game State Replication
+= Game has shared state
+= Endpoints "own" entities and replicate updates to other endpoints who receive them as read-only proxies
+-- either mesh or star topology
+= Owners set the per-entity importance, and observers set per-entity relevancy
+-- owners must track per-endpoint entity relevancy to avoid sending irrelevant updates
+= Simulation runs decoupled from state replication
+-- runs ahead of replication?
+= Non-owners can request operations to be executed by owners
+-- how do you speculatively apply the request locally and revert if request is rejected?
+= Non-owners update entity relevancy which it replicated back to owner
+-- relevancy is a game entity property for non-owner (this object isn't relevant) and a replication parameter for owner (don't send irrelevant updates)
+= Components are attached to multiplexing streams associated with parent entity
+-- we can compute the "acceleration" of a value as well as the magnitude change to increase priority
+= Streams are associated with properties like priority, reliability, order preservation, congestion control algorithm, etc.
+= Per-component streams aggregate into per-entity channels -> per-endpoint connections -> per-device local nexus
+-- use scatter-gather IO to reduce copying between abstractions
+-- each state in the pipeline has filters than reduce outgoing or incoming traffic
+-- connections are built and maintained by the nexus
+-- connection stores bandwith, packet loss, etc. statistics
+-- each stream/channel/connection is named hierarchically
+= Channels aggregate entity streams and allow for control signalling or messaging
+-- owner channels set priority from entity priority
+-- receiver channels set priority from entity relevancy
+-- packet priority is calculated on a per-channel basis
+-- send and receive priorities are replicated on each end
+= Connections aggregate channels by endpoint
+-- store bandwidth and latency statistics
+-- manage NAT traversal and reconnects
+= Nexus is responsible for managing connections and de/multiplexing in/outgoing state changes 
+-- nexus creates consumer streams/channels for each connection 
+-- local listener is notified by nexus when a new connection is made
+-- local listener is notified by nexus when new entities are spawned or reaped on that connection
+= Receiver game logic subscribes to entities and creates factories associated with entities which knows how to build the local proxy 
+-- receiving streams are set up for each component with their own receiving pipeline
+-- sending streams are set up for requests to owners, as well as relevancy updates
+= Owner game logic walks each component array and pushes dirty entity-component flyweights into a state delta stream
+-- used by other subsystems than network
+= Nexus walks state delta stream and maps state changes to associated per-component sending replication streams
+-- for each receiving connection calculate the available connection capacity
+--- sort each sending/receiving channel pair by combined priority
+---- sending channel priority is need to push; receiving channel is need to pull
+---- forward flyweights from sending stream to receiving stream until connection bandwidth is exceeded
+-- each flyweight is passed though stream filters -> channel filters -> connection filters
+-- scatter gather IO copies actual data to socket buffer
+
