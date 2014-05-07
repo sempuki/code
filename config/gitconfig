@@ -2,17 +2,20 @@
     name = Ryan McDougall
     email = sempuki1@gmail.com
 [alias]
-    cl = clone
-    ci = commit
-    co = checkout
-    st = status
-    df = diff
-    fe = fetch
-    rb = rebase
-    pu = pull
-    lg = log
     bl = blame
     br = branch
+    ci = commit
+    cl = clone
+    co = checkout
+    df = diff
+    fe = fetch
+    lg = log
+    ph = push
+    pu = pull
+    re = remote
+    rb = rebase
+    st = status
+    sh = stash
 [apply]
     whitespace = strip
 [diff]
@@ -41,7 +44,7 @@
     untracked = cyan
 [core]
     excludesfile = ~/.gitignore
-    #autocrlf = true                # used in Windows 
+    #autocrlf = true                # used in Windows
     autocrlf = input                # used in Unix
 [push]
     default = simple
