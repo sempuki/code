@@ -1,4 +1,4 @@
-all: install-packages copy-configuration
+all: install-packages install-scripts copy-configuration
 
 install-packages: update-packages basic-packages development-packages desktop-packages font-packages media-packages application-packages internet-packages
 
@@ -9,7 +9,7 @@ basic-packages:
 	sudo yum -y install vim-X11 vim-enhanced
 
 development-packages:
-	sudo yum -y install gcc-c++ nemiver 
+	sudo yum -y install gcc-c++ nemiver global
 
 application-packages:
 	sudo yum -y install pidgin pidgin-otr
@@ -31,6 +31,9 @@ internet-packages:
 		qtwebkit.i686 libXScrnSaver.i686 && \
 		sudo sed -i 's/Exec=skype/Exec=env PULSE_LATENCY_MSEC=30 skype/' \
 		/usr/share/applications/skype.desktop
+
+install-scripts:
+	mkdir ~/Scripts && cp ../scripts/* ~/Scripts
 
 copy-configuration:
 	cp vimrc ~/.vimrc

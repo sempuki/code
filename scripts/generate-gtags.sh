@@ -1,4 +1,5 @@
 #!/bin/bash
+rm -f gtags-file
 find . \
     -name '*.py' -or \
     -name '*.java' -or \
@@ -9,6 +10,9 @@ find . \
     -name '*.hpp' -or \
     -name '*.hxx' -or \
     -name '*.hh' -or \
-    -name '*.h' > gtags-files.txt
+    -name '*.h' -or \
+    -name '*.ipp' -or \
+    -name '*.tpp' -or \
+    > gtags-files.txt
 export GTAGSFORCECPP=1 # interpret .h as C++
 gtags -f gtags-files.txt
