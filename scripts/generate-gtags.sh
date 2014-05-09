@@ -12,7 +12,7 @@ find . \
     -name '*.hh' -or \
     -name '*.h' -or \
     -name '*.ipp' -or \
-    -name '*.tpp' -or \
+    -name '*.tpp' \
     > gtags-files.txt
 export GTAGSFORCECPP=1 # interpret .h as C++
 gtags -f gtags-files.txt
