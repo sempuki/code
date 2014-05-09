@@ -7,7 +7,7 @@ filetype off
 set rtp+=~/.vim/bundle/vundle
 call vundle#rc()
 
-" To install bundles run :BundleInstall
+" Install bundles
 Bundle 'gmarik/vundle'
 Bundle 'a.vim'
 Bundle 'gtags.vim'
@@ -119,7 +119,7 @@ nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
 nnoremap <C-f> :cgetexpr system(find."")
 
 "generate local C++ tags files
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 "generate local C# tags files
@@ -133,6 +133,10 @@ set tags+=./java.tags,java.tags
 "generate local Python tags files
 nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS --extra=+fq -f py.tags<CR>
 set tags+=./py.tags,py.tags
+
+"generate local JavaScript tags files
+nnoremap <silent> <Leader>S :!ctags -R --languages=js --fields=+aiS --extra=+fq -f js.tags<CR>
+set tags+=./js.tags,js.tags
 
 "look for global tags files
 if filereadable ("C:/Code/")
