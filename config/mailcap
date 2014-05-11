@@ -1,9 +1,9 @@
 # Images
-image/jpg; view-attachment.sh %s
-image/jpeg; view-attachment.sh %s
-image/pjpeg; view-attachment.sh %s
-image/png; view-attachment.sh %s
-image/gif; view-attachment.sh %s
+image/jpg; ~/Scripts/view-attachment.sh %s
+image/jpeg; ~/Scripts/view-attachment.sh %s
+image/pjpeg; ~/Scripts/view-attachment.sh %s
+image/png; ~/Scripts/view-attachment.sh %s
+image/gif; ~/Scripts/view-attachment.sh %s
 
 # PDFs
-application/pdf; view-attachment.sh %s
+application/pdf; ~/Scripts/view-attachment.sh %s
