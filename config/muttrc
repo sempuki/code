@@ -28,6 +28,8 @@ set copy = no                               # don't copy on send
 set mark_old = no                           # just use read/unread
 set fast_reply = yes                        # skip to compose
 set edit_headers = yes                      # edit headers in compose
+set menu_context = 5                        # always menu show context
+set pager_context = 5                       # always pager show context
 set sort = threads                          # enable threaded display
 set sort_aux = reverse-last-date-received   # threading sort order
 set editor = 'vim + -c "set textwidth=72" -c "set wrap"'  # set width and wrap
