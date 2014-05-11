@@ -9,7 +9,7 @@ basic-packages:
 	sudo yum -y install vim-X11 vim-enhanced
 
 development-packages:
-	sudo yum -y install gcc-c++ nemiver global
+	sudo yum -y install gcc-c++ git nemiver global
 
 application-packages:
 	sudo yum -y install pidgin pidgin-otr
@@ -35,15 +35,26 @@ internet-packages:
 install-scripts:
 	mkdir ~/Scripts && cp ../scripts/* ~/Scripts
 
-copy-configuration:
-	cp vimrc ~/.vimrc
+bash-configuration:
 	cp bashrc ~/.bashrc
+	source ~/.bashrc
+
+git-configuration:
 	cp gitconfig ~/.gitconfig
 	cp gitignore ~/.gitignore
+
+vim-configuration: basic-packages development-packages
+	cp vimrc ~/.vimrc
+	mkdir -m 755 -p ~/.vim/bundle
+	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+
+mutt-configuration:
+	mkdir -m 700 -p ~/.mutt/cache/headers
+	mkdir -m 700 -p ~/.mutt/cache/bodies
+	mkdir -m 700 -p ~/.mutt/cache/temp
+	mkdir -m 700 -p ~/.mutt/certificates
+	mkdir -m 700 -p ~/.mutt/mailcap
 	cp muttrc ~/.muttrc
-	mkdir -m 775 -p ~/.mutt/cache/headers
-	mkdir -m 775 -p ~/.mutt/cache/bodies
-	mkdir -m 775 -p ~/.mutt/cache/temp
-	mkdir -m 775 -p ~/.mutt/certificates
-	mkdir -m 775 -p ~/.mutt/mailcap
-	source ~/.bashrc
+	cp mailcap ~/.mutt
+
+copy-configuration: bash-configuration git-configuration vim-configuration mutt-configuration
