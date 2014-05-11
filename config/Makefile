@@ -40,4 +40,10 @@ copy-configuration:
 	cp bashrc ~/.bashrc
 	cp gitconfig ~/.gitconfig
 	cp gitignore ~/.gitignore
+	cp muttrc ~/.muttrc
+	mkdir -m 775 -p ~/.mutt/cache/headers
+	mkdir -m 775 -p ~/.mutt/cache/bodies
+	mkdir -m 775 -p ~/.mutt/cache/temp
+	mkdir -m 775 -p ~/.mutt/certificates
+	mkdir -m 775 -p ~/.mutt/mailcap
 	source ~/.bashrc
