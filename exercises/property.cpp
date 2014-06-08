@@ -51,7 +51,7 @@ class simple_property :
     using mutate_result_type = typename base_type::mutate_result_type;
 
   public:
-    using base_type::base_type;
+    using base_type::property_base;
 
     operator access_result_type ()
     {
