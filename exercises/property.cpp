@@ -4,102 +4,72 @@
 using std::cout;
 using std::endl;
 
-using nullfn_t = void (void);
-
-template <typename Type, typename Result, typename ...Arguments>
-struct property_method_traits {};
-
-template <typename Type, typename Result, typename ...Arguments>
-struct property_method_traits <Type, Result (Arguments...)>
+template <typename GetType, typename SetType = GetType>
+class property
 {
-  using method_type = std::function<Result (Type&, Arguments...)>;
-  using result_type = typename method_type::result_type;
-};
-
-template <typename Type, typename AccessType, typename MutateType>
-class property_base
-{
-  public:
-    using property_type = Type;
-
-    using access_method_type = typename property_method_traits<Type,AccessType>::method_type;
-    using access_result_type = typename property_method_traits<Type,AccessType>::result_type;
-    using mutate_method_type = typename property_method_traits<Type,MutateType>::method_type;
-    using mutate_result_type = typename property_method_traits<Type,MutateType>::result_type;
-
   public:
     template <typename Accessor, typename Mutator>
-    property_base (Type init, Accessor accessor, Mutator mutator) :
-      property_ {std::forward<Type> (init)},
+    property (Accessor accessor, Mutator mutator) :
       accessor_ {std::forward<Accessor> (accessor)},
       mutator_ {std::forward<Mutator> (mutator)} {}
 
-  protected:
-    property_type property_;
-    access_method_type accessor_;
-    mutate_method_type mutator_;
+    template <typename Type>
+    operator Type () { return get(); }
+
+    template <typename Type>
+    property &operator= (Type &&value)
+    {
+      set (std::forward<Type> (value));
+      return *this;
+    }
+
+    GetType get() { return accessor_(); }
+    const GetType get() const { return accessor_(); }
+    void set(SetType value) { mutator_ (value); }
+
+  private:
+    std::function<GetType (void)> accessor_;
+    std::function<void (SetType)> mutator_;
+};
+    
+struct Object
+{
+  Object() { std::cout << "default object" << std::endl; }
+  Object(int i) : v {i} { std::cout << "init object" << std::endl; }
+  Object(Object &&) { std::cout << "move object" << std::endl; }
+  Object(Object const &) { std::cout << "copy object" << std::endl; }
+  void operator=(Object &&) { std::cout << "move assign object" << std::endl; }
+  void operator=(Object const &) { std::cout << "copy assign object" << std::endl; }
+  ~Object() { std::cout << "destroy object" << std::endl; }
+  
+  int v = 5;
 };
 
-template <typename Type, typename AccessType = nullfn_t, typename MutateType = nullfn_t>
-class simple_property : 
-  public property_base<Type, AccessType, MutateType>
+class Test
 {
   private:
-    using base_type = property_base<Type,AccessType,MutateType>;
-    using property_type = typename base_type::property_type;
-    using access_result_type = typename base_type::access_result_type;
-    using mutate_result_type = typename base_type::mutate_result_type;
+    Object obj {4};
 
   public:
-    using base_type::property_base;
-
-    operator access_result_type ()
+    property<Object &, Object const &> prop
     {
-      return base_type::accessor_ (base_type::property_);
-    }
-
-    mutate_result_type operator= (property_type &&value)
-    {
-      return base_type::mutator_ (base_type::property_, std::forward<property_type>(value));
-    }
-};
-
-template <typename Type, typename AccessType = nullfn_t, typename MutateType = nullfn_t>
-class property :
-  public property_base<Type, AccessType, MutateType>
-{
-  private:
-    using base_type = property_base<Type,AccessType,MutateType>;
-
-  public:
-    using base_type::property_base;
-
-  public:
-    template <typename ...Args>
-    auto get (Args ...args)
-    {
-      return base_type::accessor_ (base_type::property_, std::forward<Args>(args)...);
-    }
-
-    template <typename ...Args>
-    auto set (Args ...args)
-    {
-      return base_type::mutator_ (base_type::property_, std::forward<Args>(args)...);
-    }
+      [&]() -> Object& { std::cout << "got object" << std::endl; return obj; },
+      [&](Object const &v) { std::cout << "set object" << std::endl; obj = v; }
+    };
 };
 
 int main()
 {
-  property<int, int(void), void(int)> p
-  {
-    10,
-    [](int &value) { return value + 1; },
-    [](int &value, int v) { value = v / 2; }
-  };
+  Test t;
+  Object v = { 6 };
 
-  cout << p.get() << endl;
-  p.set(5);
-  cout << p.get() << endl;
+  std::cout << "-----" << std::endl;
+  std::cout << ": " << t.prop.get().v << std::endl;
+  t.prop = v;
+  std::cout << ": " << t.prop.get().v << std::endl;
+  v = t.prop;
+  std::cout << ": " << t.prop.get().v << std::endl;
+  std::cout << "-----" << std::endl;
 
   return 0;
 }
