@@ -37,22 +37,22 @@ class property
       return *this;
     }
 
-    Type operator() () { return getter_(property_); }
-    const Type operator() () const { return getter_(property_); }
+    operator Type &() { return getter_(property_); }
+    operator const Type &() const { return getter_(property_); }
 
-    operator Type () { return getter_(property_); }
-    operator const Type () const { return getter_(property_); }
+    Type &operator() () { return getter_(property_); }
+    const Type &operator() () const { return getter_(property_); }
 
-    property &operator= (Type const &value)
+    property &operator= (Type value)
     {
-      property_ = setter_ (value);
+      property_ = setter_ (std::move (value));
       return *this;
     }
 
   private:
     Type property_;
-    std::function<Type (Type const &)> getter_;
-    std::function<Type (Type const &)> setter_;
+    std::function<Type &(Type &)> getter_;
+    std::function<Type (Type)> setter_;
 };
     
 struct Object
@@ -73,14 +73,17 @@ struct Test
   Test () {}
   property<Object> prop
   {
-    [](Object const &p) { std::cout << "got object" << std::endl; return p; },
-    [](Object const &v) { std::cout << "set object" << std::endl; return v; }
+    [](Object &p) -> Object & { std::cout << "got object" << std::endl; return p; },
+    [](Object v) -> Object { std::cout << "set object" << std::endl; return v; }
   };
 };
 
 int main()
 {
   Test t;
+  Object v {6};
+
+  t.prop = v;
   std::cout << t.prop().v << std::endl;
 
   return 0;
