@@ -4,72 +4,84 @@
 using std::cout;
 using std::endl;
 
-template <typename GetType, typename SetType = GetType>
+template <typename Type>
 class property
 {
   public:
-    template <typename Accessor, typename Mutator>
-    property (Accessor accessor, Mutator mutator) :
-      accessor_ {std::forward<Accessor> (accessor)},
-      mutator_ {std::forward<Mutator> (mutator)} {}
+    template <typename Getter, typename Setter>
+    property (Getter &&getter, Setter &&setter) :
+      getter_ {std::forward<Getter> (getter)},
+      setter_ {std::forward<Setter> (setter)} {}
 
-    template <typename Type>
-    operator Type () { return get(); }
+    template <typename Getter, typename Setter>
+    property (Type init, Getter &&getter, Setter &&setter) :
+      property_ {std::move (init)},
+      getter_ {std::forward<Getter> (getter)},
+      setter_ {std::forward<Setter> (setter)} {}
 
-    template <typename Type>
-    property &operator= (Type &&value)
+    property (property const &that) :
+      property_ {that.property_},
+      getter_ {that.getter_}, 
+      setter_ {that.setter_} {}
+
+    property (property &&that) :
+      property_ {std::move (that.property_)},
+      getter_ {std::move (that.getter_)}, 
+      setter_ {std::move (that.setter_)} {}
+
+    property &operator= (property that)
     {
-      set (std::forward<Type> (value));
+      property_ = std::move (that.property_);
+      setter_ = std::move (that.setter_);
+      getter_ = std::move (that.getter_);
       return *this;
     }
 
-    GetType get() { return accessor_(); }
-    const GetType get() const { return accessor_(); }
-    void set(SetType value) { mutator_ (value); }
+    Type operator() () { return getter_(property_); }
+    const Type operator() () const { return getter_(property_); }
+
+    operator Type () { return getter_(property_); }
+    operator const Type () const { return getter_(property_); }
+
+    property &operator= (Type const &value)
+    {
+      property_ = setter_ (value);
+      return *this;
+    }
 
   private:
-    std::function<GetType (void)> accessor_;
-    std::function<void (SetType)> mutator_;
+    Type property_;
+    std::function<Type (Type const &)> getter_;
+    std::function<Type (Type const &)> setter_;
 };
     
 struct Object
 {
   Object() { std::cout << "default object" << std::endl; }
   Object(int i) : v {i} { std::cout << "init object" << std::endl; }
-  Object(Object &&) { std::cout << "move object" << std::endl; }
-  Object(Object const &) { std::cout << "copy object" << std::endl; }
-  void operator=(Object &&) { std::cout << "move assign object" << std::endl; }
-  void operator=(Object const &) { std::cout << "copy assign object" << std::endl; }
+  Object(Object &&that) : v {that.v} { std::cout << "move object" << std::endl; }
+  Object(Object const &that) : v {that.v} { std::cout << "copy object" << std::endl; }
+  void operator=(Object &&that) { v = that.v; std::cout << "move assign object" << std::endl; }
+  void operator=(Object const &that) { v = that.v; std::cout << "copy assign object" << std::endl; }
   ~Object() { std::cout << "destroy object" << std::endl; }
   
   int v = 5;
 };
 
-class Test
+struct Test
 {
-  private:
-    Object obj {4};
-
-  public:
-    property<Object &, Object const &> prop
-    {
-      [&]() -> Object& { std::cout << "got object" << std::endl; return obj; },
-      [&](Object const &v) { std::cout << "set object" << std::endl; obj = v; }
-    };
+  Test () {}
+  property<Object> prop
+  {
+    [](Object const &p) { std::cout << "got object" << std::endl; return p; },
+    [](Object const &v) { std::cout << "set object" << std::endl; return v; }
+  };
 };
 
 int main()
 {
   Test t;
-  Object v = { 6 };
-
-  std::cout << "-----" << std::endl;
-  std::cout << ": " << t.prop.get().v << std::endl;
-  t.prop = v;
-  std::cout << ": " << t.prop.get().v << std::endl;
-  v = t.prop;
-  std::cout << ": " << t.prop.get().v << std::endl;
-  std::cout << "-----" << std::endl;
+  std::cout << t.prop().v << std::endl;
 
   return 0;
 }
