@@ -8,53 +8,81 @@ template <typename Type>
 class property
 {
   public:
-    template <typename Getter, typename Setter>
-    property (Getter &&getter, Setter &&setter) :
-      getter_ {std::forward<Getter> (getter)},
-      setter_ {std::forward<Setter> (setter)} {}
+    using type = Type;
 
-    template <typename Getter, typename Setter>
-    property (Type init, Getter &&getter, Setter &&setter) :
+  public:
+    template <typename Get, typename Set>
+    property (Get &&get, Set &&set) :
+      get_ {std::forward<Get> (get)},
+      set_ {std::forward<Set> (set)} {}
+
+    template <typename Get, typename Set>
+    property (Type init, Get &&get, Set &&set) :
       property_ {std::move (init)},
-      getter_ {std::forward<Getter> (getter)},
-      setter_ {std::forward<Setter> (setter)} {}
+      get_ {std::forward<Get> (get)},
+      set_ {std::forward<Set> (set)} {}
 
     property (property const &that) :
       property_ {that.property_},
-      getter_ {that.getter_}, 
-      setter_ {that.setter_} {}
+      get_ {that.get_}, 
+      set_ {that.set_} {}
 
     property (property &&that) :
       property_ {std::move (that.property_)},
-      getter_ {std::move (that.getter_)}, 
-      setter_ {std::move (that.setter_)} {}
+      get_ {std::move (that.get_)}, 
+      set_ {std::move (that.set_)} {}
 
     property &operator= (property that)
     {
       property_ = std::move (that.property_);
-      setter_ = std::move (that.setter_);
-      getter_ = std::move (that.getter_);
+      set_ = std::move (that.set_);
+      get_ = std::move (that.get_);
       return *this;
     }
 
-    operator Type &() { return getter_(property_); }
-    operator const Type &() const { return getter_(property_); }
+    operator Type &() { return (*this)(); }
+    operator const Type &() const { return (*this)(); }
 
-    Type &operator() () { return getter_(property_); }
-    const Type &operator() () const { return getter_(property_); }
+    Type &operator() () 
+    { 
+      get_ (property_); 
+      return property_; 
+    }
+
+    const Type &operator() () const 
+    { 
+      get_ (property_); 
+      return property_; 
+    }
 
     property &operator= (Type value)
     {
-      property_ = setter_ (std::move (value));
+      set_ (property_, std::move (value));
       return *this;
     }
 
   private:
+    template<typename T> friend std::ostream &operator<<(std::ostream &, property<T> const &);
+    template<typename T> friend std::ostream &operator>>(std::ostream &, property<T> &);
+
+  private:
     Type property_;
-    std::function<Type &(Type &)> getter_;
-    std::function<Type (Type)> setter_;
+    std::function<void (Type const &)> get_;
+    std::function<void (Type &, Type)> set_;
 };
-    
+
+template<typename T>
+std::ostream &operator<<(std::ostream &output, property<T> const &p)
+{
+  return output << p.property_;
+}
+
+template<typename T>
+std::istream &operator>>(std::istream &input, property<T> &p)
+{
+  return input >> p.property_;
+}
+
 struct Object
 {
   Object() { std::cout << "default object" << std::endl; }
@@ -68,23 +96,37 @@ struct Object
   int v = 5;
 };
 
+std::ostream &operator<<(std::ostream &output, Object const &obj)
+{
+  return output << obj.v;
+}
+
 struct Test
 {
   Test () {}
   property<Object> prop
   {
-    [](Object &p) -> Object & { std::cout << "got object" << std::endl; return p; },
-    [](Object v) -> Object { std::cout << "set object" << std::endl; return v; }
+    [](Object const &p) 
+    { 
+      std::cout << "got object" << std::endl; 
+    },
+    [](Object &p, Object v) 
+    { 
+      std::cout << "set object" << std::endl; 
+      p = std::move(v); 
+    }
   };
 };
 
 int main()
 {
   Test t;
-  Object v {6};
+  Object v {6}, r;
 
   t.prop = v;
-  std::cout << t.prop().v << std::endl;
+  std::cout << t.prop << std::endl;
+  r = t.prop;
+  std::cout << r.v << std::endl;
 
   return 0;
 }
