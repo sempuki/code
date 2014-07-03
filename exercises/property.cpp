@@ -87,7 +87,7 @@ class property_base
     Type value_;
 };
 
-template <typename Type, typename Friend>
+template <typename Type>
 class property_readonly : 
   protected property_base<Type>
 {
@@ -196,12 +196,25 @@ struct readonly {};
 struct readwrite {};
 struct none {};
 
+template <bool B, typename Then, typename Else> struct if_else {};
+template <typename Then, typename Else> struct if_else <true, Then, Else> { using type = Then; };
+template <typename Then, typename Else> struct if_else <false, Then, Else> { using type = Else; };
+
 template <typename Type, typename Kind = readwrite, typename Friend = none>
-class property
+class property : 
+  public if_else<std::is_same<Kind, readonly>::value, 
+    property_readonly<Type>, 
+    property_readwrite<Type>>::type
 {
   public:
     using type = Type;
     using kind = Kind;
+    using base = typename if_else<std::is_same<Kind, readonly>::value, 
+            property_readonly<Type>, 
+            property_readwrite<Type>>::type;
+
+    using base::base;
+    using base::operator=;
 
   public:
     signal<Type const &> change;
