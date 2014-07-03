@@ -220,7 +220,7 @@ class property :
     signal<Type const &> change;
   
   private:
-    void on_change() { change(*this); }
+    void on_change() { change(this->value()); }
 
   private:
     friend Friend;
@@ -265,7 +265,7 @@ struct Test
 {
   Test () 
   {
-    prop.change += [] cout << "hello world" << endl;
+    prop.change += [](Object const &) { cout << "property changed!" << endl; };
   }
 
   util::property<Object> prop
@@ -295,7 +295,9 @@ int main()
   Test t;
   Object v {6}, r;
 
+  cout << "---" << endl;
   t.prop = v;
+  cout << "---" << endl;
   std::cout << t.prop << std::endl;
   r = t.prop;
   std::cout << r.v << std::endl;
