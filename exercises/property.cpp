@@ -1,87 +1,234 @@
 #include <iostream>
 #include <functional>
+#include <type_traits>
+#include <vector>
 
 using std::cout;
 using std::endl;
 
-template <typename Type>
-class property
+namespace util {
+
+template <typename ...Args>
+class signal
 {
   public:
-    using type = Type;
+    signal &operator=(std::nullptr_t)
+    {
+      delegates_.clear();
+      return *this;
+    }
+
+    signal &operator=(signal that)
+    {
+      delegates_ = std::move(that.delegates_);
+      return *this;
+    }
+
+    signal &operator+=(signal that)
+    {
+      delegates_.insert(std::end(delegates_),
+          std::make_move_iterator(std::begin(that.delegates_)),
+          std::make_move_iterator(std::end(that.delegates_)));
+      return *this;
+    }
+
+    template <typename Functional>
+    signal &operator+=(Functional callback)
+    {
+      delegates_.emplace_back(std::move(callback));
+      return *this;
+    }
+
+    void operator()(Args ...args)
+    {
+      for (auto &delegate : delegates_)
+        delegate(args...);
+    }
+
+  private:
+    std::vector<std::function<void(Args...)>> delegates_;
+};
+
+
+template <typename Type>
+class property_base
+{
+  public:
+    property_base () : 
+      value_ {Type()} {}
+
+    property_base (Type init) : 
+      value_ {std::move (init)} {}
+    
+    property_base (property_base const &that) :
+      value_ {that.value_} {}
+
+    property_base (property_base &&that) :
+      value_ {std::move (that.value_)} {}
+
+    property_base operator= (property_base that)
+    {
+      value_ = std::move(that.value_);
+    }
 
   public:
-    template <typename Get, typename Set>
-    property (Get &&get, Set &&set) :
-      get_ {std::forward<Get> (get)},
-      set_ {std::forward<Set> (set)} {}
+    Type &value() { return value_; }
+    Type const &value() const { return value_; }
 
-    template <typename Get, typename Set>
-    property (Type init, Get &&get, Set &&set) :
-      property_ {std::move (init)},
-      get_ {std::forward<Get> (get)},
-      set_ {std::forward<Set> (set)} {}
+  public:
+    virtual void on_change() {}
+    void change (Type value) 
+    { 
+      value_ = std::move(value); 
+      on_change();
+    }
 
-    property (property const &that) :
-      property_ {that.property_},
-      get_ {that.get_}, 
-      set_ {that.set_} {}
+  private:
+    Type value_;
+};
 
-    property (property &&that) :
-      property_ {std::move (that.property_)},
-      get_ {std::move (that.get_)}, 
-      set_ {std::move (that.set_)} {}
+template <typename Type, typename Friend>
+class property_readonly : 
+  protected property_base<Type>
+{
+  public:
+    template <typename Get>
+    property_readonly (Get &&get) :
+      getter_ {std::forward<Get> (get)} {}
 
-    property &operator= (property that)
-    {
-      property_ = std::move (that.property_);
-      set_ = std::move (that.set_);
-      get_ = std::move (that.get_);
-      return *this;
+    template <typename Get>
+    property_readonly (Type init, Get &&get) :
+      property_base<Type> {std::move (init)},
+      getter_ {std::forward<Get> (get)} {}
+
+    property_readonly (property_readonly const &that) :
+      property_base<Type> {that},
+      getter_ {that.getter_} {} 
+
+    property_readonly (property_readonly &&that) :
+      property_base<Type> {std::move (that)},
+      getter_ {std::move (that.getter_)} {} 
+
+  public:
+    Type &operator() () 
+    { 
+      getter_ (this->value()); 
+      return this->value(); 
+    }
+
+    const Type &operator() () const 
+    { 
+      getter_ (this->value()); 
+      return this->value(); 
     }
 
     operator Type &() { return (*this)(); }
     operator const Type &() const { return (*this)(); }
 
+  private:
+    std::function<void (Type const &)> getter_;
+};
+
+
+template <typename Type>
+class property_readwrite :
+  protected property_base<Type>
+{
+  public:
+    template <typename Get, typename Set>
+    property_readwrite (Get &&get, Set &&set) :
+      getter_ {std::forward<Get> (get)},
+      setter_ {std::forward<Set> (set)} {}
+
+    template <typename Get, typename Set>
+    property_readwrite (Type init, Get &&get, Set &&set) :
+      property_base<Type> {std::move (init)},
+      getter_ {std::forward<Get> (get)},
+      setter_ {std::forward<Set> (set)} {}
+
+    property_readwrite (property_readwrite const &that) :
+      property_base<Type> {that},
+      getter_ {that.getter_}, 
+      setter_ {that.setter_} {}
+
+    property_readwrite (property_readwrite &&that) :
+      property_base<Type> {std::move (that)},
+      getter_ {std::move (that.getter_)}, 
+      setter_ {std::move (that.setter_)} {}
+
+    property_readwrite &operator= (property_readwrite that)
+    {
+      property_base<Type>::operator= (std::move (that));
+      setter_ = std::move (that.setter_);
+      getter_ = std::move (that.getter_);
+      return *this;
+    }
+
+  public:
     Type &operator() () 
     { 
-      get_ (property_); 
-      return property_; 
+      getter_ (this->value()); 
+      return this->value(); 
     }
 
     const Type &operator() () const 
     { 
-      get_ (property_); 
-      return property_; 
+      getter_ (this->value()); 
+      return this->value(); 
     }
+    
+    operator Type &() { return (*this)(); }
+    operator const Type &() const { return (*this)(); }
 
-    property &operator= (Type value)
+    property_readwrite &operator= (Type v)
     {
-      set_ (property_, std::move (value));
+      setter_ (this->value(), std::move (v));
+      this->on_change();
       return *this;
     }
 
   private:
-    template<typename T> friend std::ostream &operator<<(std::ostream &, property<T> const &);
-    template<typename T> friend std::ostream &operator>>(std::ostream &, property<T> &);
+    std::function<void (Type const &)> getter_;
+    std::function<void (Type &, Type)> setter_;
+};
+
+struct readonly {};
+struct readwrite {};
+struct none {};
+
+template <typename Type, typename Kind = readwrite, typename Friend = none>
+class property
+{
+  public:
+    using type = Type;
+    using kind = Kind;
+
+  public:
+    signal<Type const &> change;
+  
+  private:
+    void on_change() { change(*this); }
 
   private:
-    Type property_;
-    std::function<void (Type const &)> get_;
-    std::function<void (Type &, Type)> set_;
+    friend Friend;
+    template<typename T> friend std::ostream &operator<<(std::ostream &output, property<T> const &p);
+    template<typename T> friend std::istream &operator>>(std::istream &input, property<T> &p);
 };
 
 template<typename T>
 std::ostream &operator<<(std::ostream &output, property<T> const &p)
 {
-  return output << p.property_;
+  return output << p.value();
 }
 
 template<typename T>
 std::istream &operator>>(std::istream &input, property<T> &p)
 {
-  return input >> p.property_;
+  return input >> p.value();
 }
+
+} // util::
+
 
 struct Object
 {
@@ -104,7 +251,7 @@ std::ostream &operator<<(std::ostream &output, Object const &obj)
 struct Test
 {
   Test () {}
-  property<Object> prop
+  util::property<Object> prop
   {
     [](Object const &p) 
     { 
@@ -118,6 +265,14 @@ struct Test
   };
 };
 
+struct Foo 
+{
+  void method()
+  {
+    std::cout << "wtf" << std::endl;
+  }
+};
+
 int main()
 {
   Test t;
@@ -127,6 +282,9 @@ int main()
   std::cout << t.prop << std::endl;
   r = t.prop;
   std::cout << r.v << std::endl;
+
+  Foo f;
+  f.method();
 
   return 0;
 }
