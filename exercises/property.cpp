@@ -217,10 +217,10 @@ class property :
     using base::operator=;
 
   public:
-    signal<Type const &> change;
+    signal<Type const &> changed;
   
   private:
-    void on_change() { change(this->value()); }
+    void on_change() { changed(this->value()); }
 
   private:
     friend Friend;
@@ -261,24 +261,41 @@ std::ostream &operator<<(std::ostream &output, Object const &obj)
   return output << obj.v;
 }
 
-struct Test
+struct Test1
 {
-  Test () 
+  Test1 () 
   {
-    prop.change += [](Object const &) { cout << "property changed!" << endl; };
+    prop.changed += [](Object const &o) { cout << "Test1 property changed: " << o.v << endl; };
   }
 
   util::property<Object> prop
   {
     [](Object const &p) 
     { 
-      std::cout << "got object" << std::endl; 
+      std::cout << "Test1 got object: " << p.v << std::endl; 
     },
     [](Object &p, Object v) 
     { 
-      std::cout << "set object" << std::endl; 
+      std::cout << "Test1 set object: " << v.v << std::endl; 
       p = std::move(v); 
     }
+  };
+};
+
+struct Test2
+{
+  Test2 () 
+  {
+    prop.changed += [](Object const &o) { cout << "Test2 property changed: " << o.v << endl; };
+    prop.change(Object {2});
+  }
+
+  util::property<Object, util::readonly, Test2> prop
+  {
+    [](Object const &p) 
+    { 
+      std::cout << "Test2 got object: " << p.v << std::endl; 
+    },
   };
 };
 
@@ -292,14 +309,15 @@ struct Foo
 
 int main()
 {
-  Test t;
+  Test1 t1;
+  Test2 t2;
   Object v {6}, r;
 
   cout << "---" << endl;
-  t.prop = v;
+  t1.prop = v;
   cout << "---" << endl;
-  std::cout << t.prop << std::endl;
-  r = t.prop;
+  std::cout << t1.prop << std::endl;
+  r = t1.prop;
   std::cout << r.v << std::endl;
 
   Foo f;
@@ -307,3 +325,4 @@ int main()
 
   return 0;
 }
+
