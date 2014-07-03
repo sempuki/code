@@ -263,7 +263,11 @@ std::ostream &operator<<(std::ostream &output, Object const &obj)
 
 struct Test
 {
-  Test () {}
+  Test () 
+  {
+    prop.change += [] cout << "hello world" << endl;
+  }
+
   util::property<Object> prop
   {
     [](Object const &p) 
