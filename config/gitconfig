@@ -10,8 +10,8 @@
     df = diff
     fe = fetch
     lg = log
-    ph = push
-    pu = pull
+    pl = pull
+    pu = push
     re = remote
     rb = rebase
     st = status
