@@ -45,7 +45,7 @@ set splitright              "split in empty space to the right
 set diffopt+=context:999    "turn off folding context in diffs
 set guioptions-=tT          "turn off annoying toolbars
 set noerrorbells            "turn off annoying bells
-set t_vb=                   "turn off annoying blinking
+set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
 " Windows GUI tweaks
