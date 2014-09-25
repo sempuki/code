@@ -30,8 +30,7 @@ set shiftwidth=4            "used in shifting or C indenting
 set expandtab               "insert spaces for tabs
 set smarttab                "somewhat smarter tab control
 set cindent                 "C indenting
-"set cinwords                "indent after words
-"set cinkeys                 "indent after keys
+set cinoptions=g1,h1,N-s    "Google style guide
 set ruler                   "show the cursor
 set number                  "print line numbers
 set incsearch               "incremental search
@@ -169,7 +168,7 @@ nnoremap <Leader>jf :%JavaFormat <CR>
 "text editing
 
 "list of file encodings to try
-set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
+"set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
 
 nnoremap <Leader>k :setlocal spell<CR>
 nnoremap <Leader>K :setlocal nospell<CR>
