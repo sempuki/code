@@ -57,4 +57,4 @@ mutt-configuration:
 	cp muttrc ~/.muttrc
 	cp mailcap ~/.mutt
 
-copy-configuration: bash-configuration git-configuration vim-configuration mutt-configuration
+copy-configuration: bash-configuration git-configuration vim-configuration
