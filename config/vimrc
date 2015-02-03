@@ -6,19 +6,17 @@ colorscheme slate
 filetype off
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
-
 Plugin 'gmarik/Vundle.vim'
 Plugin 'a.vim'
 Plugin 'gtags.vim'
 Plugin 'fugitive.vim'
 Plugin 'matchit.zip'
 Plugin 'OmniCppComplete'
-
 call vundle#end()
-" :PluginList          - list configured plugins
-" :PluginInstall(!)    - install (update) plugins
-" :PluginSearch(!) foo - search (or refresh cache first) for foo
-" :PluginClean(!)      - confirm (or auto-approve) removal of unused plugins
+" :PluginList           - list configured plugins
+" :PluginInstall(!)     - install (update) plugins
+" :PluginSearch(!) foo  - search (or refresh cache first) for foo
+" :PluginClean(!)       - confirm (or auto-approve) removal of unused plugins
 
 filetype plugin indent on   "autoguess by file extension
 set nocompatible            "use VIM settings
@@ -88,8 +86,8 @@ nnoremap <silent> <Backspace> <PageUp>
 nnoremap <silent> <Space> <PageDown> 
 
 "window resizing
-nnoremap <C-u> :resize +10<CR>
-nnoremap <C-d> :resize -10<CR>
+"nnoremap <C-u> :resize +10<CR>
+"nnoremap <C-d> :resize -10<CR>
 
 "toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-A> :A<CR>
@@ -117,7 +115,7 @@ nnoremap [q :cprevious<CR>
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
 "vimgrep word under cursor
-nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj %:h
+nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj **
 
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
@@ -146,6 +144,22 @@ set tags+=./js.tags,js.tags
 nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
+nnoremap <silent> <Leader>G :!find .
+      \ -name '*.py' -or
+      \ -name '*.java' -or
+      \ -name '*.cpp' -or
+      \ -name '*.cxx' -or
+      \ -name '*.cc' -or
+      \ -name '*.c' -or
+      \ -name '*.hpp' -or
+      \ -name '*.hxx' -or
+      \ -name '*.hh' -or
+      \ -name '*.h' -or
+      \ -name '*.ipp' -or
+      \ -name '*.tpp' \|
+      \ env GTAGSFORCECPP=1 gtags -f-
+      \<CR>
+
 "look for global tags files
 if filereadable ("C:/Code/")
     set tags+="C:/Code/"
@@ -157,7 +171,7 @@ endif
 "C++ OmniCppComplete
 set completeopt-=preview            "disable annoying window
 let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
-let OmniCpp_MayCompleteScope = 1    "autocomplete after ::
+let OmniCpp_MayCompleteScope = 0    "autocomplete after ::
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 
 "Java eclim bindings
