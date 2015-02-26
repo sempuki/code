@@ -168,6 +168,9 @@ if filereadable ($HOME."/Code/")
     let tags+=$HOME."/Code/"
 endif
 
+" PEP 8 compliance
+autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
+
 "C++ OmniCppComplete
 set completeopt-=preview            "disable annoying window
 let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
