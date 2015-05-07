@@ -5,6 +5,7 @@
     bl = blame
     br = branch
     ci = commit
+    cam = commit --amend -CHEAD
     cl = clone
     co = checkout
     df = diff
