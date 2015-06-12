@@ -45,6 +45,22 @@ set noerrorbells            "turn off annoying bells
 set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
+" Google C++ Style Guide compliance
+autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+
+" PEP 8 compliance
+autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
+
+" Try not to clutter source directories
+if isdirectory($HOME.'/.vim/swap') == 0
+  :silent !mkdir -p ~/.vim/swap >/dev/null 2>&1
+endif
+if isdirectory($HOME.'/.vim/undo') == 0
+  :silent !mkdir -p ~/.vim/undo > /dev/null 2>&1
+endif
+set directory=~/.vim/swap//,.,~/tmp//,/var/tmp//
+set undodir=~/.vim/undo//,.,~/tmp//,/var/tmp//
+
 " Windows GUI tweaks
 if has("gui_win32")
     "autocmd GUIEnter * :simalt ~x
@@ -167,9 +183,6 @@ endif
 if filereadable ($HOME."/Code/")
     let tags+=$HOME."/Code/"
 endif
-
-" PEP 8 compliance
-autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
 
 "C++ OmniCppComplete
 set completeopt-=preview            "disable annoying window
