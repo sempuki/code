@@ -1,0 +1,14 @@
+" default search/suggest engine: google
+set defsearch=google
+set suggestengines=google
+
+" completion priority in :[tab]open
+" bookmarks, suggestions, awesome bar
+set complete=tl
+
+" show tab bar only
+set gui=none,tabs,addons
+
+autocmd LocationChange .*                             js modes.passAllKeys = false
+autocmd LocationChange mail\\.google\\.com            js modes.passAllKeys = true
+autocmd LocationChange www\\.google\\.com/calendar    js modes.passAllKeys = true

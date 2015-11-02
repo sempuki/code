@@ -45,6 +45,9 @@ set noerrorbells            "turn off annoying bells
 set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
+" Eclipse Style
+autocmd FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
+
 " Google C++ Style Guide compliance
 autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
 
@@ -67,6 +70,9 @@ if has("gui_win32")
     set guifont=DejaVu_Sans_Mono:h9:cANSI
     set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif
+
+" Fix redraw issues on MacOSX
+autocmd FocusGained * :redraw!
 
 "multi-platform support
 if has("unix")
@@ -109,7 +115,7 @@ nnoremap <silent> <Space> <PageDown>
 nnoremap <silent> <C-A> :A<CR>
 
 "insert newline
-nnoremap <C-J> i<CR><Esc>==
+nnoremap <C-J> O<Esc>j
 
 "ctag searching
 nnoremap <Leader>t :tjump<Space>

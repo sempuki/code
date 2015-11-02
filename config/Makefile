@@ -45,7 +45,7 @@ git-configuration:
 
 vim-configuration: basic-packages development-packages
 	cp vimrc ~/.vimrc
-	mkdir -m 755 -p ~/.vim/bundle
+	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
 	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
 mutt-configuration:
