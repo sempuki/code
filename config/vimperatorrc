@@ -9,4 +9,4 @@ set complete=tl
 " show tab bar only
 set gui=none,tabs,addons
 
-ignorekeys add -except=:,H,L,P,t mail.google.com
+ignorekeys add -except=:,H,L,R,P,f,t mail.google.com
