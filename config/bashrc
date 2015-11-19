@@ -1,36 +1,88 @@
 # .bashrc
-export HISTCONTROL=erasedups
+if [ -f /etc/bashrc ]; then
+    source /etc/bashrc
+fi
+
+# Variables
 export LD_LIBRARY_PATH=/usr/local/lib
 export LIBRARY_PATH=/usr/local/lib
 export CPATH=/usr/local/include
 
-# User specific aliases and functions
+export HISTCONTROL=erasedups
+export VIM_COMMAND='vim'
+export DIFF_COMMAND='git diff --'
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
+export LS_COMMAND='ls -lF --color'
 
-function grep_() { 
-    ${GREP_COMMAND} "$@" 
+# Aliases
+function le() {
+    less -R "$@"
 }
-function grep_recurse_here_() { 
-    ${GREP_COMMAND} -ER "$@" * 
+function d() {
+    dirs -p "$@"
 }
-function grep_by_filename_() { 
-    ${GREP_COMMAND} -E "${1}" $(find -L . -name "${2}") 
+function pd() {
+    pushd "$@" > /dev/null
+}
+function p() {
+    popd "$@" > /dev/null
+}
+function v() {
+    ${VIM_COMMAND} "$@"
+}
+function df() {
+    ${DIFF_COMMAND} "$@"
+}
+function g() {
+    ${GREP_COMMAND} "$@"
+}
+function gr() {
+    ${GREP_COMMAND} -ER "$@" *
+}
+function gf() {
+    ${GREP_COMMAND} -E "${1}" $(find -L . -name "${2}")
+}
+function ll() {
+    ${LS_COMMAND} "$@"
 }
 
-alias ll='ls -l --color'
-alias pd='pushd'
-alias p='popd'
-alias v='gvim'
-alias g='grep_'
-alias gr='grep_recurse_here_'
-alias gf='grep_by_filename_'
-alias pb="curl -F 'sprunge=<-' http://sprunge.us"
+# VIM integration
+export EDITOR=${VIM_COMMAND}
+set -o vi 
 
-# Source global definitions
-if [ -f /etc/bashrc ]; then
-    . /etc/bashrc
+# Git integration
+if [ -d /usr/share/git-core/contrib ]; then
+  pushd /usr/share/git-core/contrib > /dev/null
+  if [ -f completion/git-completion.sh ]; then
+    source completion/git-completion.sh
+  fi
+  source completion/git-prompt.sh
+  popd > /dev/null
 fi
 
-# VIM power
-set -o vi 
-export EDITOR=vim
+export GIT_PS1_SHOWCOLORHINTS=true
+export GIT_PS1_SHOWDIRTYSTATE=true
+export GIT_PS1_SHOWUPSTREAM="auto"
+export PROMPT_COMMAND='__git_ps1 "[\u@\h \w]" "\\\$ ";'
+
+# Per-OS Options
+OS=`uname -s`
+case "$OS" in
+  "Linux" )
+    ;;
+  "Darwin")
+    export CLICOLOR=true
+    export LSCOLORS=ExFxBxDxCxegedabagacad
+    export LS_COMMAND='ls -lGF'
+    if [ -d /Applications/Xcode.app/Contents/Developer ]; then
+      pushd /Applications/Xcode.app/Contents/Developer > /dev/null
+      if [ -f usr/share/git-core/git-completion.bash ]; then
+        source usr/share/git-core/git-completion.bash
+      fi
+      source usr/share/git-core/git-prompt.sh
+      popd > /dev/null
+    fi
+    ;;
+  * )
+    ;;
+esac

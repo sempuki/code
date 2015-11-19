@@ -7,7 +7,7 @@ update-packages:
 
 development-packages:
 	sudo dnf -y install vim-X11 vim-enhanced
-	sudo dnf -y install gcc-c++ git nemiver global
+	sudo dnf -y install gcc-c++ gdb git global-ctags
 	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
 	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
@@ -43,4 +43,4 @@ neovim-config:
 	ln -s ~/.vim ~/.config/nvim 
 	ln -s ~/.vimrc ~/.config/nvim/init.vim
 
-copy-config: bash-config git-config vim-config vimperator-config
+copy: bash-config git-config vim-config vimperator-config
