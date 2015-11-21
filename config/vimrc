@@ -96,7 +96,7 @@ noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 noremap <silent> <F1> <Esc><C-C>:w!<CR>
 noremap! <silent> <F1> <Esc><C-C>:w!<CR>
 
-"!cancel highlighting
+"cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
 "next/prev/delete buffer
@@ -205,6 +205,10 @@ nnoremap <Leader>ja :JavaGetSet <CR>
 nnoremap <Leader>jc :JavaConstructor <CR>
 nnoremap <Leader>jr :JavaRename
 nnoremap <Leader>jf :%JavaFormat <CR>
+
+"hex editing
+nnoremap <Leader>h :%!xxd -g1<CR>
+nnoremap <Leader>H :%!xxd -r<CR>:set bin<CR>:write<CR>:set nobin<CR>
 
 "text editing
 

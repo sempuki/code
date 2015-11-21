@@ -3,12 +3,20 @@ if [ -f /etc/bashrc ]; then
     source /etc/bashrc
 fi
 
+# Shell options
+shopt -s cdspell       # auto-correct errors on cd
+shopt -s histappend    # append not truncate
+shopt -s hostcomplete  # complete after '@'
+
 # Variables
 export LD_LIBRARY_PATH=/usr/local/lib
 export LIBRARY_PATH=/usr/local/lib
 export CPATH=/usr/local/include
 
-export HISTCONTROL=erasedups
+export HISTCONTROL=ignoreboth
+export HISTFILESIZE=10000
+export HISTSIZE=10000
+
 export VIM_COMMAND='vim'
 export DIFF_COMMAND='git diff --'
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
