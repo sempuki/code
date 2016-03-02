@@ -160,7 +160,12 @@ nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fi
 set tags+=./py.tags,py.tags
 
 "generate local JavaScript tags files
-nnoremap <silent> <Leader>E :!ctags -R --languages=js --fields=+aiS --extra=+fq -f js.tags<CR>
+nnoremap <silent> <Leader>E :!ctags -R --languages=js --exclude='*/node_modules/*' --extra=+f --sort=yes -f js.tags<CR>
+" nnoremap <silent> <Leader>E :!find .
+"       \ -type f -name '*.js'
+"       \ -not -path '*/html/*'
+"       \ -not -path '*/node_modules/*'
+"       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
 set tags+=./js.tags,js.tags
 
 "generate /usr/src C++ tags files
