@@ -1,18 +1,14 @@
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
+#include <sstream>
 
 typedef unsigned int uint32_t;
 
-// bit indices are 1-based
-int fibonacci (int n)
+void lower_string (char *s)
 {
-    int fn = 0, fp = 1;
-
-    while (n--)
-        fn += fp, std::swap (fn, fp);
-
-    return fn;
+    for (int i=0; s[i]; ++i)
+        s[i] += (s[i] >= 'A' && s[i] <= 'Z')? 
+            0x20 : 0;
 }
 
 int main (int argc, char **argv)
@@ -31,11 +27,13 @@ int main (int argc, char **argv)
         return -2;
     }
 
-    std::string buffer;
+    size_t const N = 2048;
+    char buffer [N];
 
-    while (std::getline (file, buffer).eof() == false)
+    while (file.getline (buffer, N).eof() == false)
     {
-        std::cout << fibonacci (std::atoi (buffer.c_str())) << std::endl;
+        lower_string (buffer);
+        std::cout << buffer << std::endl;
     }
 
     return 0;

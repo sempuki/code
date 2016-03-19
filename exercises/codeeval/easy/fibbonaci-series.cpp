@@ -1,16 +1,17 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
+#include <cstdlib>
 
 typedef unsigned int uint32_t;
 
-// bit indices are 1-based
-int sum_digits (char const *s)
+int fibonacci (int n)
 {
-    int result = 0;
-    for (int i=0; s[i]; ++i)
-        result += s[i] - '0';
-    return result;
+    int fn = 0, fp = 1;
+
+    while (n--)
+        fn += fp, std::swap (fn, fp);
+
+    return fn;
 }
 
 int main (int argc, char **argv)
@@ -29,12 +30,11 @@ int main (int argc, char **argv)
         return -2;
     }
 
-    size_t const N = 2048;
-    char buffer [N];
+    std::string buffer;
 
-    while (file.getline (buffer, N).eof() == false)
+    while (std::getline (file, buffer).eof() == false)
     {
-        std::cout << sum_digits (buffer) << std::endl;
+        std::cout << fibonacci (std::atoi (buffer.c_str())) << std::endl;
     }
 
     return 0;

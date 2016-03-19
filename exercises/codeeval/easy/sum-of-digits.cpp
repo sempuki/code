@@ -4,12 +4,12 @@
 
 typedef unsigned int uint32_t;
 
-// bit indices are 1-based
-void lower_string (char *s)
+int sum_digits (char const *s)
 {
+    int result = 0;
     for (int i=0; s[i]; ++i)
-        s[i] += (s[i] >= 'A' && s[i] <= 'Z')? 
-            0x20 : 0;
+        result += s[i] - '0';
+    return result;
 }
 
 int main (int argc, char **argv)
@@ -33,8 +33,7 @@ int main (int argc, char **argv)
 
     while (file.getline (buffer, N).eof() == false)
     {
-        lower_string (buffer);
-        std::cout << buffer << std::endl;
+        std::cout << sum_digits (buffer) << std::endl;
     }
 
     return 0;
