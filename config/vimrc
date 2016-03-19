@@ -143,6 +143,10 @@ nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj **
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
 
+"make local file with quickfix integration
+" may require modeline set CXXFLAGS='...'
+nnoremap <Leader>m :make %< \|cwindow<CR>
+
 "generate local C++ tags files
 nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
