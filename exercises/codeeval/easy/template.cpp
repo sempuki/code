@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 void process(const std::string &line) {
+  std::stringstream buffer{line};
 }
 
 int main (int argc, char **argv)
