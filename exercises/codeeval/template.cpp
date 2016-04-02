@@ -5,8 +5,8 @@
 #include <fstream>
 #include <sstream>
 
-void process(const std::string &line) {
-  std::stringstream buffer{line};
+void process(std::string &&line) {
+  std::stringstream buffer{std::move(line)};
 }
 
 int main (int argc, char **argv)
@@ -23,8 +23,8 @@ int main (int argc, char **argv)
     }
 
     std::string line;
-    while (!std::getline(file, line).eof()) {
-      process(line);
+    while (std::getline(file, line)) {
+      process(std::move(line));
     }
 
     return 0;
