@@ -33,7 +33,7 @@ git-config:
 	cp gitconfig ~/.gitconfig
 	cp gitignore ~/.gitignore
 
-vim-config:
+vim-config: install-scripts
 	cp vimrc ~/.vimrc
 
 vimperator-config:

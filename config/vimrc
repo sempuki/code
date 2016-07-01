@@ -23,9 +23,9 @@ filetype plugin indent on   "autoguess by file extension
 set nocompatible            "use VIM settings
 set autowriteall            "write buffer to file when switching
 set undofile                "persistent undo
-set tabstop=2               "number of spaces in a tab, used in expandtab
-set softtabstop=2           "number of spaces in a tab, used in smarttab
-set shiftwidth=2            "used in shifting or C indenting
+set tabstop=4               "number of spaces in a tab, used in expandtab
+set softtabstop=4           "number of spaces in a tab, used in smarttab
+set shiftwidth=4            "used in shifting or C indenting
 set expandtab               "insert spaces for tabs
 set smarttab                "somewhat smarter tab control
 set cindent                 "C indenting
@@ -46,13 +46,17 @@ set noerrorbells            "turn off annoying bells
 set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
+" Auto Clang Format
+" autocmd FileType C,CPP ClangFormatAutoEnable
+autocmd FileType C,CPP autocmd BufWritePre <buffer> :pyf ~/Scripts/clang-format.py
+
+" Google Style
+" autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+
 " Eclipse Style
 autocmd FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
 
-" Google C++ Style Guide compliance
-autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
-
-" PEP 8 compliance
+" PEP 8 Style
 autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
 
 " Try not to clutter source directories
@@ -67,7 +71,6 @@ set undodir=~/.vim/undo//,.,~/tmp//,/var/tmp//
 
 " Windows GUI tweaks
 if has("gui_win32")
-    "autocmd GUIEnter * :simalt ~x
     set guifont=DejaVu_Sans_Mono:h9:cANSI
     set shellslash          "unify shell path seperator handling (eg. Cygwin)
 endif

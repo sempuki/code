@@ -1,9 +1,0 @@
-# Images
-image/jpg; ~/Scripts/view-attachment.sh %s
-image/jpeg; ~/Scripts/view-attachment.sh %s
-image/pjpeg; ~/Scripts/view-attachment.sh %s
-image/png; ~/Scripts/view-attachment.sh %s
-image/gif; ~/Scripts/view-attachment.sh %s
-
-# PDFs
-application/pdf; ~/Scripts/view-attachment.sh %s

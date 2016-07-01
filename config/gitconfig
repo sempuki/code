@@ -12,9 +12,11 @@
     fe = fetch
     lg = log
     pl = pull
+    prb = pull --rebase
     pu = push
     re = remote
     rb = rebase
+    rbs = rebase --autostash
     st = status
     sh = stash
 [apply]
