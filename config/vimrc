@@ -47,8 +47,7 @@ set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
 " Auto Clang Format
-" autocmd FileType C,CPP ClangFormatAutoEnable
-autocmd FileType C,CPP autocmd BufWritePre <buffer> :pyf ~/Scripts/clang-format.py
+autocmd FileType C,CPP :ClangFormatAutoEnable
 
 " Google Style
 " autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
@@ -204,10 +203,10 @@ if filereadable ($HOME."/Code/")
 endif
 
 "C++ OmniCppComplete
-set completeopt-=preview            "disable annoying window
+set completeopt=menu,longest
 let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
-let OmniCpp_MayCompleteScope = 0    "autocomplete after ::
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
+imap <C-O> <C-X><C-O>
 
 "Java eclim bindings
 nnoremap <Leader>ji :JavaImport<CR>
