@@ -10,10 +10,10 @@ union compressed_small_array {
     std::array<Type, initial_capacity> array;
     Type* pointer = nullptr;
 
-    Type* get(size_t size) {
+    Type* operator()(size_t size) {
         return size <= initial_capacity ? array.data() : pointer;
     }
-    const Type* get(size_t size) const {
+    const Type* operator()(size_t size) const {
         return size <= initial_capacity ? array.data() : pointer;
     }
 };
@@ -25,17 +25,17 @@ class small_vector {
     using value_type = Type;
     using allocator_type = Allocator;
 
-    Type& operator[](size_t pos) { return data_.get(size)[pos]; }
-    Type const& operator[](size_t pos) const { return data_.get(size)[pos]; }
+    Type& operator[](size_t pos) { return data_(size)[pos]; }
+    Type const& operator[](size_t pos) const { return data_(size)[pos]; }
 
-    Type* data() { return data_.get(size_); }
-    Type const* data() const { return data_.get(size_); }
+    Type* data() { return data_(size_); }
+    Type const* data() const { return data_(size_); }
 
-    Type& front() { return data_.get(size_)[0]; }
-    Type const& front() const { return data_.get(size_)[0]; }
+    Type& front() { return data_(size_)[0]; }
+    Type const& front() const { return data_(size_)[0]; }
 
-    Type& back() { return data_.get(size_)[size_ - 1]; }
-    Type const& back() const { return data_.get(size_)[size_ - 1]; }
+    Type& back() { return data_(size_)[size_ - 1]; }
+    Type const& back() const { return data_(size_)[size_ - 1]; }
 
     bool empty() const { return size_ == 0; }
     size_t size() const { return size_; }
