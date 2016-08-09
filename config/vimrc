@@ -47,16 +47,19 @@ set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
 " Auto Clang Format
-autocmd FileType C,CPP :ClangFormatAutoEnable
+autocmd FileType CPP :ClangFormatAutoEnable
 
 " Google Style
 " autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
 
 " Eclipse Style
-autocmd FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
+autocmd FileType Java set tabstop=4 shiftwidth=4 softtabstop=4 :ClangFormatAutoDisable
 
 " PEP 8 Style
-autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
+autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4 :ClangFormatAutoDisable
+
+" JavaScript
+autocmd FileType JavaScript :ClangFormatAutoDisable
 
 " Try not to clutter source directories
 if isdirectory($HOME.'/.vim/swap') == 0
@@ -166,13 +169,13 @@ nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fi
 set tags+=./py.tags,py.tags
 
 "generate local JavaScript tags files
-nnoremap <silent> <Leader>E :!ctags -R --languages=js --exclude='*/node_modules/*' --extra=+f --sort=yes -f js.tags<CR>
-" nnoremap <silent> <Leader>E :!find .
-"       \ -type f -name '*.js'
-"       \ -not -path '*/html/*'
-"       \ -not -path '*/node_modules/*'
-"       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
-set tags+=./js.tags,js.tags
+nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --exclude='*/node_modules/*' --extra=+f --sort=yes -f js.tags<CR>
+nnoremap <silent> <Leader>E :!find .
+      \ -type f -name '*.js'
+      \ -not -path '*/html/*'
+      \ -not -path '*/node_modules/*'
+      \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
+" set tags+=./js.tags,js.tags
 
 "generate /usr/src C++ tags files
 nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
