@@ -47,19 +47,19 @@ set vb t_vb=                "turn off annoying blinking
 let mapleader=","           "comma is more convenient
 
 " Auto Clang Format
-autocmd FileType CPP :ClangFormatAutoEnable
+autocmd! FileType CPP :ClangFormatAutoEnable
 
 " Google Style
 " autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
 
 " Eclipse Style
-autocmd FileType Java set tabstop=4 shiftwidth=4 softtabstop=4 :ClangFormatAutoDisable
+autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
 
 " PEP 8 Style
-autocmd FileType Python set tabstop=8 shiftwidth=4 softtabstop=4 :ClangFormatAutoDisable
+autocmd! FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
 
 " JavaScript
-autocmd FileType JavaScript :ClangFormatAutoDisable
+autocmd! FileType JavaScript
 
 " Try not to clutter source directories
 if isdirectory($HOME.'/.vim/swap') == 0
