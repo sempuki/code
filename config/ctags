@@ -1,0 +1,16 @@
+--exclude=.git
+--exclude=.svn
+--exclude=log
+--exclude=build
+--exclude=node_modules
+--extra=+f
+--tag-relative
+--langmap=c++:+.C
+--langmap=c++:+.H
+--langmap=c++:+.inl
+--langmap=c++:+.ipp
+--langmap=c++:+.tpp 
+--langdef=protobuf
+--langmap=protobuf:+.proto
+--regex-protobuf=/^message[ \t]*([a-zA-Z0-9_]+)/\1/m,message/
+--regex-protobuf=/^[ \t]*(optional|required|repeated)[ \t]*([a-zA-Z0-9_]+)[ \t]*([a-zA-Z0-9_]+)/\3/v,variable/

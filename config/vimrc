@@ -152,33 +152,37 @@ nnoremap <C-f> :cgetexpr system(find."")
 " may require modeline set CXXFLAGS='...'
 nnoremap <Leader>m :make %< \|cwindow<CR>
 
-"generate local C++ tags files
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
+"generate local C++ tags file
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
-"generate local C# tags files
+"generate local C# tags file
 nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS --extra=+fq -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
-"generate local Java tags files
+"generate local Java tags file
 nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS --extra=+fq -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
-"generate local Python tags files
+"generate local Python tags file
 nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS --extra=+fq -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
-"generate local JavaScript tags files
-nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --exclude='*/node_modules/*' --extra=+f --sort=yes -f js.tags<CR>
+"generate local JavaScript tags file
+" nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --extra=+f --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>E :!find .
       \ -type f -name '*.js'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
-" set tags+=./js.tags,js.tags
+set tags+=./js.tags,js.tags
+
+"generate local protobuf tags file
+nnoremap <silent> <Leader>B :!ctags -R --languages=protobuf --extra=+fq -f protobuf.tags<CR>
+set tags+=./protobuf.tags,protobuf.tags
 
 "generate /usr/src C++ tags files
-nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --langmap=c:+.C,c++:+.H,c++:+.inl,c++:+.ipp,c++:+.tpp --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
+nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>G :!find .

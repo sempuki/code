@@ -43,4 +43,7 @@ neovim-config:
 	ln -s ~/.vim ~/.config/nvim 
 	ln -s ~/.vimrc ~/.config/nvim/init.vim
 
-copy: bash-config git-config vim-config vimperator-config
+ctags-config:
+	cp ctags ~/.ctags
+
+copy: bash-config git-config vim-config vimperator-config ctags-config
