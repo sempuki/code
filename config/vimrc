@@ -13,6 +13,7 @@ Plugin 'fugitive.vim'
 Plugin 'matchit.zip'
 Plugin 'OmniCppComplete'
 Plugin 'rhysd/vim-clang-format'
+Plugin 'mileszs/ack.vim'
 call vundle#end()
 " :PluginList           - list configured plugins
 " :PluginInstall(!)     - install (update) plugins
@@ -142,8 +143,8 @@ nnoremap [q :cprevious<CR>
 "search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
-"vimgrep word under cursor
-nnoremap <C-g> :vimgrep /\<<C-R><C-W>\>/gj **
+"grep word under cursor
+nnoremap <C-g> :Ack <C-R><C-W> %:h
 
 "find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
