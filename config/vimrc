@@ -60,7 +60,7 @@ autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
 autocmd! FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
 
 " JavaScript
-autocmd! FileType JavaScript
+autocmd! FileType JavaScript set tabstop=2 shiftwidth=2 softtabstop=2
 
 " Try not to clutter source directories
 if isdirectory($HOME.'/.vim/swap') == 0
@@ -173,8 +173,10 @@ set tags+=./py.tags,py.tags
 " nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --extra=+f --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>E :!find .
       \ -type f -name '*.js'
+      \ -not -path '*/log/*'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
+      \ -not -path '*/build/*'
       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
 set tags+=./js.tags,js.tags
 
@@ -187,7 +189,9 @@ nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields
 set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>G :!find .
+      \ \(
       \ -name '*.py' -or
+      \ -name '*.js' -or
       \ -name '*.java' -or
       \ -name '*.cpp' -or
       \ -name '*.cxx' -or
@@ -198,7 +202,11 @@ nnoremap <silent> <Leader>G :!find .
       \ -name '*.hh' -or
       \ -name '*.h' -or
       \ -name '*.ipp' -or
-      \ -name '*.tpp' \|
+      \ -name '*.tpp' \)
+      \ -not -path '*/log/*'
+      \ -not -path '*/html/*'
+      \ -not -path '*/node_modules/*'
+      \ -not -path '*/build/*' \|
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
 
