@@ -20,38 +20,39 @@ call vundle#end()
 " :PluginSearch(!) foo  - search (or refresh cache first) for foo
 " :PluginClean(!)       - confirm (or auto-approve) removal of unused plugins
 
-filetype plugin indent on   "autoguess by file extension
-set nocompatible            "use VIM settings
-set autowriteall            "write buffer to file when switching
-set undofile                "persistent undo
-set tabstop=4               "number of spaces in a tab, used in expandtab
-set softtabstop=4           "number of spaces in a tab, used in smarttab
-set shiftwidth=4            "used in shifting or C indenting
-set expandtab               "insert spaces for tabs
-set smarttab                "somewhat smarter tab control
-set cindent                 "C indenting
-set cinoptions=g1,h1,N-s    "Google style guide
-set ruler                   "show the cursor
-set number                  "print line numbers
-set incsearch               "incremental search
-set hlsearch                "highlight search matches
-set wildmenu                "print menu completions
-set scrolloff=5             "keep lines of context when scrolling
-set foldmethod=syntax       "fold according to syntax hl rules
-set foldlevel=99            "default to all open
-set matchpairs+=<:>         "match angle brackets
-set splitright              "split in empty space to the right
-set diffopt+=context:999    "turn off folding context in diffs
-set guioptions-=tT          "turn off annoying toolbars
-set noerrorbells            "turn off annoying bells
-set vb t_vb=                "turn off annoying blinking
-let mapleader=","           "comma is more convenient
+filetype plugin indent on   " autoguess by file extension
+set nocompatible            " use VIM settings
+set autowriteall            " write buffer to file when switching
+set undofile                " persistent undo
+set tabstop=4               " number of spaces in a tab
+set softtabstop=4           " number of spaces in a soft tab
+set shiftwidth=4            " used in shifting or C indenting
+set expandtab               " insert spaces for tabs
+set smarttab                " prefer shiftwidth
+set cindent                 " C indenting
+set cinoptions=:0,g0,N-s    " minimize switch, class, ns, indenting
+set ruler                   " show the cursor
+set number                  " print line numbers
+set incsearch               " incremental search
+set hlsearch                " highlight search matches
+set wildmenu                " print menu completions
+set scrolloff=5             " keep lines of context when scrolling
+set foldmethod=syntax       " fold according to syntax hl rules
+set foldlevel=99            " default to all open
+set matchpairs+=<:>         " match angle brackets
+set splitright              " split in empty space to the right
+set diffopt+=context:999    " turn off folding context in diffs
+set guioptions-=tT          " turn off annoying toolbars
+set noerrorbells            " turn off annoying bells
+set vb t_vb=                " turn off annoying blinking
+let mapleader=","           " comma is more convenient
 
 " Auto Clang Format
 autocmd! FileType CPP :ClangFormatAutoEnable
 
 " Google Style
 " autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+" set cinoptions=g1,h1,N-s
 
 " Eclipse Style
 autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
@@ -173,6 +174,9 @@ set tags+=./py.tags,py.tags
 " nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --extra=+f --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>E :!find .
       \ -type f -name '*.js'
+      \ -not -path '*/.svn/*'
+      \ -not -path '*/.git/*'
+      \ -not -path '*/.hg/*'
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
@@ -190,9 +194,6 @@ set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>G :!find .
       \ \(
-      \ -name '*.py' -or
-      \ -name '*.js' -or
-      \ -name '*.java' -or
       \ -name '*.cpp' -or
       \ -name '*.cxx' -or
       \ -name '*.cc' -or
@@ -203,6 +204,9 @@ nnoremap <silent> <Leader>G :!find .
       \ -name '*.h' -or
       \ -name '*.ipp' -or
       \ -name '*.tpp' \)
+      \ -not -path '*/.svn/*'
+      \ -not -path '*/.git/*'
+      \ -not -path '*/.hg/*'
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
