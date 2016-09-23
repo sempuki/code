@@ -7,7 +7,7 @@ filetype off
 set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 Plugin 'VundleVim/Vundle.vim'
-Plugin 'a.vim'
+Plugin 'FSwitch'
 Plugin 'gtags.vim'
 Plugin 'fugitive.vim'
 Plugin 'matchit.zip'
@@ -113,12 +113,15 @@ nnoremap <silent> <C-X> :bdelete!<CR>
 nnoremap <silent> <Backspace> <PageUp>
 nnoremap <silent> <Space> <PageDown> 
 
+"more ergonomic centering
+nnoremap <silent> <Home> zz
+
 "window resizing
 "nnoremap <C-u> :resize +10<CR>
 "nnoremap <C-d> :resize -10<CR>
 
 "toggle .{c|cpp}/.{h|hpp}
-nnoremap <silent> <C-A> :A<CR>
+nnoremap <silent> <C-A> :FSHere<CR>
 
 "insert newline
 nnoremap <C-J> O<Esc>j

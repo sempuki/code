@@ -1,5 +1,6 @@
 --exclude=.git
 --exclude=.svn
+--exclude=.hg
 --exclude=log
 --exclude=build
 --exclude=node_modules
