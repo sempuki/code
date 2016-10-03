@@ -156,23 +156,23 @@ nnoremap <C-f> :cgetexpr system(find."")
 nnoremap <Leader>m :make %< \|cwindow<CR>
 
 "generate local C++ tags file
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags<CR>
+nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 "generate local C# tags file
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS --extra=+fq -f cs.tags<CR>
+nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 "generate local Java tags file
-nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS --extra=+fq -f java.tags<CR>
+nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 "generate local Python tags file
-nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS --extra=+fq -f py.tags<CR>
+nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
 "generate local JavaScript tags file
-" nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --extra=+f --sort=yes -f js.tags<CR>
+" nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>E :!find .
       \ -type f -name '*.js'
       \ -not -path '*/.svn/*'

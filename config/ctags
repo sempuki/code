@@ -4,7 +4,7 @@
 --exclude=log
 --exclude=build
 --exclude=node_modules
---extra=+f
+--extra=+fq
 --tag-relative
 --langmap=c++:+.C
 --langmap=c++:+.H
