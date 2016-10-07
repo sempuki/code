@@ -21,11 +21,12 @@ struct MoveOnlyResource {
 };
 
 struct Actor;
+struct Continuation;
 
 struct FiberState {
     FiberState(std::weak_ptr<Actor> actor);
 
-    std::deque<std::function<void()>> work_list;
+    std::deque<std::function<void(Continuation)>> work_list;
     mutable size_t work_id = 0;
     mutable std::weak_ptr<Actor> host;
     mutable std::atomic<bool> dispose{false};
@@ -37,6 +38,7 @@ struct Continuation {
     std::shared_ptr<const FiberState> state;
 
     void run_once();
+    void run_once_here();
 };
 
 struct Fiber {
@@ -45,16 +47,16 @@ struct Fiber {
     std::shared_ptr<FiberState> state;
 
     template <typename Functional>
-        Fiber& setup_run(Functional&& work) {
-            state->work_list.emplace_front(std::forward<Functional>(work));
-            return *this;
-        }
+    Fiber& setup_run(Functional&& work) {
+        state->work_list.emplace_front(std::forward<Functional>(work));
+        return *this;
+    }
 
     template <typename Functional>
-        Fiber& then_do(Functional&& work) {
-            state->work_list.emplace_back(std::forward<Functional>(work));
-            return *this;
-        }
+    Fiber& then_do(Functional&& work) {
+        state->work_list.emplace_back(std::forward<Functional>(work));
+        return *this;
+    }
 
     Continuation start_run();
 };
@@ -65,9 +67,9 @@ struct Actor : std::enable_shared_from_this<Actor> {
     Fiber create_fiber();
 
     template <typename Functional>
-        void post(Functional&& work) {
-            work_list.emplace_back(std::forward<Functional>(work));
-        }
+    void post(Functional&& work) {
+        work_list.emplace_back(std::forward<Functional>(work));
+    }
 
     void run_once();
 
@@ -89,14 +91,18 @@ Continuation::Continuation(std::shared_ptr<FiberState> state) : state{state} {}
 
 void Continuation::run_once() {
     if (auto host = state->host.lock()) {
-        host->post([ptr = state] {
-                auto next = ptr->work_id++;
-                if (next < ptr->work_list.size()) {
-                ptr->work_list[next]();
-                } else {
-                ptr->dispose = true;
-                }
-                });
+        host->post([continuation = *this]() mutable {
+            continuation.run_once_here();
+        });
+    }
+}
+
+void Continuation::run_once_here() {
+    auto next = state->work_id++;
+    if (next < state->work_list.size()) {
+        state->work_list[next](*this);
+    } else {
+        state->dispose = true;
     }
 }
 
@@ -129,17 +135,17 @@ int main() {
 
     Fiber fiber = actor->create_fiber();
     fiber
-        .setup_run([] {
-                std::cout << "Set up." << std::endl;
-                // Pass resource
-                // Resource resource;
-                })
-    .then_do([] {
+        .setup_run([](auto&& continuation) {
+            std::cout << "Set up." << std::endl;
+            // Pass resource
+            // Resource resource;
+        })
+        .then_do([](auto&& continuation) {
             std::cout << "Then do 1" << std::endl;
             // Use resource
             Resource resource;
             resource.use();
-            });
+        });
 
     auto continuation = fiber.start_run();
     continuation.run_once();
