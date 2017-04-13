@@ -1,155 +1,153 @@
+#include <cxxabi.h>
+#include <array>
 #include <atomic>
+#include <cassert>
 #include <deque>
 #include <iostream>
 #include <map>
 #include <thread>
+#include <tuple>
+#include <type_traits>
+#include <typeindex>
 #include <utility>
 #include <vector>
 
-struct Resource {
-    void use() { std::cout << "use Resource" << std::endl; }
+inline std::string demangle(const std::string& name) {
+    size_t size = 1024;  // we *don't* want realloc() to be called
+    char buffer[size];   // NOLINT
+
+    int status = 0;
+    abi::__cxa_demangle(name.c_str(), buffer, &size, &status);
+    assert(status == 0 && "Demanging failed");
+
+    return buffer;
+}
+
+template <typename Functional, typename Tuple, size_t... Index>
+decltype(auto) apply_helper(Functional&& functional, Tuple&& tuple,
+                            std::index_sequence<Index...>) {
+    return functional(std::get<Index>(std::forward<Tuple>(tuple))...);
+}
+
+template <typename Functional, typename Tuple>
+decltype(auto) apply(Functional&& functional, Tuple&& tuple) {
+    constexpr auto Size = std::tuple_size<std::decay_t<Tuple>>::value;
+    return apply_helper(std::forward<Functional>(functional),
+                        std::forward<Tuple>(tuple),
+                        std::make_index_sequence<Size>{});
 };
 
-struct MoveOnlyResource {
-    MoveOnlyResource(const MoveOnlyResource&) = delete;
-    MoveOnlyResource& operator=(const MoveOnlyResource&) = delete;
+template <typename Type>
+struct function_traits_helper {};
 
-    MoveOnlyResource(MoveOnlyResource&&) = default;
-    MoveOnlyResource& operator=(MoveOnlyResource&&) = default;
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function_traits_helper<ReturnType (ClassType::*)(Args...) const> {
+    using class_type = ClassType;
+    using result_type = ReturnType;
+    using argument_tuple = std::tuple<Args...>;
+    enum { arity = sizeof...(Args) };
 
-    void use() { std::cout << "use MoveOnlyResource" << std::endl; }
+    template <size_t i>
+    struct arg {
+        typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
+        // the i-th argument is equivalent to the i-th tuple element of a tuple
+        // composed of those arguments.
+    };
 };
 
-struct Actor;
-struct Continuation;
-
-struct FiberState {
-    FiberState(std::weak_ptr<Actor> actor);
-
-    std::deque<std::function<void(Continuation)>> work_list;
-    mutable size_t work_id = 0;
-    mutable std::weak_ptr<Actor> host;
-    mutable std::atomic<bool> dispose{false};
-};
-
-struct Continuation {
-    Continuation(std::shared_ptr<FiberState> state);
-
-    std::shared_ptr<const FiberState> state;
-
-    void run_once();
-    void run_once_here();
+template <typename Type>
+struct function_traits
+    : public function_traits_helper<decltype(&std::decay_t<Type>::operator())> {
 };
 
 struct Fiber {
-    Fiber(std::shared_ptr<FiberState> state);
-
-    std::shared_ptr<FiberState> state;
+    Fiber() {
+        arguments = &b0;
+        result = &b1;
+    }
 
     template <typename Functional>
     Fiber& setup_run(Functional&& work) {
-        state->work_list.emplace_front(std::forward<Functional>(work));
+        using ArgTuple = typename function_traits<Functional>::argument_tuple;
+        using ResultType = typename function_traits<Functional>::result_type;
+
+        assert(sizeof(ArgTuple) <= arguments->size() && "Argument buffer overrun");
+        assert(sizeof(ResultType) <= result->size() && "Result buffer overrun");
+        std::cout << demangle(typeid(ArgTuple).name()) << std::endl;
+
+        first_type_code = typeid(ArgTuple).hash_code();
+        next_type_code = typeid(ResultType).hash_code();
+
+        auto args = reinterpret_cast<ArgTuple*>(arguments->data());
+        auto res = reinterpret_cast<ResultType*>(result->data());
+        std::swap(arguments, result);
+
+        work_list.push_back([args, res, work] { *res = apply(work, *args); });
         return *this;
     }
 
     template <typename Functional>
     Fiber& then_do(Functional&& work) {
-        state->work_list.emplace_back(std::forward<Functional>(work));
+        using ArgTuple = typename function_traits<Functional>::argument_tuple;
+        using ResultType = typename function_traits<Functional>::result_type;
+
+        assert(sizeof(ArgTuple) <= arguments->size() && "Argument buffer overrun");
+        assert(sizeof(ResultType) <= result->size() && "Result buffer overrun");
+
+        assert(typeid(ArgTuple).hash_code() == next_type_code && "Argument type chain mismatch");
+        next_type_code = typeid(ResultType).hash_code();
+
+        auto args = reinterpret_cast<ArgTuple*>(arguments->data());
+        auto res = reinterpret_cast<ResultType*>(result->data());
+        std::swap(arguments, result);
+
+        work_list.push_back([args, res, work] { *res = apply(work, *args); });
         return *this;
     }
 
-    Continuation start_run();
+    template <typename... Args>
+    void start_run(Args&&... args) {
+        new (arguments) std::tuple<Args...>(std::forward<Args>(args)...);
+    }
+
+    void run_once() {
+        work_list[work_index++]();
+    }
+
+    std::vector<std::function<void()>> work_list;
+    size_t work_index = 0;
+
+    using ParamBuffer = std::array<uint8_t, 1024>;
+    ParamBuffer b0, b1;
+    ParamBuffer* arguments = nullptr;
+    ParamBuffer* result = nullptr;
+
+    size_t first_type_code = 0;
+    size_t next_type_code = 0;
 };
 
-struct Actor : std::enable_shared_from_this<Actor> {
-    ~Actor();
 
-    Fiber create_fiber();
-
-    template <typename Functional>
-    void post(Functional&& work) {
-        work_list.emplace_back(std::forward<Functional>(work));
-    }
-
-    void run_once();
-
-    std::vector<std::shared_ptr<FiberState>> fibers;
-    std::deque<std::function<void()>> work_list;
-};
-
-FiberState::FiberState(std::weak_ptr<Actor> actor) : host{actor} {}
-
-Fiber::Fiber(std::shared_ptr<FiberState> state) : state{state} {}
-
-Continuation Fiber::start_run() {
-    Continuation initial{state};
-    state.reset();
-    return initial;
-}
-
-Continuation::Continuation(std::shared_ptr<FiberState> state) : state{state} {}
-
-void Continuation::run_once() {
-    if (auto host = state->host.lock()) {
-        host->post([continuation = *this]() mutable {
-            continuation.run_once_here();
-        });
-    }
-}
-
-void Continuation::run_once_here() {
-    auto next = state->work_id++;
-    if (next < state->work_list.size()) {
-        state->work_list[next](*this);
-    } else {
-        state->dispose = true;
-    }
-}
-
-Actor::~Actor() {
-    for (auto&& state : fibers) {
-        state->dispose = true;
-    }
-}
-
-Fiber Actor::create_fiber() {
-    auto state = std::make_shared<FiberState>(shared_from_this());
-    fibers.push_back(state);
-    return Fiber{state};
-}
-
-void Actor::run_once() {
-    if (work_list.size()) {
-        work_list.front()();
-        work_list.pop_front();
-    }
-}
 
 int main() {
-    auto&& actor = std::make_shared<Actor>();
-    std::thread th{[actor] {
-        for (;;) {
-            actor->run_once();
-        }
-    }};
-
-    Fiber fiber = actor->create_fiber();
+    Fiber fiber;
     fiber
-        .setup_run([](auto&& continuation) {
+        .setup_run([](int a, const char* b) {
             std::cout << "Set up." << std::endl;
-            // Pass resource
-            // Resource resource;
+            std::cout << b << std::endl;
+            return std::make_tuple(42, false);
         })
-        .then_do([](auto&& continuation) {
+        .then_do([](int a, bool success) {
             std::cout << "Then do 1" << std::endl;
-            // Use resource
-            Resource resource;
-            resource.use();
-        });
+            std::cout << a << std::endl;
+            if (success) {
+                std::cout << "success" << std::endl;
+            } else {
+                std::cout << "fail" << std::endl;
+            }
+            return true;
+        })
+        .start_run(5, "hello");
 
-    auto continuation = fiber.start_run();
-    continuation.run_once();
-    continuation.run_once();
-
-    th.join();
+    fiber.run_once();
+    fiber.run_once();
 }

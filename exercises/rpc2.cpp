@@ -95,7 +95,68 @@ struct Packet {
 
 // ==== Foundation
 
-struct Actor {
+struct Actor;
+struct Continuation;
+struct FiberState;
+struct Fiber;
+
+// TODO: strand mode
+struct FiberState {
+  enum class Status { initial, succeed, fail };
+
+  FiberState(std::weak_ptr<Actor> actor) : host{actor} {}
+
+  std::deque<std::function<void(Continuation)>> work_list;
+  mutable size_t next_work_id = 0;
+
+  std::function<void(Continuation)> on_success;
+  std::function<void(Continuation)> on_failure;
+
+  mutable std::weak_ptr<Actor> host;
+  mutable std::atomic<bool> dispose{false};
+  mutable Status status = Status::initial;
+  bool is_strand = false;
+};
+
+// TODO: single parameter passing
+struct Continuation {
+  Continuation(std::shared_ptr<FiberState> state) : state{state} {}
+  // TODO: behavior if next/quit are not called when all continuations exit
+
+  void run_once();
+  void run_once_here();
+
+  void terminate(FiberState::Status status);
+  void terminate_here(FiberState::Status status);
+
+  void next() { run_once(); }
+  void quit() { terminate(FiberState::Status::succeed); }
+  void fail() { terminate(FiberState::Status::fail); }
+
+  std::shared_ptr<const FiberState> state;
+};
+
+struct Fiber {
+  Fiber() = default;
+  Fiber(std::shared_ptr<FiberState> state) : state{state} {}
+
+  bool is_ready() const { return static_cast<bool>(state); }
+
+  template <typename Functional> Fiber &then(Functional &&work) {
+    state->work_list.emplace_back(std::forward<Functional>(work));
+    return *this;
+  }
+
+  Continuation start() {
+    Continuation initial{state};
+    state.reset(); // release ownership
+    return initial;
+  }
+
+  std::shared_ptr<FiberState> state;
+};
+
+struct Actor : public std::enable_shared_from_this<Actor> {
   Actor(std::string uuid) {
     thread = std::thread{[this] {
       for (;;) {
@@ -119,14 +180,66 @@ struct Actor {
     }
   }
 
+  Fiber create_fiber() {
+    auto state = std::make_shared<FiberState>(shared_from_this());
+    fibers.push_back(state);
+    return Fiber{state};
+  }
+
+  std::vector<std::shared_ptr<FiberState>> fibers;
   std::deque<std::function<void()>> work_list;
   std::thread thread;
   std::mutex mutex;
 };
 
+void Continuation::run_once() {
+  if (auto host = state->host.lock()) {
+    host->post([continuation = *this]() mutable {
+      continuation.run_once_here();
+    });
+  }
+}
+
+void Continuation::run_once_here() {
+  auto next = state->next_work_id++;
+  if (next < state->work_list.size()) {
+    state->work_list[next](*this);
+  } else {
+    state->dispose = true;
+  }
+}
+
+void Continuation::terminate(FiberState::Status status) {
+  if (auto host = state->host.lock()) {
+    host->post([ continuation = *this, status ]() mutable {
+      continuation.terminate_here(status);
+    });
+  }
+}
+
+void Continuation::terminate_here(FiberState::Status status) {
+  switch (status) {
+  case FiberState::Status::initial:
+  case FiberState::Status::succeed:
+    state->on_success(*this);
+    break;
+  case FiberState::Status::fail:
+    state->on_failure(*this);
+    break;
+  };
+
+  if (auto host = state->host.lock()) {
+    host->fibers.erase(
+        std::remove(begin(host->fibers), end(host->fibers), state),
+        end(host->fibers));
+  }
+}
+
+struct ActorGroup {};
+
 struct ActorPool {
   template <typename Type>
-  std::shared_ptr<Actor> get_or_create_actor(std::string id) {
+  std::shared_ptr<Actor> get_or_create_actor(ActorGroup &group, std::string id) {
     return std::static_pointer_cast<Actor>(
         actors.emplace(id, std::make_shared<Type>(id)).first->second);
   }
@@ -134,27 +247,89 @@ struct ActorPool {
   std::map<std::string, std::shared_ptr<Actor>> actors;
 };
 
-struct Service : public Actor {
-  using Actor::Actor;
-};
-
 class RpcBase {
 public:
-  virtual void execute() {}
+  virtual void post() = 0;
 };
 
-RpcBase reify_rpc(ActorPool &pool, Request &request);
+struct RpcRegistry {
+  size_t take(std::unique_ptr<RpcBase> &&rpc) {
+    std::lock_guard<decltype(mutex)> _{mutex};
+    rpcs[tag] = std::move(rpc);
+    return tag++;
+  }
+
+  std::unique_ptr<RpcBase> release(size_t tag) {
+    std::lock_guard<decltype(mutex)> _{mutex};
+    return std::move(rpcs[tag]);
+  }
+
+  RpcBase *at(size_t tag) {
+    std::lock_guard<decltype(mutex)> _{mutex};
+    return rpcs[tag].get();
+  }
+
+  std::mutex mutex;
+  std::map<size_t, std::unique_ptr<RpcBase>> rpcs;
+  size_t tag = 1;
+};
+
+struct Service : public Actor {
+  using Actor::Actor;
+
+  RpcRegistry rpcs;
+};
+
+struct Mesh {
+  struct Destination {};
+
+  struct Domain {
+    struct Local {
+      ActorGroup *group = nullptr;
+      bool singleton = false;
+    };
+
+    struct Remote {
+      Destination destination;
+    };
+
+    // NOTE: C++17 has std::variant
+    enum class Type { local, remote };
+
+    Type type;
+    Local local;
+    Remote remote;
+  };
+
+  Domain should_forward(std::string id) {
+    static ActorGroup global;
+    Domain result;
+    result.type = Domain::Type::local;
+    result.local.group = &global;
+    return result;
+  }
+};
+
+Mesh::Domain resolve_rpc(Mesh &mesh, Request &request);
+RpcBase *reify_rpc(ActorPool &pool, ActorGroup& group, Request &request);
 
 struct Dispatcher {
   void handle(Packet packet) {
     for (auto &&request : packet.requests) {
-      auto rpc = reify_rpc(actors, request);
-
-      rpc.execute();
+      auto result = resolve_rpc(mesh, request);
+      switch (result.type) {
+      case Mesh::Domain::Type::local: {
+        auto rpc = reify_rpc(actors, *result.local.group, request);
+        rpc->post();
+      } break;
+      case Mesh::Domain::Type::remote:
+        break;
+      }
     }
   }
 
   ActorPool actors;
+  Mesh mesh;
 };
 
 template <typename Type> class Channel {
@@ -243,7 +418,7 @@ public:
       : m_request{request}, m_method{method},
         m_actor{std::static_pointer_cast<ClassType>(actor)} {}
 
-  void execute() override {
+  void post() override {
     if (auto actor = m_actor.lock()) {
       actor->post([ this, service = actor.get() ] {
         m_response = (*service.*m_method)(m_request);
@@ -260,33 +435,63 @@ private:
 
 // === Generated by RPC compiler
 
-RpcBase reify_rpc(ActorPool &pool, Request &request) {
+Mesh::Domain resolve_rpc(Mesh &mesh, Request &request) {
+  switch (request.which) {
+  case 1: // user request
+    return mesh.should_forward(request.user.target.user);
+  case 2: // space request
+    return mesh.should_forward(request.space.target.space);
+  }
+  return {};
+}
+
+RpcBase *reify_rpc(ActorPool &pool, ActorGroup &group, Request &request) {
   // NOTE(rcm): in C++17 types can be deduced from arguments
   switch (request.which) {
   case 1: // user request
   {
     auto uuid = request.user.target.user;
-    auto user = pool.get_or_create_actor<UserService>(uuid);
+    auto user = pool.get_or_create_actor<UserService>(group, uuid);
     switch (request.user.which) {
     case 1: // auth
-      return Rpc<decltype(&UserService::Auth)>{user, &UserService::Auth,
-                                               request.user.auth};
+    {
+      auto rpc = std::make_unique<Rpc<decltype(&UserService::Auth)>>(
+          user, &UserService::Auth, request.user.auth);
+      auto ptr = rpc.get();
+      std::static_pointer_cast<Service>(user)->rpcs.take(std::move(rpc));
+      return ptr;
+    }
     case 2: // get
-      return Rpc<decltype(&UserService::Get)>{user, &UserService::Get,
-                                              request.user.get};
+    {
+      auto rpc = std::make_unique<Rpc<decltype(&UserService::Get)>>(
+          user, &UserService::Get, request.user.get);
+      auto ptr = rpc.get();
+      std::static_pointer_cast<Service>(user)->rpcs.take(std::move(rpc));
+      return ptr;
+    }
     case 3: // ping
-      return Rpc<decltype(&UserService::Ping)>{user, &UserService::Ping,
-                                               request.user.ping};
+    {
+      auto rpc = std::make_unique<Rpc<decltype(&UserService::Ping)>>(
+          user, &UserService::Ping, request.user.ping);
+      auto ptr = rpc.get();
+      std::static_pointer_cast<Service>(user)->rpcs.take(std::move(rpc));
+      return ptr;
+    }
     }
   } break;
   case 2: // space request
   {
     auto uuid = request.space.target.space;
-    auto space = pool.get_or_create_actor<SpaceService>(uuid);
+    auto space = pool.get_or_create_actor<SpaceService>(group, uuid);
     switch (request.space.which) {
     case 1: // join
-      return Rpc<decltype(&SpaceService::Join)>{space, &SpaceService::Join,
-                                                request.space.join};
+    {
+      auto rpc = std::make_unique<Rpc<decltype(&SpaceService::Join)>>(
+          space, &SpaceService::Join, request.space.join);
+      auto ptr = rpc.get();
+      std::static_pointer_cast<Service>(space)->rpcs.take(std::move(rpc));
+      return ptr;
+    }
     }
   } break;
   }
@@ -344,4 +549,7 @@ int main() {
       std::this_thread::sleep_for(100ms);
     }
   }};
+
+  server.join();
+  device.join();
 }
