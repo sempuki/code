@@ -46,4 +46,7 @@ neovim-config:
 ctags-config:
 	cp ctags ~/.ctags
 
-copy: bash-config git-config vim-config vimperator-config ctags-config
+ack-config:
+	cp ackrc ~/.ackrc
+
+copy: bash-config git-config vim-config vimperator-config ctags-config ack-config
