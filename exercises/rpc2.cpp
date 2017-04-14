@@ -252,10 +252,17 @@ struct ActorPool {
   std::map<std::string, std::shared_ptr<Actor>> actors;
 };
 
+class RpcBase;
+bool is_server_only_rpc(const RpcBase *rpc);
+
 class RpcBase {
 public:
   virtual void execute() = 0;
   virtual void set_on_complete(std::function<void(ErrorCode)>) = 0;
+
+  bool is_server_only() const {
+    return is_server_only_rpc(this);
+  };
 };
 
 class RpcHandlerBase {
@@ -618,6 +625,28 @@ RpcHandlerBase *reify_rpc(ActorPool &pool, ActorGroup &group,
   } break;
   }
   return {};
+}
+
+bool is_server_only_rpc(const RpcBase *rpc) {
+  constexpr auto&& user_auth = typeid(RpcHandler<decltype(&UserService::Auth)>::RpcType);
+  constexpr auto&& user_get = typeid(RpcHandler<decltype(&UserService::Get)>::RpcType);
+  constexpr auto&& user_ping = typeid(RpcHandler<decltype(&UserService::Ping)>::RpcType);
+  constexpr auto&& space_join = typeid(RpcHandler<decltype(&SpaceService::Join)>::RpcType);
+
+  auto&& rpc_type = typeid(*rpc);
+
+  // optimizer should generate a jump table and
+  // be equivalent to switching on manual typeid
+  if (rpc_type == user_auth) {
+      return false;
+  } else if (rpc_type == user_get) {
+      return false;
+  } else if (rpc_type == user_ping) {
+      return false;
+  } else if (rpc_type == space_join) {
+      return false;
+  }
+  return false;
 }
 
 // ==== Run
