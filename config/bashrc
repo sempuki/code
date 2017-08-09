@@ -60,12 +60,20 @@ set -o vi
 
 # Git integration
 if [ -d /usr/share/git-core/contrib ]; then
-  pushd /usr/share/git-core/contrib > /dev/null
+  cd /usr/share/git-core/contrib
   if [ -f completion/git-completion.sh ]; then
     source completion/git-completion.sh
   fi
-  source completion/git-prompt.sh
-  popd > /dev/null
+  if [ -f completion/git-prompt.sh ]; then
+      source completion/git-prompt.sh
+  fi
+  cd -
+fi
+if [ -f /usr/local/etc/bash_completion.d/git-prompt.sh ]; then
+    source /usr/local/etc/bash_completion.d/git-prompt.sh
+fi
+if [ -f /etc/bash_completion.d/git-prompt ]; then
+    source /etc/bash_completion.d/git-prompt
 fi
 
 export GIT_PS1_SHOWCOLORHINTS=true
@@ -82,14 +90,6 @@ case "$OS" in
     export CLICOLOR=true
     export LSCOLORS=ExFxBxDxCxegedabagacad
     export LS_COMMAND='ls -lGF'
-    if [ -d /Applications/Xcode.app/Contents/Developer ]; then
-      pushd /Applications/Xcode.app/Contents/Developer > /dev/null
-      if [ -f usr/share/git-core/git-completion.bash ]; then
-        source usr/share/git-core/git-completion.bash
-      fi
-      source usr/share/git-core/git-prompt.sh
-      popd > /dev/null
-    fi
     ;;
   * )
     ;;
