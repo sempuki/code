@@ -8,8 +8,6 @@ update-packages:
 development-packages:
 	sudo dnf -y install vim-X11 vim-enhanced
 	sudo dnf -y install gcc-c++ gdb git global-ctags
-	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
-	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
 desktop-packages:
 	sudo dnf -y install redshift-gtk gnome-tweak-tool dconf-editor
@@ -23,11 +21,11 @@ media-packages:
 	sudo dnf -y install gstreamer-ffmpeg gstreamer-plugins-ugly
 
 install-scripts:
-	mkdir ~/Scripts && cp ../scripts/* ~/Scripts
+	-mkdir ~/Scripts && cp ../scripts/* ~/Scripts
 
 bash-config:
 	cp bashrc ~/.bashrc
-	source ~/.bashrc
+	-source ~/.bashrc
 
 git-config:
 	cp gitconfig ~/.gitconfig
@@ -35,6 +33,8 @@ git-config:
 
 vim-config: install-scripts
 	cp vimrc ~/.vimrc
+	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
+	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
 vimperator-config:
 	cp vimperatorrc ~/.vimperatorrc
