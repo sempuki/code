@@ -59,18 +59,32 @@ export EDITOR=${VIM_COMMAND}
 set -o vi 
 
 # Git integration
-if [ -d /usr/share/git-core/contrib ]; then
-  cd /usr/share/git-core/contrib
-  if [ -f completion/git-completion.sh ]; then
-    source completion/git-completion.sh
+if [ -d /usr/share/git-core/contrib/completion ]; then
+  cd /usr/share/git-core/contrib/completion
+  if [ -f git-completion.sh ]; then
+    source git-completion.sh
   fi
-  if [ -f completion/git-prompt.sh ]; then
-      source completion/git-prompt.sh
+  if [ -f git-prompt.sh ]; then
+      source git-prompt.sh
   fi
   cd -
 fi
-if [ -f /usr/local/etc/bash_completion.d/git-prompt.sh ]; then
-    source /usr/local/etc/bash_completion.d/git-prompt.sh
+
+## Homebrew
+if [ -d  /usr/local/etc/bash_completion.d ]; then
+    cd usr/local/etc/bash_completion.d
+    if [ -f git-completion.bash ]; then
+        source git-completion.bash
+    fi
+    if [ -f git-prompt.sh ]; then
+        source git-prompt.sh
+    fi
+    cd -
+fi
+
+## Ubuntu
+if [ -f /usr/share/bash-completion/completions/git ]; then
+    source /usr/share/bash-completion/completions/git
 fi
 if [ -f /etc/bash_completion.d/git-prompt ]; then
     source /etc/bash_completion.d/git-prompt
