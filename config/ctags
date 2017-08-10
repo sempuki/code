@@ -3,6 +3,7 @@
 --exclude=.hg
 --exclude=log
 --exclude=build
+--exclude=bazel-*
 --exclude=node_modules
 --extra=+fq
 --tag-relative
