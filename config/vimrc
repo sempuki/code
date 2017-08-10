@@ -211,6 +211,7 @@ nnoremap <silent> <Leader>G :!find .
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
+      \ -not -path '*/bazel-*'
       \ -not -path '*/build/*' \|
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
