@@ -1,4 +1,4 @@
-all: install-packages install-scripts copy-config
+all: install-packages install-scripts configure
 
 install-packages: update-packages basic-packages development-packages desktop-packages font-packages media-packages application-packages
 
@@ -27,6 +27,9 @@ bash-config:
 	cp bashrc ~/.bashrc
 	-source ~/.bashrc
 
+tmux-config:
+	cp tmux.conf ~/.tmux.conf
+
 git-config:
 	cp gitconfig ~/.gitconfig
 	cp gitignore ~/.gitignore
@@ -49,4 +52,4 @@ ctags-config:
 ack-config:
 	cp ackrc ~/.ackrc
 
-copy: bash-config git-config vim-config vimperator-config ctags-config ack-config
+configure: bash-config tmux-config git-config vim-config vimperator-config ctags-config ack-config
