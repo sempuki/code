@@ -47,6 +47,7 @@ let mapleader=","           " comma is more convenient
 " Auto Clang Format
 autocmd FileType * :ClangFormatAutoDisable
 autocmd FileType C,CPP :ClangFormatAutoEnable
+let g:clang_format#command = "clang-format-3.6"
 
 " Google Style
 " autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
@@ -181,6 +182,7 @@ nnoremap <silent> <Leader>E :!find .
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
       \ -not -path '*/node_modules/*'
+      \ -not -path '*/bazel-*'
       \ -not -path '*/build/*'
       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
 set tags+=./js.tags,js.tags
@@ -230,6 +232,9 @@ let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 imap <C-O> <C-X><C-O>
 
+"avoid searching boost headers on complete
+set include=^\\s*#\\s*include\ \\(<boost/\\)\\@!
+
 "Java eclim bindings
 nnoremap <Leader>ji :JavaImport<CR>
 nnoremap <Leader>jd :JavaDocSearch -x declarations<CR>
@@ -244,22 +249,14 @@ nnoremap <Leader>h :%!xxd -g1<CR>
 nnoremap <Leader>H :%!xxd -r<CR>:set bin<CR>:write<CR>:set nobin<CR>
 
 "text editing
-
-"list of file encodings to try
-"set fileencodings=iso-2022-jp,ucs-bom,utf8,sjis,euc-jp,latin1
-
 nnoremap <Leader>k :setlocal spell<CR>
 nnoremap <Leader>K :setlocal nospell<CR>
-
-"set ignorecase              "only for smartcase below
-"set smartcase               "if no caps, case insensitive
-"set autochdir               "change CWD to file in the buffer
-
-"add dictionary to ^N completion
-"set dictionary+=/usr/share/dict/words
-"set complete+=k
 
 "Perforce integration
 nnoremap <Leader>a :!p4 add %<CR>
 nnoremap <Leader>e :!p4 edit %<CR>
 
+"Neovim terminal bindings
+nnoremap <C-\>t :set nonumber <bar> :term<CR>
+nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
+tnoremap <C-\><Esc> <C-\><C-n>
