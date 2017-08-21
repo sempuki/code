@@ -260,3 +260,4 @@ nnoremap <Leader>e :!p4 edit %<CR>
 nnoremap <C-\>t :set nonumber <bar> :term<CR>
 nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
 tnoremap <C-\><Esc> <C-\><C-n>
+tnoremap <Esc><Esc> <C-\><C-n>
