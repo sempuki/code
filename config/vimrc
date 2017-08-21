@@ -93,10 +93,6 @@ if !exists ("syntax_on")
     syntax on
 endif
 
-"quit without saving
-"noremap <silent> <C-Q><C-Q> <Esc>:qa!<CR>
-"noremap! <silent> <C-Q><C-Q> <Esc>:qa!<CR>
-
 "save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 noremap <silent> <F1> <Esc><C-C>:w!<CR>
@@ -121,6 +117,12 @@ nnoremap <silent> <Home> zz
 "nnoremap <C-u> :resize +10<CR>
 "nnoremap <C-d> :resize -10<CR>
 
+"copy/paste to/from system clipboard
+vnoremap <Leader>y "+y
+nnoremap <Leader>y "+y
+vnoremap <Leader>p "+p
+nnoremap <Leader>p "+p
+
 "toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-A> :FSHere<CR>
 
@@ -134,7 +136,6 @@ nnoremap <Leader>t :tjump<Space>
 nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
 nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
 nnoremap <Leader>f :Gtags -f %<CR>
-nnoremap <Leader>p :Gtags -P 
 nnoremap <Leader>g :Gtags -g 
 
 "quickfix window
