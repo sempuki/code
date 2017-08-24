@@ -38,7 +38,6 @@ set hlsearch                " highlight search matches
 set wildmenu                " print menu completions
 set scrolloff=5             " keep lines of context when scrolling
 set matchpairs+=<:>         " match angle brackets
-set splitright              " split in empty space to the right
 set guioptions-=tT          " turn off annoying toolbars
 set noerrorbells            " turn off annoying bells
 set vb t_vb=                " turn off annoying blinking
@@ -50,8 +49,8 @@ autocmd FileType C,CPP :ClangFormatAutoEnable
 let g:clang_format#command = "clang-format-3.6"
 
 " Google Style
-" autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
-" set cinoptions=g1,h1,N-s
+autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+set cinoptions=g1,h1,N-s
 
 " Eclipse Style
 autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
@@ -81,100 +80,107 @@ endif
 " Fix redraw issues on MacOSX
 autocmd FocusGained * :redraw!
 
-"multi-platform support
+" Multi-platform support
 if has("unix")
     let find="find . -name "
 else
     let find="dir /b /s "
 endif
 
-"syntax highlighting always on
+" Syntax highlighting always on
 if !exists ("syntax_on")
     syntax on
 endif
 
-"save buffer
+" Save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
-noremap <silent> <F1> <Esc><C-C>:w!<CR>
-noremap! <silent> <F1> <Esc><C-C>:w!<CR>
 
-"cancel highlighting
+" Ergonomic Esc
+nnoremap <silent> <C-e> <Esc>
+inoremap <silent> <C-e> <Esc>
+vnoremap <silent> <C-e> <Esc>
+onoremap <silent> <C-e> <Esc>
+
+" Cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
-"next/prev/delete buffer
-nnoremap <silent> <C-N> :bnext<CR>
-nnoremap <silent> <C-P> :bprevious<CR>
-nnoremap <silent> <C-X> :bdelete!<CR>
+" Next/Prev/Delete buffer
+nnoremap <silent> <C-n> :bnext<CR>
+nnoremap <silent> <C-p> :bprevious<CR>
+nnoremap <silent> <C-x> :bdelete!<CR>
 
-"additional scrolling 
+" Additional scrolling 
 nnoremap <silent> <Backspace> <PageUp>
 nnoremap <silent> <Space> <PageDown> 
 
-"more ergonomic centering
+" More ergonomic centering
 nnoremap <silent> <Home> zz
 
-"window resizing
+" Window resizing
 "nnoremap <C-u> :resize +10<CR>
 "nnoremap <C-d> :resize -10<CR>
 
-"copy/paste to/from system clipboard
+" Yank/Put to/from system clipboard
 vnoremap <Leader>y "+y
 nnoremap <Leader>y "+y
 vnoremap <Leader>p "+p
 nnoremap <Leader>p "+p
 
-"toggle .{c|cpp}/.{h|hpp}
-nnoremap <silent> <C-A> :FSHere<CR>
+" Yank until eol (w/o nl)
+nnoremap Y yg_
 
-"insert newline
-nnoremap <C-J> O<Esc>j
+" Toggle .{c|cpp}/.{h|hpp}
+nnoremap <silent> <C-a> :FSHere<CR>
 
-"ctag searching
+" Insert newline
+nnoremap <C-j> O<Esc>j
+
+" Ctag searching
 nnoremap <Leader>t :tjump<Space>
 
-"gtag searching
+" Gtag searching
 nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
 nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
 nnoremap <Leader>f :Gtags -f %<CR>
 nnoremap <Leader>g :Gtags -g 
 
-"quickfix window
+" Quickfix window
 nnoremap <Leader>q :copen<CR>
 nnoremap <Leader>Q :cclose<CR>
 nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
 
-"search+replace word under cursor
+" Search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
-"grep word under cursor
+" Grep word under cursor
 nnoremap <C-g> :Ack <C-R><C-W> %:h
 
-"find file with quickfix integration
+" Find file with quickfix integration
 nnoremap <C-f> :cgetexpr system(find."")
 
-"make local file with quickfix integration
+" Make local file with quickfix integration
 " may require modeline set CXXFLAGS='...'
 nnoremap <Leader>m :make %< \|cwindow<CR>
 
-"generate local C++ tags file
+" Generate local C++ tags file
 nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
-"generate local C# tags file
+" Generate local C# tags file
 nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
-"generate local Java tags file
+" Generate local Java tags file
 nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
-"generate local Python tags file
+" Generate local Python tags file
 nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
-"generate local JavaScript tags file
-" nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
+" Generate local JavaScript tags file
+"nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>E :!find .
       \ -type f -name '*.js'
       \ -not -path '*/.svn/*'
@@ -188,11 +194,11 @@ nnoremap <silent> <Leader>E :!find .
       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
 set tags+=./js.tags,js.tags
 
-"generate local protobuf tags file
+" Generate local protobuf tags file
 nnoremap <silent> <Leader>B :!ctags -R --languages=protobuf --extra=+fq -f protobuf.tags<CR>
 set tags+=./protobuf.tags,protobuf.tags
 
-"generate /usr/src C++ tags files
+" Generate /usr/src C++ tags files
 nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
@@ -219,7 +225,7 @@ nnoremap <silent> <Leader>G :!find .
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
 
-"look for global tags files
+" Look for global tags files
 if filereadable ("C:/Code/")
     set tags+="C:/Code/"
 endif
@@ -227,16 +233,16 @@ if filereadable ($HOME."/Code/")
     let tags+=$HOME."/Code/"
 endif
 
-"C++ OmniCppComplete
+" C++ OmniCppComplete
 set completeopt=menu,longest
 let OmniCpp_ShowPrototypeInAbbr = 1 "show function parameters
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 imap <C-O> <C-X><C-O>
 
-"avoid searching boost headers on complete
+" Avoid searching boost headers on complete
 set include=^\\s*#\\s*include\ \\(<boost/\\)\\@!
 
-"Java eclim bindings
+" Java eclim bindings
 nnoremap <Leader>ji :JavaImport<CR>
 nnoremap <Leader>jd :JavaDocSearch -x declarations<CR>
 nnoremap <Leader>js :JavaSearchContext<CR>
@@ -245,25 +251,32 @@ nnoremap <Leader>jc :JavaConstructor <CR>
 nnoremap <Leader>jr :JavaRename
 nnoremap <Leader>jf :%JavaFormat <CR>
 
-"hex editing
+" Hex editing
 nnoremap <Leader>h :%!xxd -g1<CR>
 nnoremap <Leader>H :%!xxd -r<CR>:set bin<CR>:write<CR>:set nobin<CR>
 
-"text editing
+" Text editing
 nnoremap <Leader>k :setlocal spell<CR>
 nnoremap <Leader>K :setlocal nospell<CR>
 
-"Perforce integration
+" Perforce integration
 nnoremap <Leader>a :!p4 add %<CR>
 nnoremap <Leader>e :!p4 edit %<CR>
 
-"Neovim integration
+" Neovim integration
 if has('nvim')
-    "Neovim terminal bindings
+    " Neovim terminal bindings
     nnoremap <C-\>t :set nonumber <bar> :term<CR>
-    nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
+    nnoremap <C-\>s :set nonumber <bar> :split +:term<CR>
+    nnoremap <C-\>v :set nonumber <bar> :vsplit +:term<CR>
     tnoremap <Esc><Esc> <C-\><C-n>
 
-    "Always start on insert for terminal
-    :au BufEnter * if &buftype == 'terminal' | :startinsert | endif
+    " Ergonomic versions
+    nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
+    nnoremap <C-\><C-s> :set nonumber <bar> :split +:term<CR>
+    nnoremap <C-\><C-v> :set nonumber <bar> :vsplit +:term<CR>
+    tnoremap <C-e><C-e> <C-\><C-n>
+
+    " Always start on insert for terminal
+    ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
 endif
