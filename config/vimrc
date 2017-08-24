@@ -96,10 +96,7 @@ endif
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 
 " Ergonomic Esc
-nnoremap <silent> <C-e> <Esc>
-inoremap <silent> <C-e> <Esc>
-vnoremap <silent> <C-e> <Esc>
-onoremap <silent> <C-e> <Esc>
+noremap <silent> <C-e> <C-c>
 
 " Cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
@@ -109,7 +106,7 @@ nnoremap <silent> <C-n> :bnext<CR>
 nnoremap <silent> <C-p> :bprevious<CR>
 nnoremap <silent> <C-x> :bdelete!<CR>
 
-" Additional scrolling 
+" Additional scrolling
 nnoremap <silent> <Backspace> <PageUp>
 nnoremap <silent> <Space> <PageDown> 
 
