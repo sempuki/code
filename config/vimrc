@@ -10,9 +10,9 @@ Plugin 'VundleVim/Vundle.vim'
 Plugin 'FSwitch'
 Plugin 'gtags.vim'
 Plugin 'fugitive.vim'
-Plugin 'matchit.zip'
 Plugin 'OmniCppComplete'
 Plugin 'rhysd/vim-clang-format'
+Plugin 'vim-syntastic/syntastic'
 Plugin 'mileszs/ack.vim'
 call vundle#end()
 " :PluginList           - list configured plugins
@@ -46,7 +46,23 @@ let mapleader=","           " comma is more convenient
 " Auto Clang Format
 autocmd FileType * :ClangFormatAutoDisable
 autocmd FileType C,CPP :ClangFormatAutoEnable
-let g:clang_format#command = "clang-format-3.6"
+"let g:clang_format#command = 'clang-format-3.6'
+let g:clang_format#detect_style_files = 1 " use .clang-format
+let g:clang_format#auto_format = 1        " format on write
+let g:clang_format#auto_format_on_insert_leave = 1
+let g:clang_format#auto_formatexpr = 1    " format on gq
+
+" Ergonomic Clang formatting
+nnoremap = gq
+nnoremap == gqq
+vnoremap = gq
+
+" Syntastic
+"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
+let g:syntastic_cpp_checkers = ['clang_tidy']
+let g:syntastic_cpp_compiler_options = '-std=c++11'
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
 " Google Style
 autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
@@ -71,16 +87,7 @@ endif
 set directory=~/.vim/swap//,.,~/tmp//,/var/tmp//
 set undodir=~/.vim/undo//,.,~/tmp//,/var/tmp//
 
-" Windows GUI tweaks
-if has("gui_win32")
-    set guifont=DejaVu_Sans_Mono:h9:cANSI
-    set shellslash          "unify shell path seperator handling (eg. Cygwin)
-endif
-
-" Fix redraw issues on MacOSX
-autocmd FocusGained * :redraw!
-
-" Multi-platform support
+" Multi-platform find
 if has("unix")
     let find="find . -name "
 else
@@ -146,6 +153,12 @@ nnoremap <Leader>q :copen<CR>
 nnoremap <Leader>Q :cclose<CR>
 nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
+
+" Location window
+nnoremap <Leader>l :lopen<CR>
+nnoremap <Leader>L :lclose<CR>
+nnoremap ]l :lnext<CR>
+nnoremap [l :lprevious<CR>
 
 " Search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
@@ -259,6 +272,18 @@ nnoremap <Leader>K :setlocal nospell<CR>
 " Perforce integration
 nnoremap <Leader>a :!p4 add %<CR>
 nnoremap <Leader>e :!p4 edit %<CR>
+
+" Windows GUI tweaks
+if has("gui_win32")
+    set guifont=DejaVu_Sans_Mono:h9:cANSI
+    set shellslash "unify shell path seperator handling (eg. Cygwin)
+endif
+
+" Mac GUI tweaks
+if has("gui_macvim")
+    " Fix redraw issues on MacOSX
+    autocmd FocusGained * :redraw!
+endif
 
 " Neovim integration
 if has('nvim')
