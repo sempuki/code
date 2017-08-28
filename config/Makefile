@@ -52,4 +52,7 @@ ctags-config:
 ack-config:
 	cp ackrc ~/.ackrc
 
-configure: bash-config tmux-config git-config vim-config vimperator-config ctags-config ack-config
+input-config:
+	cp inputrc ~/.inputrc
+
+configure: bash-config tmux-config git-config vim-config vimperator-config ctags-config ack-config input-config
