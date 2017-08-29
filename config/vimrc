@@ -53,9 +53,9 @@ let g:clang_format#auto_format_on_insert_leave = 1
 let g:clang_format#auto_formatexpr = 1    " format on gq
 
 " Ergonomic Clang formatting
-nnoremap = gq
-nnoremap == gqq
-vnoremap = gq
+autocmd FileType C,CPP nnoremap = gq
+autocmd FileType C,CPP nnoremap == gqq
+autocmd FileType C,CPP vnoremap = gq
 
 " Syntastic
 "let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
@@ -102,9 +102,6 @@ endif
 " Save buffer
 noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 
-" Ergonomic Esc
-noremap <silent> <C-e> <C-c>
-
 " Cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
@@ -113,12 +110,16 @@ nnoremap <silent> <C-n> :bnext<CR>
 nnoremap <silent> <C-p> :bprevious<CR>
 nnoremap <silent> <C-x> :bdelete!<CR>
 
-" Additional scrolling
-nnoremap <silent> <Backspace> <PageUp>
-nnoremap <silent> <Space> <PageDown> 
+" Ergonomic Esc
+noremap <C-e> <Esc>
+noremap! <C-e> <Esc>
 
-" More ergonomic centering
-nnoremap <silent> <Home> zz
+" Ergonomic centering
+nnoremap <Home> zz
+
+" Additional scrolling
+nnoremap <Backspace> <PageUp>
+nnoremap <Space> <PageDown>
 
 " Window resizing
 "nnoremap <C-u> :resize +10<CR>
