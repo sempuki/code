@@ -288,6 +288,9 @@ endif
 
 " Neovim integration
 if has('nvim')
+    " Terminal history
+    set scrollback=100000
+
     " Neovim terminal bindings
     nnoremap <C-\>t :set nonumber <bar> :term<CR>
     nnoremap <C-\>s :set nonumber <bar> :split +:term<CR>
