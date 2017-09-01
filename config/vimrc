@@ -210,7 +210,7 @@ nnoremap <silent> <Leader>B :!ctags -R --languages=protobuf --extra=+fq -f proto
 set tags+=./protobuf.tags,protobuf.tags
 
 " Generate /usr/src C++ tags files
-nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f cpp.tags /usr/src<CR>
+nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>G :!find .
@@ -235,14 +235,6 @@ nnoremap <silent> <Leader>G :!find .
       \ -not -path '*/build/*' \|
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
-
-" Look for global tags files
-if filereadable ("C:/Code/")
-    set tags+="C:/Code/"
-endif
-if filereadable ($HOME."/Code/")
-    let tags+=$HOME."/Code/"
-endif
 
 " C++ OmniCppComplete
 set completeopt=menu,longest
