@@ -24,9 +24,9 @@ filetype plugin indent on   " autoguess by file extension
 set nocompatible            " use VIM settings
 set autowriteall            " write buffer to file when switching
 set undofile                " persistent undo
-set tabstop=4               " number of spaces in a tab
-set softtabstop=4           " number of spaces in a soft tab
-set shiftwidth=4            " used in shifting or C indenting
+set tabstop=2               " number of spaces in a tab
+set softtabstop=2           " number of spaces in a soft tab
+set shiftwidth=2            " used in shifting or C indenting
 set expandtab               " insert spaces for tabs
 set smarttab                " prefer shiftwidth
 set cindent                 " C indenting
@@ -108,7 +108,7 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 " Next/Prev/Delete buffer
 nnoremap <silent> <C-n> :bnext<CR>
 nnoremap <silent> <C-p> :bprevious<CR>
-nnoremap <silent> <C-x> :bdelete!<CR>
+nnoremap <silent> <C-x> :buffer! # \| bdelete! #<CR>
 
 " Ergonomic Esc
 noremap <C-e> <Esc>
