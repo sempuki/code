@@ -108,7 +108,8 @@ nnoremap <silent> <C-C> <C-C>:nohl<CR>
 " Next/Prev/Delete buffer
 nnoremap <silent> <C-n> :bnext<CR>
 nnoremap <silent> <C-p> :bprevious<CR>
-nnoremap <silent> <C-x> :buffer! # \| bdelete! #<CR>
+nnoremap <silent> <C-d> :buffer! # \| bdelete! #<CR>
+nnoremap <silent> <C-x> :bdelete!<CR>
 
 " Ergonomic Esc
 noremap <C-e> <Esc>
