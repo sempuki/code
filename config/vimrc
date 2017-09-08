@@ -105,9 +105,9 @@ noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 " Cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
-" Next/Prev/Delete buffer
-nnoremap <silent> <C-n> :bnext<CR>
-nnoremap <silent> <C-p> :bprevious<CR>
+" Buffer/Window management
+nnoremap <silent> <C-n> <C-W>w
+nnoremap <silent> <C-p> <C-W>W
 nnoremap <silent> <C-d> :buffer! # \| bdelete! #<CR>
 nnoremap <silent> <C-x> :bdelete!<CR>
 
@@ -126,14 +126,16 @@ nnoremap <Space> <PageDown>
 "nnoremap <C-u> :resize +10<CR>
 "nnoremap <C-d> :resize -10<CR>
 
+" Yank until eol (w/o nl)
+nnoremap Y yg_
+
 " Yank/Put to/from system clipboard
 vnoremap <Leader>y "+y
 nnoremap <Leader>y "+y
+vnoremap <Leader>Y "+yg_
+nnoremap <Leader>Y "+yg_
 vnoremap <Leader>p "+p
 nnoremap <Leader>p "+p
-
-" Yank until eol (w/o nl)
-nnoremap Y yg_
 
 " Toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-a> :FSHere<CR>
@@ -295,6 +297,12 @@ if has('nvim')
     nnoremap <C-\><C-s> :set nonumber <bar> :split +:term<CR>
     nnoremap <C-\><C-v> :set nonumber <bar> :vsplit +:term<CR>
     tnoremap <C-e><C-e> <C-\><C-n>
+
+    " Fast window switching
+    noremap <C-n> <C-\><C-n><C-w>wi
+    noremap <C-p> <C-\><C-n><C-w>Wi
+    tnoremap <C-n> <C-\><C-n><C-w>wi
+    tnoremap <C-p> <C-\><C-n><C-w>Wi
 
     " Always start on insert for terminal
     ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
