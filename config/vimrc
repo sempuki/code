@@ -105,12 +105,6 @@ noremap <silent> <Leader>w <Esc><C-C>:w<CR>
 " Cancel highlighting
 nnoremap <silent> <C-C> <C-C>:nohl<CR>
 
-" Buffer/Window management
-nnoremap <silent> <C-n> <C-W>w
-nnoremap <silent> <C-p> <C-W>W
-nnoremap <silent> <C-d> :buffer! # \| bdelete! #<CR>
-nnoremap <silent> <C-x> :bdelete!<CR>
-
 " Ergonomic Esc
 noremap <C-e> <Esc>
 noremap! <C-e> <Esc>
@@ -137,20 +131,13 @@ nnoremap <Leader>Y "+yg_
 vnoremap <Leader>p "+p
 nnoremap <Leader>p "+p
 
-" Toggle .{c|cpp}/.{h|hpp}
-nnoremap <silent> <C-a> :FSHere<CR>
-
-" Insert newline
-nnoremap <C-j> O<Esc>j
-
-" Ctag searching
-nnoremap <Leader>t :tjump<Space>
-
-" Gtag searching
-nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
-nnoremap <Leader>f :Gtags -f %<CR>
-nnoremap <Leader>g :Gtags -g 
+" Buffer/Window management
+nnoremap <silent> <C-n> <C-W>w
+nnoremap <silent> <C-p> <C-W>W
+nnoremap <silent> <C-d> :buffer! # \| bdelete! #<CR>
+nnoremap <silent> <C-x> :bdelete!<CR>
+nnoremap ]b :bnext<CR>
+nnoremap [b :bprevious<CR>
 
 " Quickfix window
 nnoremap <Leader>q :copen<CR>
@@ -163,6 +150,21 @@ nnoremap <Leader>l :lopen<CR>
 nnoremap <Leader>L :lclose<CR>
 nnoremap ]l :lnext<CR>
 nnoremap [l :lprevious<CR>
+
+" Insert newline
+nnoremap <C-j> O<Esc>j
+
+" Toggle .{c|cpp}/.{h|hpp}
+nnoremap <silent> <C-a> :FSHere<CR>
+
+" Ctag searching
+nnoremap <Leader>t :tjump<Space>
+
+" Gtag searching
+nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
+nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>f :Gtags -f %<CR>
+nnoremap <Leader>g :Gtags -g 
 
 " Search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
@@ -299,8 +301,6 @@ if has('nvim')
     tnoremap <C-e><C-e> <C-\><C-n>
 
     " Fast window switching
-    noremap <C-n> <C-\><C-n><C-w>wi
-    noremap <C-p> <C-\><C-n><C-w>Wi
     tnoremap <C-n> <C-\><C-n><C-w>wi
     tnoremap <C-p> <C-\><C-n><C-w>Wi
 
