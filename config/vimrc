@@ -43,40 +43,6 @@ set noerrorbells            " turn off annoying bells
 set vb t_vb=                " turn off annoying blinking
 let mapleader=","           " comma is more convenient
 
-" Auto Clang Format
-autocmd FileType * :ClangFormatAutoDisable
-autocmd FileType C,CPP :ClangFormatAutoEnable
-"let g:clang_format#command = 'clang-format-3.6'
-let g:clang_format#detect_style_files = 1 " use .clang-format
-let g:clang_format#auto_format = 1        " format on write
-let g:clang_format#auto_format_on_insert_leave = 1
-let g:clang_format#auto_formatexpr = 1    " format on gq
-
-" Ergonomic Clang formatting
-autocmd FileType C,CPP nnoremap = gq
-autocmd FileType C,CPP nnoremap == gqq
-autocmd FileType C,CPP vnoremap = gq
-
-" Syntastic
-"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
-let g:syntastic_cpp_checkers = ['clang_tidy']
-let g:syntastic_cpp_compiler_options = '-std=c++11'
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 2 " close location-list when empty
-
-" Google Style
-autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
-set cinoptions=g1,h1,N-s
-
-" Eclipse Style
-autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
-
-" PEP 8 Style
-autocmd! FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
-
-" JavaScript
-autocmd! FileType JavaScript set tabstop=2 shiftwidth=2 softtabstop=2
-
 " Try not to clutter source directories
 if isdirectory($HOME.'/.vim/swap') == 0
   :silent !mkdir -p ~/.vim/swap >/dev/null 2>&1
@@ -86,13 +52,6 @@ if isdirectory($HOME.'/.vim/undo') == 0
 endif
 set directory=~/.vim/swap//,.,~/tmp//,/var/tmp//
 set undodir=~/.vim/undo//,.,~/tmp//,/var/tmp//
-
-" Multi-platform find
-if has("unix")
-    let find="find . -name "
-else
-    let find="dir /b /s "
-endif
 
 " Syntax highlighting always on
 if !exists ("syntax_on")
@@ -134,8 +93,10 @@ nnoremap <Leader>p "+p
 " Buffer/Window management
 nnoremap <silent> <C-n> <C-W>w
 nnoremap <silent> <C-p> <C-W>W
-nnoremap <silent> <C-d> :buffer! # \| bdelete! #<CR>
 nnoremap <silent> <C-x> :bdelete!<CR>
+nnoremap <Leader>e :edit 
+nnoremap <Leader>b :buffer 
+nnoremap <Leader>B :bnext! \| bdelete! #<CR>
 nnoremap ]b :bnext<CR>
 nnoremap [b :bprevious<CR>
 
@@ -169,6 +130,13 @@ nnoremap <Leader>g :Gtags -g
 " Search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
 
+" Multi-platform find
+if has("unix")
+    let find="find . -name "
+else
+    let find="dir /b /s "
+endif
+
 " Grep word under cursor
 nnoremap <C-g> :Ack <C-R><C-W> %:h
 
@@ -179,25 +147,59 @@ nnoremap <C-f> :cgetexpr system(find."")
 " may require modeline set CXXFLAGS='...'
 nnoremap <Leader>m :make %< \|cwindow<CR>
 
+" Auto Clang Format
+autocmd FileType * :ClangFormatAutoDisable
+autocmd FileType C,CPP :ClangFormatAutoEnable
+"let g:clang_format#command = 'clang-format-3.6'
+let g:clang_format#detect_style_files = 1 " use .clang-format
+let g:clang_format#auto_format = 1        " format on write
+let g:clang_format#auto_format_on_insert_leave = 1
+let g:clang_format#auto_formatexpr = 1    " format on gq
+
+" Ergonomic Clang formatting
+autocmd FileType C,CPP nnoremap = gq
+autocmd FileType C,CPP nnoremap == gqq
+autocmd FileType C,CPP vnoremap = gq
+
+" Syntastic
+"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
+let g:syntastic_cpp_checkers = ['clang_tidy']
+let g:syntastic_cpp_compiler_options = '-std=c++11'
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 2 " close location-list when empty
+
+" Google Style
+autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+set cinoptions=g1,h1,N-s
+
+" Eclipse Style
+autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
+
+" PEP 8 Style
+autocmd! FileType Python set tabstop=8 shiftwidth=4 softtabstop=4
+
+" JavaScript
+autocmd! FileType JavaScript set tabstop=2 shiftwidth=2 softtabstop=2
+
 " Generate local C++ tags file
-nnoremap <silent> <Leader>+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS -f cpp.tags<CR>
+nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 " Generate local C# tags file
-nnoremap <silent> <Leader># :!ctags -R --languages=C\# --fields=+aiS -f cs.tags<CR>
+nnoremap <silent> <Leader>G# :!ctags -R --languages=C\# --fields=+aiS -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 " Generate local Java tags file
-nnoremap <silent> <Leader>J :!ctags -R --languages=Java --fields=+aiS -f java.tags<CR>
+nnoremap <silent> <Leader>Gj :!ctags -R --languages=Java --fields=+aiS -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 " Generate local Python tags file
-nnoremap <silent> <Leader>P :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS -f py.tags<CR>
+nnoremap <silent> <Leader>Gpy :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
 " Generate local JavaScript tags file
-"nnoremap <silent> <Leader>E :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
-nnoremap <silent> <Leader>E :!find .
+"nnoremap <silent> <Leader>Gjs :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
+nnoremap <silent> <Leader>Gjs :!find .
       \ -type f -name '*.js'
       \ -not -path '*/.svn/*'
       \ -not -path '*/.git/*'
@@ -211,14 +213,14 @@ nnoremap <silent> <Leader>E :!find .
 set tags+=./js.tags,js.tags
 
 " Generate local protobuf tags file
-nnoremap <silent> <Leader>B :!ctags -R --languages=protobuf --extra=+fq -f protobuf.tags<CR>
+nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extra=+fq -f protobuf.tags<CR>
 set tags+=./protobuf.tags,protobuf.tags
 
 " Generate /usr/src C++ tags files
-nnoremap <silent> <Leader>S :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f source.tags /usr/src<CR>
+nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
-nnoremap <silent> <Leader>G :!find .
+nnoremap <silent> <Leader>Gg :!find .
       \ \(
       \ -name '*.cpp' -or
       \ -name '*.cxx' -or
@@ -266,10 +268,6 @@ nnoremap <Leader>H :%!xxd -r<CR>:set bin<CR>:write<CR>:set nobin<CR>
 " Text editing
 nnoremap <Leader>k :setlocal spell<CR>
 nnoremap <Leader>K :setlocal nospell<CR>
-
-" Perforce integration
-nnoremap <Leader>a :!p4 add %<CR>
-nnoremap <Leader>e :!p4 edit %<CR>
 
 " Windows GUI tweaks
 if has("gui_win32")
