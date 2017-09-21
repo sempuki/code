@@ -14,6 +14,7 @@ Plugin 'OmniCppComplete'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
 Plugin 'mileszs/ack.vim'
+Plugin 'matchit.zip'
 call vundle#end()
 " :PluginList           - list configured plugins
 " :PluginInstall(!)     - install (update) plugins
@@ -59,14 +60,14 @@ if !exists ("syntax_on")
 endif
 
 " Save buffer
-noremap <silent> <Leader>w <Esc><C-C>:w<CR>
+noremap <silent> <Leader>w <Esc><C-c>:w<CR>
 
 " Cancel highlighting
-nnoremap <silent> <C-C> <C-C>:nohl<CR>
+nnoremap <silent> <C-c> <C-c>:nohl<CR>
 
-" Ergonomic Esc
+" Ergonomic escape
 noremap <C-e> <Esc>
-noremap! <C-e> <Esc>
+noremap! <C-e> <C-c>
 
 " Ergonomic centering
 nnoremap <Home> zz
@@ -122,13 +123,13 @@ nnoremap <silent> <C-a> :FSHere<CR>
 nnoremap <Leader>t :tjump<Space>
 
 " Gtag searching
-nnoremap <Leader>r :Gtags -r <C-R><C-W><CR>
-nnoremap <Leader>R :Gtags -s <C-R><C-W><CR>
+nnoremap <Leader>r :Gtags -r <C-r><C-w><CR>
+nnoremap <Leader>R :Gtags -s <C-r><C-w><CR>
 nnoremap <Leader>f :Gtags -f %<CR>
 nnoremap <Leader>g :Gtags -g 
 
 " Search+replace word under cursor
-nnoremap <Leader>s :,$s/\<<C-R><C-W>\>/
+nnoremap <Leader>s :,$s/\<<C-r><C-w>\>/
 
 " Multi-platform find
 if has("unix")
@@ -169,8 +170,8 @@ let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
 " Google Style
-autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
-set cinoptions=g1,h1,N-s
+" autocmd FileType CPP set tabstop=2 shiftwidth=2 softtabstop=2
+" set cinoptions=g1,h1,N-s
 
 " Eclipse Style
 autocmd! FileType Java set tabstop=4 shiftwidth=4 softtabstop=4
