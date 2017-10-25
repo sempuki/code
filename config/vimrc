@@ -97,7 +97,7 @@ nnoremap <silent> <C-p> <C-W>W
 nnoremap <silent> <C-x> :bdelete!<CR>
 nnoremap <Leader>e :edit 
 nnoremap <Leader>b :buffer 
-nnoremap <Leader>B :bnext! \| bdelete! #<CR>
+nnoremap <Leader>B :buffer! # \| bdelete! #<CR>
 nnoremap ]b :bnext<CR>
 nnoremap [b :bprevious<CR>
 
@@ -145,27 +145,30 @@ nnoremap <C-g> :Ack <C-R><C-W> %:h
 nnoremap <C-f> :cgetexpr system(find."")
 
 " Make local file with quickfix integration
-" may require modeline set CXXFLAGS='...'
+" may require manual let $CXXFLAGS='--std=c++11'
 nnoremap <Leader>m :make %< \|cwindow<CR>
 
 " Auto Clang Format
-autocmd FileType * :ClangFormatAutoDisable
 autocmd FileType C,CPP :ClangFormatAutoEnable
+autocmd BufLeave * :ClangFormatAutoDisable
 "let g:clang_format#command = 'clang-format-3.6'
 let g:clang_format#detect_style_files = 1 " use .clang-format
 let g:clang_format#auto_format = 1        " format on write
-let g:clang_format#auto_format_on_insert_leave = 1
 let g:clang_format#auto_formatexpr = 1    " format on gq
 
 " Ergonomic Clang formatting
 autocmd FileType C,CPP nnoremap = gq
 autocmd FileType C,CPP nnoremap == gqq
 autocmd FileType C,CPP vnoremap = gq
+autocmd BufLeave * silent! nunmap =
+autocmd BufLeave * silent! nunmap ==
+autocmd BufLeave * silent! vunmap =
 
 " Syntastic
-"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
+let g:syntastic_python_checkers = ['python']
 let g:syntastic_cpp_checkers = ['clang_tidy']
-let g:syntastic_cpp_compiler_options = '-std=c++11'
+"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
+let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++11'
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
