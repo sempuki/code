@@ -151,7 +151,7 @@ nnoremap <Leader>m :make %< \|cwindow<CR>
 " Auto Clang Format
 "let g:clang_format#command = 'clang-format-3.6'
 let g:clang_format#detect_style_files = 1 " use .clang-format
-let g:clang_format#auto_format = 1        " format on write
+let g:clang_format#auto_format = 0        " format on write (default to off)
 let g:clang_format#auto_formatexpr = 1    " format on gq
 
 " Syntastic
@@ -162,38 +162,37 @@ let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++11'
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
-" Per-language autocmds
-autocmd BufEnter * call ConfigureForFileType()
-fun! ConfigureForFileType()
-  :ClangFormatAutoDisable
+" Per-buffer file-type configuration (FileType < BufEnter/Leave)
+autocmd BufEnter * call ConfigureBufferForFileType()
+fun! ConfigureBufferForFileType()
   augroup per_file_type
     autocmd!
   augroup END
 
-  if (&ft == 'cpp' || &ft == 'c')
+  if (&filetype == 'cpp' || &filetype == 'c')
     " Google Style
-    " set tabstop=2 shiftwidth=2 softtabstop=2
-    " set cinoptions=g1,h1,N-s
+    set tabstop=2 shiftwidth=2 softtabstop=2
+    set cinoptions=g1,h1,N-s
 
     :ClangFormatAutoEnable
     nnoremap = gq
     nnoremap == gqq
     vnoremap = gq
 
-    " Cleanup on exit
+    " Cleanup on leave
     augroup per_file_type
       autocmd BufLeave * :ClangFormatAutoDisable
       autocmd BufLeave * silent! nunmap =
       autocmd BufLeave * silent! nunmap ==
       autocmd BufLeave * silent! vunmap =
     augroup END
-  elseif (&ft == 'python')
+  elseif (&filetype == 'python')
     " PEP 8 Style
     set tabstop=8 shiftwidth=4 softtabstop=4
-  elseif (&ft == 'java')
+  elseif (&filetype == 'java')
     " Eclipse Style
     set tabstop=4 shiftwidth=4 softtabstop=4
-  elseif (&ft == 'javascript')
+  elseif (&filetype == 'javascript')
     " JavaScript
     set tabstop=2 shiftwidth=2 softtabstop=2
   endif
