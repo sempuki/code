@@ -13,6 +13,7 @@ Plugin 'fugitive.vim'
 Plugin 'OmniCppComplete'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
+Plugin 'editorconfig/editorconfig-vim'
 Plugin 'mileszs/ack.vim'
 Plugin 'matchit.zip'
 call vundle#end()
