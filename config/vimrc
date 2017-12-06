@@ -130,7 +130,7 @@ nnoremap <Leader>f :Gtags -f %<CR>
 nnoremap <Leader>g :Gtags -g 
 
 " Search+replace word under cursor
-nnoremap <Leader>s :,$s/\<<C-r><C-w>\>/
+nnoremap <Leader>s :,$s/\<<C-r><C-w>\>//gc<Left><Left><Left>
 
 " Multi-platform find
 if has("unix")
@@ -143,7 +143,7 @@ endif
 nnoremap <C-g> :Ack <C-R><C-W> %:h
 
 " Find file with quickfix integration
-nnoremap <C-f> :cgetexpr system(find."")
+nnoremap <C-f> :cgetexpr system(find."")<Left><Left>
 
 " Make local file with quickfix integration
 " may require manual let $CXXFLAGS='--std=c++11'
