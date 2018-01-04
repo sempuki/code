@@ -15,6 +15,7 @@ Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'mileszs/ack.vim'
+Plugin 'maralla/completor.vim'
 Plugin 'matchit.zip'
 call vundle#end()
 " :PluginList           - list configured plugins
@@ -289,7 +290,7 @@ nnoremap <Leader>K :setlocal nospell<CR>
 
 " Windows GUI tweaks
 if has("gui_win32")
-    set guifont=DejaVu_Sans_Mono:h9:cANSI
+    set guifont=Consolas:h10:cANSI
     set shellslash "unify shell path seperator handling (eg. Cygwin)
 endif
 
