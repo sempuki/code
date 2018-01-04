@@ -55,7 +55,7 @@ function f() {
     ${FIND_COMMAND} "$@" | ${GREP_COMMAND} '[^/]*$' # colorization
 }
 function fn() {
-    ${FIND_COMMAND} "${1}" -name ${2} | ${GREP_COMMAND} -E "${2}" # colorization
+    ${FIND_COMMAND} "${1}" -name ${2} | ${GREP_COMMAND} "${2//\*/[^/]*}" # glob->regex
 }
 function ll() {
     ${LS_COMMAND} "$@"
