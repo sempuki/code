@@ -19,7 +19,7 @@ export HISTSIZE=10000
 
 export VIM_COMMAND='vim'
 export DIFF_COMMAND='git diff --'
-export FIND_COMMAND='/usr/bin/find'
+export FIND_COMMAND='find'
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
 export LS_COMMAND='ls -lF --color'
 
@@ -55,7 +55,7 @@ function f() {
     ${FIND_COMMAND} "$@" | ${GREP_COMMAND} '[^/]*$' # colorization
 }
 function fn() {
-    ${FIND_COMMAND} "${1}" -name ${2} | ${GREP_COMMAND} "${2}" # colorization
+    ${FIND_COMMAND} "${1}" -name ${2} | ${GREP_COMMAND} -E "${2}" # colorization
 }
 function ll() {
     ${LS_COMMAND} "$@"
@@ -111,6 +111,9 @@ case "$OS" in
     export CLICOLOR=true
     export LSCOLORS=ExFxBxDxCxegedabagacad
     export LS_COMMAND='ls -lGF'
+    ;;
+  "MSYS_NT-10.0")
+    export FIND_COMMAND='/usr/bin/find' # MS's find is grep
     ;;
   * )
     ;;
