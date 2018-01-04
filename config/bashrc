@@ -60,6 +60,9 @@ function fn() {
 function ll() {
     ${LS_COMMAND} "$@"
 }
+function cl() {
+    clear
+}
 
 # VIM integration
 export EDITOR=${VIM_COMMAND}
