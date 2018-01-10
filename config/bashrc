@@ -49,13 +49,13 @@ function gr() {
     ${GREP_COMMAND} -ER "$@" *
 }
 function gf() {
-    ${GREP_COMMAND} -E "${1}" $(${FIND_COMMAND} -L . -name "${2}")
+    ${GREP_COMMAND} -E "${1}" $(${FIND_COMMAND} . -name "${2}")
 }
 function f() {
-    ${FIND_COMMAND} "$@" | ${GREP_COMMAND} '[^/]*$' # colorization
+    ${FIND_COMMAND} "$@"
 }
 function fn() {
-    ${FIND_COMMAND} "${1}" -name ${2} | ${GREP_COMMAND} "${2//\*/[^/]*}" # glob->regex
+    ${FIND_COMMAND} . -name "$@" | ${GREP_COMMAND} "${1//\*/[^/]*}" # glob->regex
 }
 function ll() {
     ${LS_COMMAND} "$@"
