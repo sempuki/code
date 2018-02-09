@@ -49,7 +49,7 @@ function gr() {
     ${GREP_COMMAND} -ER "$@" *
 }
 function gf() {
-    ${GREP_COMMAND} -E "${1}" $(${FIND_COMMAND} . -name "${2}")
+    ${FIND_COMMAND} . -name "${2}" -exec ${GREP_COMMAND} -E "${1}" {} +
 }
 function f() {
     ${FIND_COMMAND} "$@"
