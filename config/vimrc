@@ -13,9 +13,12 @@ Plugin 'fugitive.vim'
 Plugin 'OmniCppComplete'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
+Plugin 'easymotion/vim-easymotion'
+Plugin 'haya14busa/incsearch.vim'
+Plugin 'haya14busa/incsearch-fuzzy.vim'
+Plugin 'haya14busa/incsearch-easymotion.vim'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'mileszs/ack.vim'
-Plugin 'maralla/completor.vim'
 Plugin 'matchit.zip'
 call vundle#end()
 " :PluginList           - list configured plugins
@@ -271,15 +274,6 @@ imap <C-O> <C-X><C-O>
 " Avoid searching boost headers on complete
 set include=^\\s*#\\s*include\ \\(<boost/\\)\\@!
 
-" Java eclim bindings
-nnoremap <Leader>ji :JavaImport<CR>
-nnoremap <Leader>jd :JavaDocSearch -x declarations<CR>
-nnoremap <Leader>js :JavaSearchContext<CR>
-nnoremap <Leader>ja :JavaGetSet <CR>
-nnoremap <Leader>jc :JavaConstructor <CR>
-nnoremap <Leader>jr :JavaRename
-nnoremap <Leader>jf :%JavaFormat <CR>
-
 " Hex editing
 nnoremap <Leader>h :%!xxd -g1<CR>
 nnoremap <Leader>H :%!xxd -r<CR>:set bin<CR>:write<CR>:set nobin<CR>
@@ -318,3 +312,26 @@ if has('nvim')
     " Always start on insert for terminal
     ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
 endif
+
+" Replace default f-motions
+map f <Plug>(easymotion-fl)
+map F <Plug>(easymotion-Fl)
+map ; <Plug>(easymotion-repeat)
+
+" Jump to line/word/character; effectively shortcuts for below
+map <Leader><Leader>l <Plug>(easymotion-overwin-line)
+map <Leader><Leader>w <Plug>(easymotion-overwin-w)
+map <Leader><Leader>f <Plug>(easymotion-overwin-f)
+
+" incsearch.vim x fuzzy x vim-easymotion
+function! s:config_easyfuzzymotion(...) abort
+  return extend(copy({
+  \   'converters': [incsearch#config#fuzzyword#converter()],
+  \   'modules': [incsearch#config#easymotion#module({'overwin': 1})],
+  \   'keymap': {"\<CR>": '<Over>(easymotion)'},
+  \   'is_expr': 0,
+  \   'is_stay': 0
+  \ }), get(a:, 1, {}))
+endfunction
+noremap <silent><expr> <Leader><Leader>/ incsearch#go(<SID>config_easyfuzzymotion())
+

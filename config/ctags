@@ -1,9 +1,15 @@
 --exclude=.git
 --exclude=.svn
 --exclude=.hg
+--exclude=.cache
 --exclude=log
 --exclude=build
---exclude=bazel-*
+--exclude=bazel-bin
+--exclude=bazel-out
+--exclude=bazel-testlogs
+--exclude=bazel-driving
+--exclude=bazel-Work
+--exclude=experimental
 --exclude=node_modules
 --extra=+fq
 --tag-relative
