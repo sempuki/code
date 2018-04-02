@@ -107,39 +107,45 @@ struct NetworkUnit {
 
 class DynamicLibrary {
  public:
+  class Symbol {
+   public:
+    Symbol(DynamicLibrary& library, const std::string& name)
+        : symbol_{dlsym(library.handle_, name.c_str())} {}
+
+    Symbol(const Symbol&) = default;
+    Symbol& operator=(const Symbol&) = default;
+
+    Symbol(Symbol&&) = default;
+    Symbol& operator=(Symbol&&) = default;
+
+    explicit operator bool() const { return symbol_; }
+
+    const char* error() const { return dlerror(); }
+
+   protected:
+    void* symbol_ = nullptr;
+  };
+
   template <typename Signature>
-  class Function {};
+  class Function;
 
   template <typename Return, typename... Arguments>
-  class Function<Return(Arguments...)> {
-    using Pointer = Return (*)(Arguments...);
-
+  class Function<Return(Arguments...)> final : public Symbol {
    public:
-    Function(void* library, const std::string& name)
-        : function_{reinterpret_cast<Pointer>(dlsym(library, name.c_str()))} {}
+    using Symbol::Symbol;
 
-    Function(const Function&) = default;
-    Function& operator=(const Function&) = default;
-
-    Function(Function&&) = default;
-    Function& operator=(Function&&) = default;
-
-    explicit operator bool() const { return function_; }
-
-    Return operator()(Arguments... args) {
-      return function_(std::forward<Arguments>(args)...);
+    Return operator()(Arguments... arguments) {
+      return reinterpret_cast<Return (*)(Arguments...)>(this->symbol_)(
+          std::forward<Arguments>(arguments)...);
     }
-
-   private:
-    Pointer function_ = nullptr;
   };
 
   explicit DynamicLibrary(const std::string& name)
-      : library_{dlopen(name.c_str(), RTLD_LAZY | RTLD_LOCAL)} {}
+      : handle_{dlopen(name.c_str(), RTLD_LAZY | RTLD_LOCAL)} {}
 
   ~DynamicLibrary() {
-    if (library_) {
-      dlclose(library_);
+    if (handle_) {
+      dlclose(handle_);
     }
   }
 
@@ -149,15 +155,12 @@ class DynamicLibrary {
   DynamicLibrary(DynamicLibrary&&) = default;
   DynamicLibrary& operator=(DynamicLibrary&&) = default;
 
-  explicit operator bool() const { return library_; }
+  explicit operator bool() const { return handle_; }
 
-  template <typename Signature>
-  Function<Signature> load(const std::string& name) const {
-    return Function<Signature>{library_, name};
-  }
+  const char* error() const { return dlerror(); }
 
- protected:
-  void* library_ = nullptr;
+ private:
+  void* handle_ = nullptr;
 };
 
 std::istream& operator>>(std::istream& stream, Literal<std::string> literal) {
