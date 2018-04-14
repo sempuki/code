@@ -7,6 +7,7 @@ fi
 shopt -s cdspell       # auto-correct errors on cd
 shopt -s histappend    # append not truncate
 shopt -s hostcomplete  # complete after '@'
+shopt -s extglob       # extending globbing
 
 # Variables
 export LD_LIBRARY_PATH=/usr/local/lib
