@@ -204,42 +204,49 @@ fun! ConfigureBufferForFileType()
 endfun
 
 " Generate local C++ tags file
-nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS -f cpp.tags<CR>
+nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS
+      \ --options=$HOME/.ctags -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 " Generate local C# tags file
-nnoremap <silent> <Leader>G# :!ctags -R --languages=C\# --fields=+aiS -f cs.tags<CR>
+nnoremap <silent> <Leader>G# :!ctags -R --languages=C\# --fields=+aiS
+      \ --options=$HOME/.ctags -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 " Generate local Java tags file
-nnoremap <silent> <Leader>Gj :!ctags -R --languages=Java --fields=+aiS -f java.tags<CR>
+nnoremap <silent> <Leader>Gj :!ctags -R --languages=Java --fields=+aiS
+    \ --options=$HOME/.ctags -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 " Generate local Python tags file
-nnoremap <silent> <Leader>Gpy :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS -f py.tags<CR>
+nnoremap <silent> <Leader>Gpy :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS
+      \ --options=$HOME/.ctags -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
 " Generate local JavaScript tags file
 "nnoremap <silent> <Leader>Gjs :!ctags -R --languages=JavaScript --sort=yes -f js.tags<CR>
 nnoremap <silent> <Leader>Gjs :!find .
       \ -type f -name '*.js'
-      \ -not -path '*/.svn/*'
-      \ -not -path '*/.git/*'
-      \ -not -path '*/.hg/*'
+      \ -not -path '*/.*'
+      \ -not -path '*/bin/*'
+      \ -not -path '*/build/*'
+      \ -not -path '*/lib/*'
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
-      \ -not -path '*/node_modules/*'
       \ -not -path '*/bazel-*'
-      \ -not -path '*/build/*'
+      \ -not -path '*/experimental/*'
+      \ -not -path '*/node_modules/*'
       \ -exec jsctags {} -f \; \| sed '/^$/d' \| sort > js.tags<CR>
 set tags+=./js.tags,js.tags
 
 " Generate local protobuf tags file
-nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extra=+fq -f protobuf.tags<CR>
+nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extra=+fq
+      \ --options=$HOME/.ctags -f protobuf.tags<CR>
 set tags+=./protobuf.tags,protobuf.tags
 
 " Generate /usr/src C++ tags files
-nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq -f source.tags /usr/src<CR>
+nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq
+      \ --options=$HOME/.ctags -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>Gg :!find .
@@ -254,14 +261,15 @@ nnoremap <silent> <Leader>Gg :!find .
       \ -name '*.h' -or
       \ -name '*.ipp' -or
       \ -name '*.tpp' \)
-      \ -not -path '*/.svn/*'
-      \ -not -path '*/.git/*'
-      \ -not -path '*/.hg/*'
+      \ -not -path '*/.*'
+      \ -not -path '*/bin/*'
+      \ -not -path '*/build/*'
+      \ -not -path '*/lib/*'
       \ -not -path '*/log/*'
       \ -not -path '*/html/*'
-      \ -not -path '*/node_modules/*'
       \ -not -path '*/bazel-*'
-      \ -not -path '*/build/*' \|
+      \ -not -path '*/experimental/*'
+      \ -not -path '*/node_modules/*' \|
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
 
