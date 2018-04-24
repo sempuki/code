@@ -8,7 +8,7 @@
     cam = commit --amend -CHEAD
     cl = clone
     co = checkout
-    cot = checkout --track
+    cob = checkout --track
     df = diff
     fe = fetch
     lg = log
