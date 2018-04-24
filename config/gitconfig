@@ -8,6 +8,7 @@
     cam = commit --amend -CHEAD
     cl = clone
     co = checkout
+    tr = checkout --track
     df = diff
     fe = fetch
     lg = log
@@ -54,4 +55,4 @@
 [credential]
     helper = cache --timeout=3600
 [merge]
-	tool = vimdiff
+    tool = vimdiff
