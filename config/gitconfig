@@ -56,3 +56,5 @@
     helper = cache --timeout=3600
 [merge]
     tool = vimdiff
+[rebase]
+      instructionFormat = %s [%an]
