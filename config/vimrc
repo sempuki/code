@@ -11,6 +11,7 @@ Plugin 'FSwitch'
 Plugin 'gtags.vim'
 Plugin 'fugitive.vim'
 Plugin 'OmniCppComplete'
+Plugin 'octol/vim-cpp-enhanced-highlight'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
 Plugin 'easymotion/vim-easymotion'
@@ -269,6 +270,7 @@ nnoremap <silent> <Leader>Gg :!find .
       \ -not -path '*/html/*'
       \ -not -path '*/bazel-*'
       \ -not -path '*/experimental/*'
+      \ -not -path '*/ThirdParty/*'
       \ -not -path '*/node_modules/*' \|
       \ env GTAGSFORCECPP=1 gtags -f-
       \<CR>
