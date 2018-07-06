@@ -10,7 +10,8 @@
     co = checkout
     df = diff
     fe = fetch
-    lg = log
+    lg = log --color --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset'
+    lgg = log --color --graph --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset'
     pl = pull
     prb = pull --rebase
     pu = push
@@ -55,5 +56,7 @@
     helper = cache --timeout=3600
 [merge]
     tool = vimdiff
+[commit]
+    template=~/.gitmessage
 [rebase]
-      instructionFormat = %s [%an]
+    instructionFormat = %s [%an]
