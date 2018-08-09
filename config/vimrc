@@ -205,7 +205,7 @@ fun! ConfigureBufferForFileType()
 endfun
 
 " Generate local C++ tags file
-nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS
+nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields-c++=+{properties} --fields=+aiS
       \ --options=$HOME/.ctags -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
