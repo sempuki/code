@@ -39,9 +39,6 @@ vim-config: install-scripts
 	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
 	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
-vimperator-config:
-	cp vimperatorrc ~/.vimperatorrc
-
 neovim-config:
 	ln -s ~/.vim ~/.config/nvim 
 	ln -s ~/.vimrc ~/.config/nvim/init.vim
@@ -55,4 +52,4 @@ ack-config:
 input-config:
 	cp inputrc ~/.inputrc
 
-configure: bash-config tmux-config git-config vim-config vimperator-config ctags-config ack-config input-config
+configure: bash-config tmux-config git-config vim-config ctags-config ack-config input-config
