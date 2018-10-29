@@ -1,24 +1,6 @@
-all: install-packages install-scripts configure
+all: install-scripts configure
 
-install-packages: update-packages basic-packages development-packages desktop-packages font-packages media-packages application-packages
-
-update-packages:
-	sudo dnf -y update
-
-development-packages:
-	sudo dnf -y install vim-X11 vim-enhanced
-	sudo dnf -y install gcc-c++ gdb git global-ctags
-
-desktop-packages:
-	sudo dnf -y install redshift-gtk gnome-tweak-tool dconf-editor
-
-# requires rpmfusion.org repo
-font-packages:
-	sudo dnf -y install fonts-tweak-tool freetype-freeworld
-
-# requires rpmfusion.org repo
-media-packages:
-	sudo dnf -y install gstreamer-ffmpeg gstreamer-plugins-ugly
+configure: bash-config tmux-config git-config vim-config neovim-config ctags-config ack-config input-config
 
 install-scripts:
 	-mkdir ~/Scripts && cp ../scripts/* ~/Scripts
@@ -51,5 +33,3 @@ ack-config:
 
 input-config:
 	cp inputrc ~/.inputrc
-
-configure: bash-config tmux-config git-config vim-config ctags-config ack-config input-config
