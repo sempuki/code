@@ -19,6 +19,7 @@ Plugin 'haya14busa/incsearch.vim'
 Plugin 'haya14busa/incsearch-fuzzy.vim'
 Plugin 'haya14busa/incsearch-easymotion.vim'
 Plugin 'editorconfig/editorconfig-vim'
+Plugin 'skywind3000/asyncrun.vim'
 Plugin 'mileszs/ack.vim'
 Plugin 'matchit.zip'
 call vundle#end()
@@ -345,3 +346,10 @@ function! s:config_easyfuzzymotion(...) abort
 endfunction
 noremap <silent><expr> <Leader><Leader>/ incsearch#go(<SID>config_easyfuzzymotion())
 
+" Async compile in current directory
+nnoremap <Leader>cc :AsyncRun
+      \ c++ -Wall -g ${CXXFLAGS} "$(VIM_FILEPATH)" -o "$(VIM_FILENOEXT)"
+      \ && lldb -b -o run -k bt ./"$(VIM_FILENOEXT)"<CR>
+
+" Automatically open quickfix window and set to 6 lines height
+let g:asyncrun_open = 10
