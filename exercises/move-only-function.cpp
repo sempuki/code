@@ -47,50 +47,76 @@ auto test_empty_lambda = [] {};
 void test_empty_function() {}
 
 namespace {
-template <typename Signature>
-struct callable_eraser {};
+// TODO: custom dispatch table
+// struct eraser implements all big-5 methods in terms of base type
+// and uses dispatch-on-operation which calls to static free functions.
+// all erased interfaces offer both methods (and dispatching using free methods)
+// eraser holds void pointer to data (and would implement small object
+// optimization) using classes decide whether to use dispatch or spend space on
+// free function pointer
 
-template <typename Return, typename... Args>
-struct callable_eraser<Return(Args...)> {
-  template <typename Erased>
-  static void op_move_construct(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Erased*>(src);
-    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
-
-    new (recovered_dst) Erased(std::move(*recovered_src));
-  }
-
-  template <typename Erased>
-  static void op_move_assign(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Erased*>(src);
-    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
-
-    recovered_dst->~Erased();
-    new (recovered_dst) Erased(std::move(*recovered_src));
-  }
-
+struct default_eraser {
   template <typename Erased>
   static void op_destroy(void* target) {
     auto* recovered = reinterpret_cast<Erased*>(target);
-
     recovered->~Erased();
   }
 
   template <typename Erased>
   static void op_delete(void* target) {
     auto* recovered = reinterpret_cast<Erased*>(target);
-
     delete recovered;
+  }
+};
+
+struct movable_eraser {
+  template <typename Erased>
+  static void op_construct(void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Erased*>(src);
+    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
+
+    new (recovered_dst) Erased(std::move(*recovered_src));
   }
 
   template <typename Erased>
+  static void op_assign(void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Erased*>(src);
+    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
+
+    recovered_dst->~Erased();
+    new (recovered_dst) Erased(std::move(*recovered_src));
+  }
+};
+
+template <typename Signature>
+struct callable_eraser {};
+
+template <typename Return, typename... Args>
+struct callable_eraser<Return(Args...)> {
+  template <typename Erased>
   static Return op_call(void* target, Args&&... args) {
     auto* recovered = reinterpret_cast<Erased*>(target);
-
     return (*recovered)(std::forward<Args>(args)...);
   }
 };
 
+template <typename Return, typename... Args>
+struct callable_eraser<Return(Args...) const> {
+  template <typename Erased>
+  static Return op_call(void* target, Args&&... args) {
+    auto* recovered = reinterpret_cast<const Erased*>(target);
+    return (*recovered)(std::forward<Args>(args)...);
+  }
+};
+
+template <typename Return, typename... Args>
+struct callable_eraser<Return(Args...) &&> {
+  template <typename Erased>
+  static Return op_call(void* target, Args&&... args) {
+    auto* recovered = reinterpret_cast<Erased*>(target);
+    return std::move(*recovered)(std::forward<Args>(args)...);
+  }
+};
 }  // namespace
 
 namespace std {
@@ -187,11 +213,10 @@ template <class F>
 mofunction<R(ArgTypes...)>::mofunction(F f)
     : erased_{new F(std::move(f))},
       call_{callable_eraser<R(ArgTypes...)>::template op_call<F>},
-      move_constr_{
-          callable_eraser<R(ArgTypes...)>::template op_move_construct<F>},
-      move_assign_{callable_eraser<R(ArgTypes...)>::template op_move_assign<F>},
-      destroy_{callable_eraser<R(ArgTypes...)>::template op_destroy<F>},
-      delete_{callable_eraser<R(ArgTypes...)>::template op_delete<F>} {}
+      move_constr_{movable_eraser::template op_construct<F>},
+      move_assign_{movable_eraser::template op_assign<F>},
+      destroy_{default_eraser::template op_destroy<F>},
+      delete_{default_eraser::template op_delete<F>} {}
 
 template <class R, class... ArgTypes>
 mofunction<R(ArgTypes...)>::~mofunction() {
