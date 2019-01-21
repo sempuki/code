@@ -47,78 +47,268 @@ auto test_empty_lambda = [] {};
 void test_empty_function() {}
 
 namespace {
-// TODO: custom dispatch table
-// struct eraser implements all big-5 methods in terms of base type
-// and uses dispatch-on-operation which calls to static free functions.
-// all erased interfaces offer both methods (and dispatching using free methods)
-// eraser holds void pointer to data (and would implement small object
-// optimization) using classes decide whether to use dispatch or spend space on
-// free function pointer
 
-struct default_eraser {
-  template <typename Erased>
-  static void op_destroy(void* target) {
-    auto* recovered = reinterpret_cast<Erased*>(target);
-    recovered->~Erased();
-  }
+struct basic_eraser {
+  using erased_delete = void (*)(void*);
 
-  template <typename Erased>
-  static void op_delete(void* target) {
-    auto* recovered = reinterpret_cast<Erased*>(target);
+  template <typename Type>
+  static void typed_delete(void* target) {
+    auto* recovered = reinterpret_cast<Type*>(target);
+
     delete recovered;
   }
 };
 
-struct movable_eraser {
-  template <typename Erased>
-  static void op_construct(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Erased*>(src);
-    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
+struct default_eraser {
+  using erased_construct = void (*)(void*);
 
-    new (recovered_dst) Erased(std::move(*recovered_src));
+  template <typename Type>
+  static void typed_construct(void* target) {
+    auto* recovered = reinterpret_cast<Type*>(target);
+
+    new (recovered) Type();
+  }
+};
+
+struct copy_eraser {
+  using erased_construct = void (*)(const void*, void*);
+  using erased_assign = void (*)(const void*, void*);
+
+  template <typename Type>
+  static void typed_construct(const void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+
+    new (recovered_dst) Type(*recovered_src);
   }
 
-  template <typename Erased>
-  static void op_assign(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Erased*>(src);
-    auto* recovered_dst = reinterpret_cast<Erased*>(dst);
+  template <typename Type>
+  static void typed_assign(const void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    recovered_dst->~Erased();
-    new (recovered_dst) Erased(std::move(*recovered_src));
+    *recovered_dst = *recovered_src;
+  }
+};
+
+struct move_eraser {
+  using erased_construct = void (*)(void*, void*);
+  using erased_assign = void (*)(void*, void*);
+
+  template <typename Type>
+  static void typed_construct(void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+
+    new (recovered_dst) Type(std::move(*recovered_src));
+  }
+
+  template <typename Type>
+  static void typed_assign(void* src, void* dst) {
+    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+
+    recovered_dst = std::move(*recovered_src);
   }
 };
 
 template <typename Signature>
-struct callable_eraser {};
+class call_eraser {};
 
 template <typename Return, typename... Args>
-struct callable_eraser<Return(Args...)> {
-  template <typename Erased>
-  static Return op_call(void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<Erased*>(target);
+struct call_eraser<Return(Args...)> {
+  using erased_call = Return (*)(void* target, Args&&... args);
+
+  template <typename Type>
+  static Return typed_call(void* target, Args&&... args) {
+    auto* recovered = reinterpret_cast<Type*>(target);
     return (*recovered)(std::forward<Args>(args)...);
   }
 };
 
 template <typename Return, typename... Args>
-struct callable_eraser<Return(Args...) const> {
-  template <typename Erased>
-  static Return op_call(void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<const Erased*>(target);
+struct call_eraser<Return(Args...) const> {
+  using erased_call = Return (*)(const void* target, Args&&... args);
+
+  template <typename Type>
+  static Return typed_call(const void* target, Args&&... args) {
+    auto* recovered = reinterpret_cast<const Type*>(target);
     return (*recovered)(std::forward<Args>(args)...);
   }
 };
 
 template <typename Return, typename... Args>
-struct callable_eraser<Return(Args...) &&> {
-  template <typename Erased>
-  static Return op_call(void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<Erased*>(target);
+struct call_eraser<Return(Args...) &&> {
+  using erased_call = Return (*)(void* target, Args&&... args);
+
+  template <typename Type>
+  static Return typed_call(void* target, Args&&... args) {
+    auto* recovered = reinterpret_cast<Type*>(target);
     return std::move(*recovered)(std::forward<Args>(args)...);
   }
 };
+
+struct op_delete {};
+struct op_default_construct {};
+struct op_copy_construct {};
+struct op_copy_assign {};
+struct op_move_construct {};
+struct op_move_assign {};
+struct op_call {};
+
+template <typename Dispatcher>
+class basic_erasure : protected Dispatcher {
+ public:
+  template <typename Erased>
+  basic_erasure(Erased&& object)
+      : object_{new Erased(std::forward<Erased>(object))} {}
+
+  ~basic_erasure() { operate(op_delete{}, object()); }
+
+  void* object() { return object_; }
+  const void* object() const { return object_; }
+
+ protected:
+  using Dispatcher::operate;
+
+ private:
+  // TODO: small object optimization
+  void* object_ = nullptr;
+};
+
+template <typename Delegate>
+class default_erasure : protected Delegate {
+ public:
+  default_erasure() { operate(op_default_construct{}, object()); }
+
+ protected:
+  using Delegate::object;
+  using Delegate::operate;
+};
+
+template <typename Delegate>
+class copyable_erasure : protected Delegate {
+ public:
+  copyable_erasure(const copyable_erasure& that) {
+    operate(op_copy_construct{}, that.object(), object());
+  }
+
+  copyable_erasure& operator=(const copyable_erasure& that) {
+    operate(op_copy_construct{}, that.object(), object());
+  }
+
+ protected:
+  using Delegate::object;
+  using Delegate::operate;
+};
+
+template <typename Delegate>
+class movable_erasure : protected Delegate {
+ public:
+  movable_erasure(movable_erasure&& that) {
+    operate(op_move_construct{}, that.object(), object());
+  }
+
+  movable_erasure& operator=(movable_erasure&& that) {
+    operate(op_move_construct{}, that.object(), object());
+  }
+
+ protected:
+  using Delegate::object;
+  using Delegate::operate;
+};
+
+template <typename Delegate>
+class callable_erasure : protected Delegate {
+ public:
+  template <typename Return, typename... Args>
+  Return operator()(Args&&... args) {
+    operate(op_call{}, object(), std::forward<Args>(args)...);
+  }
+
+ protected:
+  using Delegate::object;
+  using Delegate::operate;
+};
+
+struct compact_dispatcher {
+  enum class operation {
+    do_delete,
+    do_default_construct,
+    do_copy_construct,
+    do_copy_assign,
+    do_move_construct,
+    do_move_assign,
+  };
+
+  template <typename Type>
+  void typed_dispatch(operation op, void* lhs, void* rhs) {
+    switch (op) {
+      case operation::do_delete:
+        basic_eraser::typed_delete<Type>(lhs);
+        break;
+      case operation::do_default_construct:
+        default_eraser::typed_construct<Type>(lhs);
+        break;
+      case operation::do_copy_construct:
+        copy_eraser::typed_construct<Type>(lhs, rhs);
+        break;
+      case operation::do_copy_assign:
+        copy_eraser::typed_assign<Type>(lhs, rhs);
+        break;
+      case operation::do_move_construct:
+        move_eraser::typed_construct<Type>(lhs, rhs);
+        break;
+      case operation::do_move_assign:
+        move_eraser::typed_assign<Type>(lhs, rhs);
+        break;
+    }
+  }
+
+  void operate(struct op_delete, void* object) {
+    erased_dispatch(operation::do_delete, object, nullptr);
+  }
+
+  void operate(struct op_default_construct, void* object) {
+    erased_dispatch(operation::do_default_construct, object, nullptr);
+  }
+
+  void operate(struct op_copy_construct, void* src, void* dst) {
+    erased_dispatch(operation::do_copy_construct, src, dst);
+  }
+
+  void operate(struct op_copy_assign, void* src, void* dst) {
+    erased_dispatch(operation::do_copy_assign, src, dst);
+  }
+
+  void operate(struct op_move_construct, void* src, void* dst) {
+    erased_dispatch(operation::do_move_construct, src, dst);
+  }
+
+  void operate(struct op_move_assign, void* src, void* dst) {
+    erased_dispatch(operation::do_move_assign, src, dst);
+  }
+
+  void (*erased_dispatch)(operation op, void*, void*) = nullptr;
+};
+
+template <typename Signature>
+struct callabe_compact_dispatcher {};
+
+template <typename Return, typename... Args>
+struct callabe_compact_dispatcher<Return(Args...)> : public compact_dispatcher {
+  using compact_dispatcher::operate;
+
+  Return operate(struct op_call, void* object, Args&&... args) {
+    return erased_call(object, std::forward<Args>(args)...);
+  }
+
+  typename call_eraser<Return(Args...)>::erased_call erased_call = nullptr;
+};
+
 }  // namespace
 
+/*
 namespace std {
 
 template <class Sig>
@@ -171,7 +361,6 @@ class mofunction<R(ArgTypes...)> {
   void (*move_constr_)(void*, void*) = nullptr;
   void (*move_assign_)(void*, void*) = nullptr;
   void (*destroy_)(void*) = nullptr;
-  void (*delete_)(void*) = nullptr;
 };
 
 // template <class R, class... ArgTypes>
@@ -212,18 +401,13 @@ template <class R, class... ArgTypes>
 template <class F>
 mofunction<R(ArgTypes...)>::mofunction(F f)
     : erased_{new F(std::move(f))},
-      call_{callable_eraser<R(ArgTypes...)>::template op_call<F>},
-      move_constr_{movable_eraser::template op_construct<F>},
-      move_assign_{movable_eraser::template op_assign<F>},
-      destroy_{default_eraser::template op_destroy<F>},
-      delete_{default_eraser::template op_delete<F>} {}
+      call_{call_eraser<R(ArgTypes...)>::template call<F>},
+      move_constr_{move_eraser::template construct<F>},
+      move_assign_{move_eraser::template assign<F>},
+      destroy_{default_eraser::template destroy<F>},
 
-template <class R, class... ArgTypes>
-mofunction<R(ArgTypes...)>::~mofunction() {
-  if (*this) {
-    delete_(erased_);
-  }
-}
+      template <class R, class... ArgTypes>
+      mofunction<R(ArgTypes...)>::~mofunction() {}
 
 template <class R, class... ArgTypes>
 mofunction<R(ArgTypes...)>::operator bool() const noexcept {
@@ -231,10 +415,15 @@ mofunction<R(ArgTypes...)>::operator bool() const noexcept {
 }
 
 }  // namespace std
+*/
 
 int main() {
   std::cout << "Hello mofo\n";
 
+  // copyable_erasure<default_erasure<basic_erasure<compact_dispatcher>>>
+  // erasure;
+
+  /*
   {
     std::mofunction<void()> default_constructable;
     assert(!default_constructable);
@@ -264,6 +453,7 @@ int main() {
     std::mofunction<void()> deletes_target(TestDestroy{});
     assert(TestDestroy::destroyed == 1);
   }
+  */
 
   std::cout << "Goodbye!\n";
   return 0;
