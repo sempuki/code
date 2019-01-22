@@ -76,7 +76,7 @@ struct copy_eraser {
 
   template <typename Type>
   static void typed_construct(const void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_src = reinterpret_cast<const Type*>(src);
     auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
     new (recovered_dst) Type(*recovered_src);
@@ -84,7 +84,7 @@ struct copy_eraser {
 
   template <typename Type>
   static void typed_assign(const void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Type*>(src);
+    auto* recovered_src = reinterpret_cast<const Type*>(src);
     auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
     *recovered_dst = *recovered_src;
@@ -108,7 +108,7 @@ struct move_eraser {
     auto* recovered_src = reinterpret_cast<Type*>(src);
     auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    recovered_dst = std::move(*recovered_src);
+    *recovered_dst = std::move(*recovered_src);
   }
 };
 
@@ -149,92 +149,79 @@ struct call_eraser<Return(Args...) &&> {
 };
 
 struct op_delete {};
-struct op_default_construct {};
 struct op_copy_construct {};
 struct op_copy_assign {};
 struct op_move_construct {};
 struct op_move_assign {};
 struct op_call {};
 
-template <typename Dispatcher>
-class basic_erasure : protected Dispatcher {
+template <typename Base>
+class heap_erasure {
  public:
   template <typename Erased>
-  basic_erasure(Erased&& object)
+  heap_erasure(Erased&& object)
       : object_{new Erased(std::forward<Erased>(object))} {}
 
-  ~basic_erasure() { operate(op_delete{}, object()); }
+  ~heap_erasure() { static_cast<Base*>(this)->operate(op_delete{}, address()); }
 
-  void* object() { return object_; }
-  const void* object() const { return object_; }
-
- protected:
-  using Dispatcher::operate;
+  const void* address() const { return object_; }
+  void* address() { return object_; }
 
  private:
-  // TODO: small object optimization
   void* object_ = nullptr;
 };
 
-template <typename Delegate>
-class default_erasure : protected Delegate {
+template <typename Base>
+class copyable_erasure {
  public:
-  default_erasure() { operate(op_default_construct{}, object()); }
+  copyable_erasure() = default;
 
- protected:
-  using Delegate::object;
-  using Delegate::operate;
-};
-
-template <typename Delegate>
-class copyable_erasure : protected Delegate {
- public:
   copyable_erasure(const copyable_erasure& that) {
-    operate(op_copy_construct{}, that.object(), object());
+    operate(op_copy_construct{}, that.address(), address());
   }
 
   copyable_erasure& operator=(const copyable_erasure& that) {
-    operate(op_copy_construct{}, that.object(), object());
+    operate(op_copy_construct{}, that.address(), address());
   }
 
- protected:
-  using Delegate::object;
-  using Delegate::operate;
+  virtual const void* address() const = 0;
+  virtual void* address() = 0;
 };
 
-template <typename Delegate>
-class movable_erasure : protected Delegate {
+template <typename Base>
+class movable_erasure {
  public:
+  movable_erasure() = default;
+
   movable_erasure(movable_erasure&& that) {
-    operate(op_move_construct{}, that.object(), object());
+    operate(op_move_construct{}, that.address(), address());
   }
 
   movable_erasure& operator=(movable_erasure&& that) {
-    operate(op_move_construct{}, that.object(), object());
+    operate(op_move_construct{}, that.address(), address());
   }
 
- protected:
-  using Delegate::object;
-  using Delegate::operate;
+  virtual void* address() = 0;
 };
 
-template <typename Delegate>
-class callable_erasure : protected Delegate {
+template <typename Base>
+class callable_erasure {
  public:
+  callable_erasure() = default;
+
   template <typename Return, typename... Args>
   Return operator()(Args&&... args) {
-    operate(op_call{}, object(), std::forward<Args>(args)...);
+    operate(op_call{}, address(), std::forward<Args>(args)...);
   }
 
- protected:
-  using Delegate::object;
-  using Delegate::operate;
+  virtual void* address() = 0;
 };
+
+// TODO: const_callable_erasure, move_callable_erasure
 
 struct compact_dispatcher {
   enum class operation {
     do_delete,
-    do_default_construct,
     do_copy_construct,
     do_copy_assign,
     do_move_construct,
@@ -242,13 +229,10 @@ struct compact_dispatcher {
   };
 
   template <typename Type>
-  void typed_dispatch(operation op, void* lhs, void* rhs) {
+  static void typed_dispatch(operation op, void* lhs, void* rhs) {
     switch (op) {
       case operation::do_delete:
         basic_eraser::typed_delete<Type>(lhs);
-        break;
-      case operation::do_default_construct:
-        default_eraser::typed_construct<Type>(lhs);
         break;
       case operation::do_copy_construct:
         copy_eraser::typed_construct<Type>(lhs, rhs);
@@ -265,12 +249,13 @@ struct compact_dispatcher {
     }
   }
 
-  void operate(struct op_delete, void* object) {
-    erased_dispatch(operation::do_delete, object, nullptr);
+  template <typename Erased>
+  static compact_dispatcher make() {
+    return {typed_dispatch<Erased>};
   }
 
-  void operate(struct op_default_construct, void* object) {
-    erased_dispatch(operation::do_default_construct, object, nullptr);
+  void operate(struct op_delete, void* object) {
+    erased_dispatch(operation::do_delete, object, nullptr);
   }
 
   void operate(struct op_copy_construct, void* src, void* dst) {
@@ -417,11 +402,24 @@ mofunction<R(ArgTypes...)>::operator bool() const noexcept {
 }  // namespace std
 */
 
+struct MyErasure : public compact_dispatcher,
+                   heap_erasure<MyErasure>,
+                   copyable_erasure<MyErasure> {
+  template <typename Erased>
+  MyErasure(Erased&& object)
+      : compact_dispatcher{compact_dispatcher::make<Erased>()},
+        heap_erasure<MyErasure>{std::forward<Erased>(object)} {}
+
+  const void* address() const override {
+    return heap_erasure<MyErasure>::address();
+  }
+  void* address() override { return heap_erasure<MyErasure>::address(); }
+};
+
 int main() {
   std::cout << "Hello mofo\n";
 
-  // copyable_erasure<default_erasure<basic_erasure<compact_dispatcher>>>
-  // erasure;
+  MyErasure a{TestCopy{}};
 
   /*
   {
