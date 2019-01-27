@@ -16,16 +16,22 @@ struct TestDestroy {
 size_t TestDestroy::destroyed = 0;
 
 struct TestCopy {
-  TestCopy() = default;
-  ~TestCopy() = default;
+  TestCopy() { std::cout << "TestCopy default construct\n"; }
+  ~TestCopy() { std::cout << "TestCopy deconstruct\n"; }
 
-  TestCopy(const TestCopy&) = default;
-  TestCopy& operator=(const TestCopy&) = default;
+  TestCopy(const TestCopy&) { std::cout << "TestCopy copy construct\n"; }
+  TestCopy& operator=(const TestCopy&) {
+    std::cout << "TestCopy copy assign\n";
+    return *this;
+  }
 
-  TestCopy(TestCopy&&) = default;
-  TestCopy& operator=(TestCopy&&) = default;
+  TestCopy(TestCopy&&) { std::cout << "TestCopy move construct\n"; }
+  TestCopy& operator=(TestCopy&&) {
+    std::cout << "TestCopy move assign\n";
+    return *this;
+  }
 
-  void operator()() { std::cout << "Copyable\n"; }
+  void operator()() { std::cout << "TestCopy call\n"; }
 };
 
 struct TestMoveOnly {
@@ -155,14 +161,16 @@ struct op_move_construct {};
 struct op_move_assign {};
 struct op_call {};
 
-template <typename Base>
+template <typename Delegate>
 class heap_erasure {
  public:
   template <typename Erased>
   heap_erasure(Erased&& object)
       : object_{new Erased(std::forward<Erased>(object))} {}
 
-  ~heap_erasure() { static_cast<Base*>(this)->operate(op_delete{}, address()); }
+  ~heap_erasure() {
+    static_cast<Delegate*>(this)->operate(op_delete{}, address());
+  }
 
   const void* address() const { return object_; }
   void* address() { return object_; }
@@ -171,50 +179,50 @@ class heap_erasure {
   void* object_ = nullptr;
 };
 
-template <typename Base>
+template <typename Delegate>
 class copyable_erasure {
  public:
   copyable_erasure() = default;
 
-  copyable_erasure(const copyable_erasure& that) {
-    operate(op_copy_construct{}, that.address(), address());
+  copyable_erasure(const Delegate& that) {
+    operate(op_copy_construct{}, that.address(),
+            static_cast<Delegate*>(this)->address());
   }
 
-  copyable_erasure& operator=(const copyable_erasure& that) {
-    operate(op_copy_construct{}, that.address(), address());
+  Delegate& operator=(const Delegate& that) {
+    operate(op_copy_construct{}, that.address(),
+            static_cast<Delegate*>(this)->address());
+    return *this;
   }
-
-  virtual const void* address() const = 0;
-  virtual void* address() = 0;
 };
 
-template <typename Base>
+template <typename Delegate>
 class movable_erasure {
  public:
   movable_erasure() = default;
 
-  movable_erasure(movable_erasure&& that) {
-    operate(op_move_construct{}, that.address(), address());
+  movable_erasure(Delegate&& that) {
+    operate(op_move_construct{}, that.address(),
+            static_cast<Delegate*>(this)->address());
   }
 
-  movable_erasure& operator=(movable_erasure&& that) {
-    operate(op_move_construct{}, that.address(), address());
+  Delegate& operator=(Delegate&& that) {
+    operate(op_move_construct{}, that.address(),
+            static_cast<Delegate*>(this)->address());
+    return *this;
   }
-
-  virtual void* address() = 0;
 };
 
-template <typename Base>
+template <typename Delegate>
 class callable_erasure {
  public:
   callable_erasure() = default;
 
   template <typename Return, typename... Args>
   Return operator()(Args&&... args) {
-    operate(op_call{}, address(), std::forward<Args>(args)...);
+    operate(op_call{}, static_cast<Delegate*>(this)->address(),
+            std::forward<Args>(args)...);
   }
-
-  virtual void* address() = 0;
 };
 
 // TODO: const_callable_erasure, move_callable_erasure
@@ -409,17 +417,13 @@ struct MyErasure : public compact_dispatcher,
   MyErasure(Erased&& object)
       : compact_dispatcher{compact_dispatcher::make<Erased>()},
         heap_erasure<MyErasure>{std::forward<Erased>(object)} {}
-
-  const void* address() const override {
-    return heap_erasure<MyErasure>::address();
-  }
-  void* address() override { return heap_erasure<MyErasure>::address(); }
 };
 
 int main() {
   std::cout << "Hello mofo\n";
 
   MyErasure a{TestCopy{}};
+  MyErasure b = a;
 
   /*
   {
