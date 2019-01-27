@@ -56,6 +56,11 @@ void test_empty_function() {}
 namespace {
 
 struct basic_eraser {
+  using erased_allocate = void* (*)();
+  using erased_delete = void (*)(void*);
+  using erased_construct = void (*)(void*);
+  using erased_destroy = void (*)(void*);
+
   template <typename Type>
   static void* typed_allocate() {
     return new std::aligned_storage_t<sizeof(Type), alignof(Type)>;
@@ -84,6 +89,9 @@ struct basic_eraser {
 };
 
 struct copy_eraser {
+  using erased_construct = void (*)(void*, void*);
+  using erased_assign = void (*)(void*, void*);
+
   template <typename Type>
   static void typed_construct(void* src, void* dst) {
     auto* recovered_src = reinterpret_cast<const Type*>(src);
@@ -93,7 +101,7 @@ struct copy_eraser {
   }
 
   template <typename Type>
-  static void typed_assign(const void* src, void* dst) {
+  static void typed_assign(void* src, void* dst) {
     auto* recovered_src = reinterpret_cast<const Type*>(src);
     auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
@@ -102,6 +110,9 @@ struct copy_eraser {
 };
 
 struct move_eraser {
+  using erased_construct = void (*)(void*, void*);
+  using erased_assign = void (*)(void*, void*);
+
   template <typename Type>
   static void typed_construct(void* src, void* dst) {
     auto* recovered_src = reinterpret_cast<Type*>(src);
@@ -124,7 +135,7 @@ class call_eraser {};
 
 template <typename Return, typename... Args>
 struct call_eraser<Return(Args...)> {
-  using erased_call = Return (*)(void* target, Args&&... args);
+  using erased_call = Return (*)(void*, Args...);
 
   template <typename Type>
   static Return typed_call(void* target, Args&&... args) {
@@ -135,7 +146,7 @@ struct call_eraser<Return(Args...)> {
 
 template <typename Return, typename... Args>
 struct call_eraser<Return(Args...) const> {
-  using erased_call = Return (*)(const void* target, Args&&... args);
+  using erased_call = Return (*)(const void*, Args...);
 
   template <typename Type>
   static Return typed_call(const void* target, Args&&... args) {
@@ -146,7 +157,7 @@ struct call_eraser<Return(Args...) const> {
 
 template <typename Return, typename... Args>
 struct call_eraser<Return(Args...) &&> {
-  using erased_call = Return (*)(void* target, Args&&... args);
+  using erased_call = Return (*)(void*, Args...);
 
   template <typename Type>
   static Return typed_call(void* target, Args&&... args) {
@@ -166,26 +177,11 @@ struct op_move_assign {};
 struct op_call {};
 
 template <typename Mixed>
-class callable_erasure_mixin {
- public:
-  callable_erasure_mixin() = default;
-
-  template <typename Return, typename... Args>
-  Return operator()(Args&&... args) {
-    auto* this_mixed = static_cast<Mixed*>(this);
-    this_mixed->operate(op_call{}, this_mixed->address(),
-                        std::forward<Args>(args)...);
-  }
-};
-
-// TODO: const_callable_erasure, move_callable_erasure
-
-template <typename Mixed>
 class heap_storage_mixin {
  public:
   template <typename Erased, typename... Args>
-  static heap_storage_mixin make(Args&&... args) {
-    return new Erased(std::forward<Args>(args)...);
+  static auto make(Args&&... args) {
+    return heap_storage_mixin(new Erased(std::forward<Args>(args)...));
   }
 
   heap_storage_mixin() = default;
@@ -225,27 +221,26 @@ class heap_storage_mixin {
   void* address() const { return address_; }
 
  private:
-  heap_storage_mixin(void* address) : address_(address) {}
+  explicit heap_storage_mixin(void* address) : address_(address) {}
 
   void* address_ = nullptr;
 };  // namespace
 
-class compact_dispatcher_mixin {
+class compact_dispatch_mixin {
  public:
   template <typename Erased>
-  static compact_dispatcher_mixin make() {
-    return compact_dispatcher_mixin::typed_dispatch<Erased>;
+  static auto make() {
+    return compact_dispatch_mixin(typed_dispatch<Erased>);
   }
 
-  compact_dispatcher_mixin() = default;
-  ~compact_dispatcher_mixin() = default;
+  compact_dispatch_mixin() = default;
+  ~compact_dispatch_mixin() = default;
 
-  compact_dispatcher_mixin(const compact_dispatcher_mixin&) = default;
-  compact_dispatcher_mixin& operator=(const compact_dispatcher_mixin&) =
-      default;
+  compact_dispatch_mixin(const compact_dispatch_mixin&) = default;
+  compact_dispatch_mixin& operator=(const compact_dispatch_mixin&) = default;
 
-  compact_dispatcher_mixin(compact_dispatcher_mixin&&) = default;
-  compact_dispatcher_mixin& operator=(compact_dispatcher_mixin&&) = default;
+  compact_dispatch_mixin(compact_dispatch_mixin&&) = default;
+  compact_dispatch_mixin& operator=(compact_dispatch_mixin&&) = default;
 
   void* operate(op_allocate) {
     return erased_dispatch_(operation::do_allocate, nullptr, nullptr);
@@ -321,25 +316,100 @@ class compact_dispatcher_mixin {
     return nullptr;
   }
 
-  compact_dispatcher_mixin(void* (*dispatch)(operation op, void*, void*))
+  explicit compact_dispatch_mixin(void* (*dispatch)(operation op, void*, void*))
       : erased_dispatch_(dispatch) {}
 
   void* (*erased_dispatch_)(operation op, void*, void*) = nullptr;
 };
 
 template <typename Signature>
-struct callable_compact_dispatcher_mixin {};
-
-template <typename Return, typename... Args>
-struct callable_compact_dispatcher_mixin<Return(Args...)>
-    : public compact_dispatcher_mixin {
-  using compact_dispatcher_mixin::operate;
-
-  Return operate(op_call, void* object, Args&&... args) {
-    return erased_call(object, std::forward<Args>(args)...);
+class callable_dispatch_mixin {
+ public:
+  template <typename Erased>
+  static auto make() {
+    return callable_dispatch_mixin(
+        call_eraser<Signature>::template typed_call<Erased>);
   }
 
-  typename call_eraser<Return(Args...)>::erased_call erased_call = nullptr;
+  callable_dispatch_mixin() = default;
+  ~callable_dispatch_mixin() = default;
+
+  callable_dispatch_mixin(const callable_dispatch_mixin&) = default;
+  callable_dispatch_mixin& operator=(const callable_dispatch_mixin&) = default;
+
+  callable_dispatch_mixin(callable_dispatch_mixin&&) = default;
+  callable_dispatch_mixin& operator=(callable_dispatch_mixin&&) = default;
+
+  template <typename Return, typename... Args>
+  Return operate(op_call, void* target, Args&&... args) {
+    erased_call_(target, std::forward<Args>(args)...);
+  }
+
+ private:
+  explicit callable_dispatch_mixin(
+      typename call_eraser<Signature>::erased_call call)
+      : erased_call_(call) {}
+
+  typename call_eraser<Signature>::erased_call erased_call_ = nullptr;
+};
+
+template <typename Signature>
+class callable_compact_dispatch_mixin
+    : public callable_dispatch_mixin<Signature>,
+      compact_dispatch_mixin {
+ public:
+  template <typename Erased>
+  static auto make() {
+    return callable_compact_dispatch_mixin(
+        callable_dispatch_mixin<Signature>::template make<Erased>(),
+        compact_dispatch_mixin::template make<Erased>());
+  }
+
+  callable_compact_dispatch_mixin() = default;
+  ~callable_compact_dispatch_mixin() = default;
+
+  callable_compact_dispatch_mixin(const callable_compact_dispatch_mixin&) =
+      default;
+  callable_compact_dispatch_mixin& operator=(
+      const callable_compact_dispatch_mixin&) = default;
+
+  callable_compact_dispatch_mixin(callable_compact_dispatch_mixin&&) = default;
+  callable_compact_dispatch_mixin& operator=(
+      callable_compact_dispatch_mixin&&) = default;
+
+  using callable_dispatch_mixin<Signature>::operate;
+  using compact_dispatch_mixin::operate;
+
+ private:
+  explicit callable_compact_dispatch_mixin(
+      callable_dispatch_mixin<Signature> callable,
+      compact_dispatch_mixin compact)
+      : callable_dispatch_mixin<Signature>(std::move(callable)),
+        compact_dispatch_mixin(std::move(compact)) {}
+};
+
+template <typename Mixed, typename Signature>
+class callable_interface_mixin {};
+
+template <typename Mixed, typename Return, typename... Args>
+struct callable_interface_mixin<Mixed, Return(Args...)> {
+  Return operator()(Args&&... args) {
+    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+  }
+};
+
+template <typename Mixed, typename Return, typename... Args>
+struct callable_interface_mixin<Mixed, Return(Args...) const> {
+  Return operator()(Args&&... args) const {
+    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+  }
+};
+
+template <typename Mixed, typename Return, typename... Args>
+struct callable_interface_mixin<Mixed, Return(Args...) &&> {
+  Return operator()(Args&&... args) && {
+    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+  }
 };
 
 }  // namespace
@@ -453,48 +523,54 @@ mofunction<R(ArgTypes...)>::operator bool() const noexcept {
 }  // namespace std
 */
 
-class Foo : private compact_dispatcher_mixin, heap_storage_mixin<Foo> {
+template <typename Signature>
+class func : private callable_compact_dispatch_mixin<Signature>,
+             heap_storage_mixin<func<Signature>>,
+             public callable_interface_mixin<func<Signature>, Signature> {
  public:
-  Foo() = default;
-  ~Foo() = default;
+  func() = default;
+  ~func() = default;
 
-  Foo(const Foo& that)
-      : compact_dispatcher_mixin(that), heap_storage_mixin<Foo>(that) {}
+  func(const func& that)
+      : callable_compact_dispatch_mixin<Signature>(that),
+        heap_storage_mixin<func<Signature>>(that) {}
 
-  Foo(Foo&& that)
-      : compact_dispatcher_mixin(std::move(that)),
-        heap_storage_mixin<Foo>(std::move(that)) {}
+  func(func&& that)
+      : callable_compact_dispatch_mixin<Signature>(std::move(that)),
+        heap_storage_mixin<func<Signature>>(std::move(that)) {}
 
-  Foo& operator=(const Foo& that) {
-    compact_dispatcher_mixin::operator=(that);
-    heap_storage_mixin<Foo>::operator=(that);
+  func& operator=(const func& that) {
+    callable_compact_dispatch_mixin<Signature>::operator=(that);
+    heap_storage_mixin<func<Signature>>::operator=(that);
     return *this;
   }
 
-  Foo& operator=(Foo&& that) {
-    compact_dispatcher_mixin::operator=(std::move(that));
-    heap_storage_mixin<Foo>::operator=(std::move(that));
+  func& operator=(func&& that) {
+    callable_compact_dispatch_mixin<Signature>::operator=(std::move(that));
+    heap_storage_mixin<func<Signature>>::operator=(std::move(that));
     return *this;
   }
 
   template <typename Erased>
-  Foo(Erased&& object)
-      : compact_dispatcher_mixin(
-            compact_dispatcher_mixin::make<std::remove_reference_t<Erased>>()),
-        heap_storage_mixin<Foo>(
-            heap_storage_mixin<Foo>::make<std::remove_reference_t<Erased>>(
+  func(Erased&& object)
+      : callable_compact_dispatch_mixin<Signature>(
+            callable_compact_dispatch_mixin<Signature>::template make<
+                std::remove_reference_t<Erased>>()),
+        heap_storage_mixin<func<Signature>>(
+            heap_storage_mixin<func<Signature>>::template make<
+                std::remove_reference_t<Erased>>(
                 std::forward<Erased>(object))) {}
 
  private:
-  friend heap_storage_mixin<Foo>;  // access to dispatcher
+  friend heap_storage_mixin<func<Signature>>;  // access to dispatcher
 };
 
 int main() {
   std::cout << "Hello mofo\n";
 
-  Foo a{TestCopy{}};
+  func<void()> a{TestCopy{}};
   std::cout << "1111\n";
-  Foo b;
+  func<void()> b;
   std::cout << "2222\n";
   b = std::move(a);
 
