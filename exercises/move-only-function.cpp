@@ -161,73 +161,137 @@ struct op_move_construct {};
 struct op_move_assign {};
 struct op_call {};
 
-template <typename Delegate>
-class heap_erasure {
+template <typename Mixed>
+class copyable_erasure_mixin {
  public:
-  template <typename Erased>
-  heap_erasure(Erased&& object)
-      : object_{new Erased(std::forward<Erased>(object))} {}
+  copyable_erasure_mixin() = default;
 
-  ~heap_erasure() {
-    static_cast<Delegate*>(this)->operate(op_delete{}, address());
+  copyable_erasure_mixin(const Mixed& that) {
+    auto* this_mixed = static_cast<Mixed*>(this);
+    this_mixed->operate(op_copy_construct{}, that.address(),
+                        this_mixed->address());
   }
 
-  const void* address() const { return object_; }
-  void* address() { return object_; }
-
- private:
-  void* object_ = nullptr;
-};
-
-template <typename Delegate>
-class copyable_erasure {
- public:
-  copyable_erasure() = default;
-
-  copyable_erasure(const Delegate& that) {
-    operate(op_copy_construct{}, that.address(),
-            static_cast<Delegate*>(this)->address());
-  }
-
-  Delegate& operator=(const Delegate& that) {
-    operate(op_copy_construct{}, that.address(),
-            static_cast<Delegate*>(this)->address());
-    return *this;
+  Mixed& operator=(const Mixed& that) {
+    auto* this_mixed = static_cast<Mixed*>(this);
+    this_mixed->operate(op_copy_assign{}, that.address(),
+                        this_mixed->address());
+    return *this_mixed;
   }
 };
 
-template <typename Delegate>
-class movable_erasure {
+template <typename Mixed>
+class movable_erasure_mixin {
  public:
-  movable_erasure() = default;
+  movable_erasure_mixin() = default;
 
-  movable_erasure(Delegate&& that) {
-    operate(op_move_construct{}, that.address(),
-            static_cast<Delegate*>(this)->address());
+  movable_erasure_mixin(Mixed&& that) {
+    auto* this_mixed = static_cast<Mixed*>(this);
+    this_mixed->operate(op_move_construct{}, that.address(),
+                        this_mixed->address());
   }
 
-  Delegate& operator=(Delegate&& that) {
-    operate(op_move_construct{}, that.address(),
-            static_cast<Delegate*>(this)->address());
-    return *this;
+  Mixed& operator=(Mixed&& that) {
+    auto* this_mixed = static_cast<Mixed*>(this);
+    this_mixed->operate(op_move_assign{}, that.address(),
+                        this_mixed->address());
+    return *this_mixed;
   }
 };
 
-template <typename Delegate>
-class callable_erasure {
+template <typename Mixed>
+class callable_erasure_mixin {
  public:
-  callable_erasure() = default;
+  callable_erasure_mixin() = default;
 
   template <typename Return, typename... Args>
   Return operator()(Args&&... args) {
-    operate(op_call{}, static_cast<Delegate*>(this)->address(),
-            std::forward<Args>(args)...);
+    auto* this_mixed = static_cast<Mixed*>(this);
+    this_mixed->operate(op_call{}, this_mixed->address(),
+                        std::forward<Args>(args)...);
   }
 };
 
 // TODO: const_callable_erasure, move_callable_erasure
 
-struct compact_dispatcher {
+template <typename Mixed>
+class heap_storage_mixin {
+ public:
+  template <typename Erased, typename... Args>
+  static heap_storage_mixin make(Args&&... args) {
+    return new Erased(std::forward<Args>(args)...);
+  }
+
+  heap_storage_mixin() = default;
+
+  // Storage implementation imposes no copy constraints
+  heap_storage_mixin(const heap_storage_mixin&) = default;
+  heap_storage_mixin& operator=(const heap_storage_mixin&) = default;
+
+  // Storage implementation imposes no move constraints
+  heap_storage_mixin(heap_storage_mixin&& that) {
+    std::swap(address_, that.address_);
+  }
+
+  heap_storage_mixin& operator=(heap_storage_mixin&& that) {
+    std::swap(address_, that.address_);
+    return *this;
+  }
+
+  ~heap_storage_mixin() {
+    if (address_) {
+      static_cast<Mixed*>(this)->operate(op_delete{}, address_);
+    }
+  }
+
+  void* address() const { return address_; }
+
+ private:
+  heap_storage_mixin(void* address) : address_(address) {}
+
+  void* address_ = nullptr;
+};
+
+class compact_dispatcher_mixin {
+ public:
+  template <typename Erased>
+  static compact_dispatcher_mixin make() {
+    return compact_dispatcher_mixin::typed_dispatch<Erased>;
+  }
+
+  compact_dispatcher_mixin() = default;
+  ~compact_dispatcher_mixin() = default;
+
+  // Dispatch implementation imposes no copy constraints
+  compact_dispatcher_mixin(const compact_dispatcher_mixin&) = default;
+  compact_dispatcher_mixin& operator=(const compact_dispatcher_mixin&) =
+      default;
+
+  // Dispatch implementation imposes no move constraints
+  compact_dispatcher_mixin(compact_dispatcher_mixin&&) = default;
+  compact_dispatcher_mixin& operator=(compact_dispatcher_mixin&&) = default;
+
+  void operate(struct op_delete, void* object) {
+    erased_dispatch_(operation::do_delete, object, nullptr);
+  }
+
+  void operate(struct op_copy_construct, void* src, void* dst) {
+    erased_dispatch_(operation::do_copy_construct, src, dst);
+  }
+
+  void operate(struct op_copy_assign, void* src, void* dst) {
+    erased_dispatch_(operation::do_copy_assign, src, dst);
+  }
+
+  void operate(struct op_move_construct, void* src, void* dst) {
+    erased_dispatch_(operation::do_move_construct, src, dst);
+  }
+
+  void operate(struct op_move_assign, void* src, void* dst) {
+    erased_dispatch_(operation::do_move_assign, src, dst);
+  }
+
+ private:
   enum class operation {
     do_delete,
     do_copy_construct,
@@ -257,40 +321,19 @@ struct compact_dispatcher {
     }
   }
 
-  template <typename Erased>
-  static compact_dispatcher make() {
-    return {typed_dispatch<Erased>};
-  }
+  compact_dispatcher_mixin(void (*dispatch)(operation op, void*, void*))
+      : erased_dispatch_(dispatch) {}
 
-  void operate(struct op_delete, void* object) {
-    erased_dispatch(operation::do_delete, object, nullptr);
-  }
-
-  void operate(struct op_copy_construct, void* src, void* dst) {
-    erased_dispatch(operation::do_copy_construct, src, dst);
-  }
-
-  void operate(struct op_copy_assign, void* src, void* dst) {
-    erased_dispatch(operation::do_copy_assign, src, dst);
-  }
-
-  void operate(struct op_move_construct, void* src, void* dst) {
-    erased_dispatch(operation::do_move_construct, src, dst);
-  }
-
-  void operate(struct op_move_assign, void* src, void* dst) {
-    erased_dispatch(operation::do_move_assign, src, dst);
-  }
-
-  void (*erased_dispatch)(operation op, void*, void*) = nullptr;
+  void (*erased_dispatch_)(operation op, void*, void*) = nullptr;
 };
 
 template <typename Signature>
-struct callabe_compact_dispatcher {};
+struct callable_compact_dispatcher_mixin {};
 
 template <typename Return, typename... Args>
-struct callabe_compact_dispatcher<Return(Args...)> : public compact_dispatcher {
-  using compact_dispatcher::operate;
+struct callable_compact_dispatcher_mixin<Return(Args...)>
+    : public compact_dispatcher_mixin {
+  using compact_dispatcher_mixin::operate;
 
   Return operate(struct op_call, void* object, Args&&... args) {
     return erased_call(object, std::forward<Args>(args)...);
@@ -410,20 +453,44 @@ mofunction<R(ArgTypes...)>::operator bool() const noexcept {
 }  // namespace std
 */
 
-struct MyErasure : public compact_dispatcher,
-                   heap_erasure<MyErasure>,
-                   copyable_erasure<MyErasure> {
+class Foo : protected compact_dispatcher_mixin,
+            heap_storage_mixin<Foo>,
+            copyable_erasure_mixin<Foo> {
+ public:
+  Foo() = default;
+  ~Foo() = default;
+
+  Foo(const Foo& copy)
+      : heap_storage_mixin<Foo>{copy}, copyable_erasure_mixin<Foo>{copy} {}
+
+  Foo& operator=(const Foo& copy) {
+    heap_storage_mixin<Foo>::operator=(copy);
+    copyable_erasure_mixin<Foo>::operator=(copy);
+    return *this;
+  }
+
   template <typename Erased>
-  MyErasure(Erased&& object)
-      : compact_dispatcher{compact_dispatcher::make<Erased>()},
-        heap_erasure<MyErasure>{std::forward<Erased>(object)} {}
+  Foo(Erased&& object)
+      : compact_dispatcher_mixin(
+            compact_dispatcher_mixin::make<std::remove_reference_t<Erased>>()),
+        heap_storage_mixin<Foo>(
+            heap_storage_mixin<Foo>::make<std::remove_reference_t<Erased>>(
+                std::forward<Erased>(object))) {}
+
+ private:
+  // access to dispatcher
+  friend heap_storage_mixin<Foo>;
+  friend copyable_erasure_mixin<Foo>;
 };
 
 int main() {
   std::cout << "Hello mofo\n";
 
-  MyErasure a{TestCopy{}};
-  MyErasure b = a;
+  Foo a{TestCopy{}};
+  std::cout << "1111\n";
+  Foo b;
+  std::cout << "2222\n";
+  b = a;
 
   /*
   {
@@ -460,3 +527,4 @@ int main() {
   std::cout << "Goodbye!\n";
   return 0;
 }
+
