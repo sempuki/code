@@ -32,7 +32,9 @@ struct TestCopy {
     return *this;
   }
 
-  void operator()() { std::cout << "TestCopy call\n"; }
+  void operator()() const & { std::cout << "TestCopy const call\n"; }
+  void operator()() & { std::cout << "TestCopy lref call\n"; }
+  void operator()() && { std::cout << "TestCopy rref call\n"; }
 };
 
 struct TestMoveOnly {
@@ -342,7 +344,12 @@ class callable_dispatch_mixin {
 
   template <typename Return, typename... Args>
   Return operate(op_call, void* target, Args&&... args) {
-    erased_call_(target, std::forward<Args>(args)...);
+    return erased_call_(target, std::forward<Args>(args)...);
+  }
+
+  template <typename Return, typename... Args>
+  Return operate(op_call, void* target, Args&&... args) const {
+    return erased_call_(target, std::forward<Args>(args)...);
   }
 
  private:
@@ -392,23 +399,29 @@ template <typename Mixed, typename Signature>
 class callable_interface_mixin {};
 
 template <typename Mixed, typename Return, typename... Args>
-struct callable_interface_mixin<Mixed, Return(Args...)> {
-  Return operator()(Args&&... args) {
-    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+struct callable_interface_mixin<Mixed, Return(Args...) const> {
+  Return operator()(Args&&... args) const & {
+    return static_cast<const Mixed*>(this)->template operate<Return, Args...>(
+        op_call{}, static_cast<const Mixed*>(this)->address(),
+        std::forward<Args>(args)...);
   }
 };
 
 template <typename Mixed, typename Return, typename... Args>
-struct callable_interface_mixin<Mixed, Return(Args...) const> {
-  Return operator()(Args&&... args) const {
-    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+struct callable_interface_mixin<Mixed, Return(Args...)> {
+  Return operator()(Args&&... args) & {
+    return static_cast<Mixed*>(this)->template operate<Return, Args...>(
+        op_call{}, static_cast<Mixed*>(this)->address(),
+        std::forward<Args>(args)...);
   }
 };
 
 template <typename Mixed, typename Return, typename... Args>
 struct callable_interface_mixin<Mixed, Return(Args...) &&> {
   Return operator()(Args&&... args) && {
-    static_cast<Mixed*>(this)->operate(op_call{}, std::forward<Args>(args)...);
+    return static_cast<Mixed*>(this)->template operate<Return, Args...>(
+        op_call{}, static_cast<Mixed*>(this)->address(),
+        std::forward<Args>(args)...);
   }
 };
 
@@ -563,16 +576,19 @@ class func : private callable_compact_dispatch_mixin<Signature>,
 
  private:
   friend heap_storage_mixin<func<Signature>>;  // access to dispatcher
+  friend callable_interface_mixin<func<Signature>,
+                                  Signature>;  // access to storage
 };
 
 int main() {
   std::cout << "Hello mofo\n";
 
-  func<void()> a{TestCopy{}};
+  func<void() &&> a{TestCopy{}};
   std::cout << "1111\n";
-  func<void()> b;
+  func<void() &&> b;
   std::cout << "2222\n";
   b = std::move(a);
+  std::move(b)();
 
   /*
   {
