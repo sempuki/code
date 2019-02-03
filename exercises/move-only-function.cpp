@@ -1,8 +1,11 @@
+#include <cxxabi.h>
 #include <cassert>
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
+#include <typeinfo>
 
 struct TestNotCallable {};
 
@@ -57,6 +60,22 @@ void test_empty_function() {}
 
 namespace {
 
+template <typename Type>
+std::string to_type_string() {
+  size_t size = 1024;
+  char buffer[size];
+
+  int status = 0;
+  abi::__cxa_demangle(typeid(Type).name(), buffer, &size, &status);
+  assert(status == 0 && "Demanging failed");
+
+  return {buffer, size};
+}
+
+class bad_erasure_trait : public std::logic_error {
+  using std::logic_error::logic_error;
+};
+
 struct basic_eraser {
   using erased_allocate = void* (*)();
   using erased_delete = void (*)(void*);
@@ -77,16 +96,25 @@ struct basic_eraser {
 
   template <typename Type>
   static void typed_construct(void* target) {
-    auto* recovered = reinterpret_cast<Type*>(target);
+    if constexpr (std::is_default_constructible_v<Type>) {
+      auto* recovered = reinterpret_cast<Type*>(target);
 
-    new (recovered) Type();
+      new (recovered) Type();
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() +
+                              " is not default constructible");
+    }
   }
 
   template <typename Type>
   static void typed_destroy(void* target) {
-    auto* recovered = reinterpret_cast<Type*>(target);
+    if constexpr (std::is_destructible_v<Type>) {
+      auto* recovered = reinterpret_cast<Type*>(target);
 
-    recovered->~Type();
+      recovered->~Type();
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() + " is not destructible");
+    }
   }
 };
 
@@ -96,18 +124,28 @@ struct copy_eraser {
 
   template <typename Type>
   static void typed_construct(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<const Type*>(src);
-    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+    if constexpr (std::is_copy_constructible_v<Type>) {
+      auto* recovered_src = reinterpret_cast<const Type*>(src);
+      auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    new (recovered_dst) Type(*recovered_src);
+      new (recovered_dst) Type(*recovered_src);
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() +
+                              " is not copy constructible");
+    }
   }
 
   template <typename Type>
   static void typed_assign(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<const Type*>(src);
-    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+    if constexpr (std::is_copy_assignable_v<Type>) {
+      auto* recovered_src = reinterpret_cast<const Type*>(src);
+      auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    *recovered_dst = *recovered_src;
+      *recovered_dst = *recovered_src;
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() +
+                              " is not copy assignable");
+    }
   }
 };
 
@@ -117,18 +155,28 @@ struct move_eraser {
 
   template <typename Type>
   static void typed_construct(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Type*>(src);
-    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+    if constexpr (std::is_move_constructible_v<Type>) {
+      auto* recovered_src = reinterpret_cast<Type*>(src);
+      auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    new (recovered_dst) Type(std::move(*recovered_src));
+      new (recovered_dst) Type(std::move(*recovered_src));
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() +
+                              " is not move constructible");
+    }
   }
 
   template <typename Type>
   static void typed_assign(void* src, void* dst) {
-    auto* recovered_src = reinterpret_cast<Type*>(src);
-    auto* recovered_dst = reinterpret_cast<Type*>(dst);
+    if constexpr (std::is_move_assignable_v<Type>) {
+      auto* recovered_src = reinterpret_cast<Type*>(src);
+      auto* recovered_dst = reinterpret_cast<Type*>(dst);
 
-    *recovered_dst = std::move(*recovered_src);
+      *recovered_dst = std::move(*recovered_src);
+    } else {
+      throw bad_erasure_trait(to_type_string<Type>() +
+                              " is not move assignable");
+    }
   }
 };
 
@@ -141,8 +189,13 @@ struct call_eraser<Return(Args...)> {
 
   template <typename Type>
   static Return typed_call(void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<Type*>(target);
-    return (*recovered)(std::forward<Args>(args)...);
+    if constexpr (std::is_invocable_v<Type, Args...>) {
+      auto* recovered = reinterpret_cast<Type*>(target);
+      return (*recovered)(std::forward<Args>(args)...);
+    } else {
+      throw std::bad_function_call(to_type_string<Type>() +
+                                   " is not invocable");
+    }
   }
 };
 
@@ -152,8 +205,13 @@ struct call_eraser<Return(Args...) const> {
 
   template <typename Type>
   static Return typed_call(const void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<const Type*>(target);
-    return (*recovered)(std::forward<Args>(args)...);
+    if constexpr (std::is_invocable_v<Type const, Args...>) {
+      auto* recovered = reinterpret_cast<const Type*>(target);
+      return (*recovered)(std::forward<Args>(args)...);
+    } else {
+      throw std::bad_function_call(to_type_string<Type>() +
+                                   " is not const invocable");
+    }
   }
 };
 
@@ -163,8 +221,13 @@ struct call_eraser<Return(Args...) &&> {
 
   template <typename Type>
   static Return typed_call(void* target, Args&&... args) {
-    auto* recovered = reinterpret_cast<Type*>(target);
-    return std::move(*recovered)(std::forward<Args>(args)...);
+    if constexpr (std::is_invocable_v<Type&&, Args...>) {
+      auto* recovered = reinterpret_cast<Type*>(target);
+      return std::move(*recovered)(std::forward<Args>(args)...);
+    } else {
+      throw std::bad_function_call(to_type_string<Type>() +
+                                   " is not rv-ref invocable");
+    }
   }
 };
 
@@ -432,7 +495,6 @@ struct callable_interface_mixin<Mixed, Return(Args...) &&> {
 }  // namespace
 
 namespace std {
-
 template <class Signature>
 class mofunction {};
 
@@ -461,8 +523,8 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
   // considered as an unevaluated operand, is well-formed ([func.require]).
 
   // Requires: f is Cpp17MoveConstructable
-  // Remarks: does not participate in overload unless decay_t<F>& is callable
-  // for R(Args...)
+  // Remarks: does not participate in overload unless decay_t<F>& is
+  // callable for R(Args...)
 
   template <class F, typename std::enable_if_t<
                          std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
@@ -515,9 +577,11 @@ class mofunction<R(As...) &&> {};
 // mofunction(R (*)(As...))->mofunction<R(As...)>;
 
 // Remarks: This deduction guide participates in overload resolution only if
-// &F::operator() is well-formed when treated as an unevaluated operand. In that
+// &F::operator() is well-formed when treated as an unevaluated operand. In
+that
 // case, if decltype(&F::operator()) is of the form R(G::*)(A...) cv &opt
-// noexceptopt for a class type G, then the deduced type is mofunction<R(A...)>.
+// noexceptopt for a class type G, then the deduced type is
+mofunction<R(A...)>.
 // template <class F>
 // mofunction(F)->mofunction<>;
 
@@ -559,34 +623,39 @@ mofunction<R(As...)>::operator bool() const noexcept {
 int main() {
   std::cout << "Hello mofo\n";
 
-  {
-    std::mofunction<void()> default_constructable;
-    assert(!default_constructable);
-  }
-  {
-    std::mofunction<void()> nullptr_constructable(nullptr);
-    assert(!nullptr_constructable);
-  }
-  {
-    std::mofunction<void()> f;
-    std::mofunction<void()> move_constructable(std::move(f));
-    assert(!move_constructable);
-  }
-  {
-    std::mofunction<void()> function_constructable(test_empty_function);
-    assert(function_constructable);
-  }
-  // {
-  //   std::mofunction<void()> lambda_constructable(test_empty_lambda);
-  //   assert(lambda_constructable);
-  // }
-  {
-    std::mofunction<void()> functor_constructable(TestMoveOnly{});
-    assert(functor_constructable);
-  }
-  {
-    std::mofunction<void()> deletes_target(TestDestroy{});
-    assert(TestDestroy::destroyed == 1);
+  try {
+    {
+      std::mofunction<void()> default_constructable;
+      assert(!default_constructable);
+    }
+    {
+      std::mofunction<void()> nullptr_constructable(nullptr);
+      assert(!nullptr_constructable);
+    }
+    {
+      std::mofunction<void()> f;
+      std::mofunction<void()> move_constructable(std::move(f));
+      assert(!move_constructable);
+    }
+    {
+      std::mofunction<void()> function_constructable(test_empty_function);
+      assert(function_constructable);
+    }
+    {
+      std::mofunction<void()> lambda_constructable(test_empty_lambda);
+      assert(lambda_constructable);
+    }
+    {
+      std::mofunction<void()> functor_constructable(TestMoveOnly{});
+      assert(functor_constructable);
+    }
+    {
+      std::mofunction<void()> deletes_target(TestDestroy{});
+      assert(TestDestroy::destroyed == 1);
+    }
+  } catch (std::exception& e) {
+    std::cerr << "Caught exception: " << e.what() << "\n";
+    assert(false);
   }
 
   std::cout << "Goodbye!\n";
