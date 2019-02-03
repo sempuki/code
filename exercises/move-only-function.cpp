@@ -69,7 +69,7 @@ std::string to_type_string() {
   abi::__cxa_demangle(typeid(Type).name(), buffer, &size, &status);
   assert(status == 0 && "Demanging failed");
 
-  return {buffer, size};
+  return buffer;
 }
 
 class bad_erasure_trait : public std::logic_error {
@@ -526,8 +526,11 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
   // Remarks: does not participate in overload unless decay_t<F>& is
   // callable for R(Args...)
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
+  template <class F,
+            typename std::enable_if_t<
+                std::conjunction_v<std::is_move_constructible<std::decay_t<F>>,
+                                   std::is_invocable<std::decay_t<F>, As...>>,
+                int> = 0>
   mofunction(F&& f)
       : dispatch_mixin_type(
             dispatch_mixin_type::template make<std::decay_t<F>>()),
@@ -544,8 +547,11 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
 
   mofunction& operator=(nullptr_t) noexcept { storage_mixin_type::release(); }
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
+  template <class F,
+            typename std::enable_if_t<
+                std::conjunction_v<std::is_move_constructible<std::decay_t<F>>,
+                                   std::is_invocable<std::decay_t<F>, As...>>,
+                int> = 0>
   mofunction& operator=(F&& f) {
     *this = dispatch_mixin_type::template make<std::decay_t<F>>();
     *this =
