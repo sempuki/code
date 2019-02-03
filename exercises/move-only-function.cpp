@@ -32,7 +32,7 @@ struct TestCopy {
     return *this;
   }
 
-  void operator()() const & { std::cout << "TestCopy const call\n"; }
+  void operator()() const& { std::cout << "TestCopy const call\n"; }
   void operator()() & { std::cout << "TestCopy lref call\n"; }
   void operator()() && { std::cout << "TestCopy rref call\n"; }
 };
@@ -205,22 +205,26 @@ class heap_storage_mixin {
     return *this;
   }
 
-  heap_storage_mixin(heap_storage_mixin&& that) {
-    std::swap(address_, that.address_);
-  }
+  heap_storage_mixin(heap_storage_mixin&& that) { swap(that); }
 
   heap_storage_mixin& operator=(heap_storage_mixin&& that) {
-    std::swap(address_, that.address_);
+    if (address_ != that.address_) {
+      swap(that);
+    }
     return *this;
   }
 
-  ~heap_storage_mixin() {
+  ~heap_storage_mixin() { release(); }
+
+  void* address() const { return address_; }
+
+  void swap(heap_storage_mixin& that) { std::swap(address_, that.address_); }
+
+  void release() {
     if (address_) {
       static_cast<Mixed*>(this)->operate(op_delete{}, address_);
     }
   }
-
-  void* address() const { return address_; }
 
  private:
   explicit heap_storage_mixin(void* address) : address_(address) {}
@@ -400,7 +404,7 @@ class callable_interface_mixin {};
 
 template <typename Mixed, typename Return, typename... Args>
 struct callable_interface_mixin<Mixed, Return(Args...) const> {
-  Return operator()(Args&&... args) const & {
+  Return operator()(Args&&... args) const& {
     return static_cast<const Mixed*>(this)->template operate<Return, Args...>(
         op_call{}, static_cast<const Mixed*>(this)->address(),
         std::forward<Args>(args)...);
@@ -427,63 +431,88 @@ struct callable_interface_mixin<Mixed, Return(Args...) &&> {
 
 }  // namespace
 
-/*
 namespace std {
 
-template <class Sig>
+template <class Signature>
 class mofunction {};
 
-template <class R, class... ArgTypes>
-class mofunction<R(ArgTypes...)> {
+template <class R, class... As>
+class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
+                             heap_storage_mixin<mofunction<R(As...)>> {
+ private:
+  using dispatch_mixin_type = callable_compact_dispatch_mixin<R(As...)>;
+  using storage_mixin_type = heap_storage_mixin<mofunction<R(As...)>>;
+
+  friend dispatch_mixin_type;
+  friend storage_mixin_type;
+
  public:
   using result_type = R;
 
-  mofunction() noexcept;                // no bool
-  mofunction(nullptr_t) noexcept;       // no bool
-  mofunction(mofunction&& f) noexcept;  // conditional bool
+  mofunction() noexcept = default;
+  mofunction(nullptr_t) noexcept : mofunction() {}
 
-  // A callable type F is Lvalue-Callable for argument types ArgTypes and return
-  // type R if the expression INVOKE<R>(declval<F&>(), declval<ArgTypes>()...),
+  mofunction(mofunction&& f) noexcept
+      : dispatch_mixin_type(static_cast<dispatch_mixin_type&&>(f)),
+        storage_mixin_type(static_cast<storage_mixin_type&&>(f)) {}
+
+  // A callable type F is Lvalue-Callable for argument types As and return
+  // type R if the expression INVOKE<R>(declval<F&>(), declval<As>()...),
   // considered as an unevaluated operand, is well-formed ([func.require]).
 
-  // f is Cpp17MoveConstructable
-  // does not participate in overload unless decay_t<F>& is callable for
-  // R(Args...)
-  template <class F>
-  mofunction(F f);  // false: null ptr, throws if F move constructor does
+  // Requires: f is Cpp17MoveConstructable
+  // Remarks: does not participate in overload unless decay_t<F>& is callable
+  // for R(Args...)
 
-  mofunction& operator=(mofunction&&);
-  mofunction& operator=(nullptr_t) noexcept;
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
+  mofunction(F&& f)
+      : dispatch_mixin_type(
+            dispatch_mixin_type::template make<std::decay_t<F>>()),
+        storage_mixin_type(storage_mixin_type::template make<std::decay_t<F>>(
+            std::forward<F>(f))) {}
 
-  // f is Cpp17MoveConstructable
-  // does not participate in overload unless decay_t<F>& is callable for
-  // R(Args...)
-  template <class F>
-  mofunction& operator=(F&&);
-  template <class F>
-  mofunction& operator=(reference_wrapper<F>) noexcept;
+  mofunction& operator=(mofunction&& f) {
+    if (this != &f) {
+      *this = static_cast<dispatch_mixin_type&&>(f);
+      *this = static_cast<storage_mixin_type&&>(f);
+    }
+    return *this;
+  }
+
+  mofunction& operator=(nullptr_t) noexcept { storage_mixin_type::release(); }
+
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
+  mofunction& operator=(F&& f) {
+    *this = dispatch_mixin_type::template make<std::decay_t<F>>();
+    *this =
+        storage_mixin_type::template make<std::decay_t<F>>(std::forward<F>(f));
+    return *this;
+  }
 
   mofunction(const mofunction&) = delete;
   mofunction& operator=(const mofunction&) = delete;
 
-  ~mofunction();
+  ~mofunction() = default;
 
-  void swap(mofunction&) noexcept;
+  void swap(mofunction& f) noexcept { storage_mixin_type::swap(f); }
 
-  explicit operator bool() const noexcept;
+  explicit operator bool() const noexcept {
+    return storage_mixin_type::address() != nullptr;
+  }
 
-  R operator()(ArgTypes... args);
+};  // namespace std
 
- private:
-  void* erased_ = nullptr;
-  R (*call_)(void*, ArgTypes...) = nullptr;
-  void (*move_constr_)(void*, void*) = nullptr;
-  void (*move_assign_)(void*, void*) = nullptr;
-  void (*destroy_)(void*) = nullptr;
-};
+template <class R, class... As>
+class mofunction<R(As...) const> {};
 
-// template <class R, class... ArgTypes>
-// mofunction(R (*)(ArgTypes...))->mofunction<R(ArgTypes...)>;
+template <class R, class... As>
+class mofunction<R(As...) &&> {};
+
+/*
+// template <class R, class... As>
+// mofunction(R (*)(As...))->mofunction<R(As...)>;
 
 // Remarks: This deduction guide participates in overload resolution only if
 // &F::operator() is well-formed when treated as an unevaluated operand. In that
@@ -492,105 +521,44 @@ class mofunction<R(ArgTypes...)> {
 // template <class F>
 // mofunction(F)->mofunction<>;
 
-template <class R, class... ArgTypes>
-bool operator==(const mofunction<R(ArgTypes...)>&, nullptr_t) noexcept;
+template <class R, class... As>
+bool operator==(const mofunction<R(As...)>&, nullptr_t) noexcept;
 
-template <class R, class... ArgTypes>
-bool operator==(nullptr_t, const mofunction<R(ArgTypes...)>&) noexcept;
+template <class R, class... As>
+bool operator==(nullptr_t, const mofunction<R(As...)>&) noexcept;
 
-template <class R, class... ArgTypes>
-bool operator!=(const mofunction<R(ArgTypes...)>&, nullptr_t) noexcept;
+template <class R, class... As>
+bool operator!=(const mofunction<R(As...)>&, nullptr_t) noexcept;
 
-template <class R, class... ArgTypes>
-bool operator!=(nullptr_t, const mofunction<R(ArgTypes...)>&) noexcept;
+template <class R, class... As>
+bool operator!=(nullptr_t, const mofunction<R(As...)>&) noexcept;
 
-template <class R, class... ArgTypes>
-void swap(mofunction<R(ArgTypes...)>&, mofunction<R(ArgTypes...)>&) noexcept;
+template <class R, class... As>
+void swap(mofunction<R(As...)>&, mofunction<R(As...)>&) noexcept;
 
-template <class R, class... ArgTypes>
-mofunction<R(ArgTypes...)>::mofunction() noexcept {}
+template <class R, class... As>
+mofunction<R(As...)>::mofunction() noexcept {}
 
-template <class R, class... ArgTypes>
-mofunction<R(ArgTypes...)>::mofunction(nullptr_t) noexcept {}
+template <class R, class... As>
+mofunction<R(As...)>::mofunction(nullptr_t) noexcept {}
 
-template <class R, class... ArgTypes>
-mofunction<R(ArgTypes...)>::mofunction(mofunction&& f) noexcept {}
+template <class R, class... As>
+mofunction<R(As...)>::mofunction(mofunction&& f) noexcept {}
 
-template <class R, class... ArgTypes>
+template <class R, class... As>
 template <class F>
-mofunction<R(ArgTypes...)>::mofunction(F f)
-    : erased_{new F(std::move(f))},
-      call_{call_eraser<R(ArgTypes...)>::template call<F>},
-      move_constr_{move_eraser::template construct<F>},
-      move_assign_{move_eraser::template assign<F>},
-      destroy_{default_eraser::template destroy<F>},
+mofunction<R(As...)>::mofunction(F f) {}
 
-      template <class R, class... ArgTypes>
-      mofunction<R(ArgTypes...)>::~mofunction() {}
-
-template <class R, class... ArgTypes>
-mofunction<R(ArgTypes...)>::operator bool() const noexcept {
+template <class R, class... As>
+mofunction<R(As...)>::operator bool() const noexcept {
   return erased_;
 }
-
-}  // namespace std
 */
-
-template <typename Signature>
-class func : private callable_compact_dispatch_mixin<Signature>,
-             heap_storage_mixin<func<Signature>>,
-             public callable_interface_mixin<func<Signature>, Signature> {
- public:
-  func() = default;
-  ~func() = default;
-
-  func(const func& that)
-      : callable_compact_dispatch_mixin<Signature>(that),
-        heap_storage_mixin<func<Signature>>(that) {}
-
-  func(func&& that)
-      : callable_compact_dispatch_mixin<Signature>(std::move(that)),
-        heap_storage_mixin<func<Signature>>(std::move(that)) {}
-
-  func& operator=(const func& that) {
-    callable_compact_dispatch_mixin<Signature>::operator=(that);
-    heap_storage_mixin<func<Signature>>::operator=(that);
-    return *this;
-  }
-
-  func& operator=(func&& that) {
-    callable_compact_dispatch_mixin<Signature>::operator=(std::move(that));
-    heap_storage_mixin<func<Signature>>::operator=(std::move(that));
-    return *this;
-  }
-
-  template <typename Erased>
-  func(Erased&& object)
-      : callable_compact_dispatch_mixin<Signature>(
-            callable_compact_dispatch_mixin<Signature>::template make<
-                std::remove_reference_t<Erased>>()),
-        heap_storage_mixin<func<Signature>>(
-            heap_storage_mixin<func<Signature>>::template make<
-                std::remove_reference_t<Erased>>(
-                std::forward<Erased>(object))) {}
-
- private:
-  friend heap_storage_mixin<func<Signature>>;  // access to dispatcher
-  friend callable_interface_mixin<func<Signature>,
-                                  Signature>;  // access to storage
-};
+}  // namespace std
 
 int main() {
   std::cout << "Hello mofo\n";
 
-  func<void() &&> a{TestCopy{}};
-  std::cout << "1111\n";
-  func<void() &&> b;
-  std::cout << "2222\n";
-  b = std::move(a);
-  std::move(b)();
-
-  /*
   {
     std::mofunction<void()> default_constructable;
     assert(!default_constructable);
@@ -608,10 +576,10 @@ int main() {
     std::mofunction<void()> function_constructable(test_empty_function);
     assert(function_constructable);
   }
-  {
-    std::mofunction<void()> lambda_constructable(test_empty_lambda);
-    assert(lambda_constructable);
-  }
+  // {
+  //   std::mofunction<void()> lambda_constructable(test_empty_lambda);
+  //   assert(lambda_constructable);
+  // }
   {
     std::mofunction<void()> functor_constructable(TestMoveOnly{});
     assert(functor_constructable);
@@ -620,7 +588,6 @@ int main() {
     std::mofunction<void()> deletes_target(TestDestroy{});
     assert(TestDestroy::destroyed == 1);
   }
-  */
 
   std::cout << "Goodbye!\n";
   return 0;
