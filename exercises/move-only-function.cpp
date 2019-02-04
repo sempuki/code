@@ -9,15 +9,53 @@
 
 struct TestNotCallable {};
 
-struct TestDestroy {
-  TestDestroy(TestDestroy&&) = default;
-  ~TestDestroy() { destroyed++; }
-  static size_t destroyed;
+struct TestCopyOnly {
+  TestCopyOnly() { std::cout << "TestCopyOnly default construct\n"; }
+  ~TestCopyOnly() { std::cout << "TestCopyOnly deconstruct\n"; }
 
-  void operator()() { std::cout << "Destroyable\n"; }
+  TestCopyOnly(const TestCopyOnly& that) : copied{that.copied} {
+    std::cout << "TestCopyOnly copy construct\n";
+    if (copied) {
+      (*copied)++;
+    }
+  }
+
+  TestCopyOnly& operator=(const TestCopyOnly& that) {
+    std::cout << "TestCopyOnly copy assign\n";
+    copied = that.copied;
+    return *this;
+  }
+
+  TestCopyOnly(size_t* ptr) : copied{ptr} {
+    std::cout << "TestDestroy argument construct\n";
+  }
+
+  void operator()() const& { std::cout << "TestCopyOnly const call\n"; }
+  void operator()() & { std::cout << "TestCopyOnly lref call\n"; }
+  void operator()() && { std::cout << "TestCopyOnly rref call\n"; }
+
+  size_t* copied = nullptr;
 };
 
-size_t TestDestroy::destroyed = 0;
+struct TestDestroy {
+  TestDestroy() { std::cout << "TestDestroy default construct\n"; }
+  ~TestDestroy() {
+    std::cout << "TestDestroy destruct\n";
+    if (destroyed) {
+      (*destroyed)++;
+    }
+  }
+
+  TestDestroy(size_t* ptr) : destroyed{ptr} {
+    std::cout << "TestDestroy argument construct\n";
+  }
+
+  void operator()() const& { std::cout << "TestDestroy const call\n"; }
+  void operator()() & { std::cout << "TestDestroy lref call\n"; }
+  void operator()() && { std::cout << "TestDestroy rref call\n"; }
+
+  size_t* destroyed = nullptr;
+};
 
 struct TestCopy {
   TestCopy() { std::cout << "TestCopy default construct\n"; }
@@ -41,25 +79,81 @@ struct TestCopy {
 };
 
 struct TestMoveOnly {
-  TestMoveOnly() = default;
-  ~TestMoveOnly() = default;
+  TestMoveOnly() { std::cout << "TestMoveOnly default construct\n"; }
+  ~TestMoveOnly() { std::cout << "TestMoveOnly destruct\n"; }
 
   TestMoveOnly(const TestMoveOnly&) = delete;
   TestMoveOnly& operator=(const TestMoveOnly&) = delete;
 
-  TestMoveOnly(TestMoveOnly&&) = default;
-  TestMoveOnly& operator=(TestMoveOnly&&) = default;
+  TestMoveOnly(TestMoveOnly&& that) : moved{that.moved} {
+    std::cout << "TestMoveOnly move construct\n";
+    if (moved) {
+      (*moved)++;
+    }
+  }
 
-  void operator()() { std::cout << "Move Only\n"; }
+  TestMoveOnly& operator=(TestMoveOnly&& that) {
+    std::cout << "TestMoveOnly move assign\n";
+    moved = that.moved;
+    return *this;
+  }
 
-  std::unique_ptr<int> p;
+  TestMoveOnly(size_t* ptr) : moved{ptr} {
+    std::cout << "TestMoveOnly argument construct\n";
+  }
+
+  void operator()() const& { std::cout << "TestMoveOnly const call\n"; }
+  void operator()() & { std::cout << "TestMoveOnly lref call\n"; }
+  void operator()() && { std::cout << "TestMoveOnly rref call\n"; }
+
+  size_t* moved = nullptr;
 };
 
 auto test_empty_lambda = [] {};
 void test_empty_function() {}
 
-namespace {
+void test_function(size_t* count) {
+  std::cout << "test_function called\n";
+  if (count) {
+    (*count)++;
+  }
+}
 
+auto test_lambda = [](size_t* count) {
+  std::cout << "test_lambda called\n";
+  if (count) {
+    (*count)++;
+  }
+};
+
+struct TestCallable {
+  void operator()(size_t* count) {
+    std::cout << "TestCallable call\n";
+    if (count) {
+      (*count)++;
+    }
+  }
+};
+
+struct TestConstCallable {
+  void operator()(size_t* count) const {
+    std::cout << "TestConstCallable call\n";
+    if (count) {
+      (*count)++;
+    }
+  }
+};
+
+struct TestRvrefCallable {
+  void operator()(size_t* count) && {
+    std::cout << "TestRvrefCallable call\n";
+    if (count) {
+      (*count)++;
+    }
+  }
+};
+
+namespace {
 template <typename Type>
 std::string to_type_string() {
   size_t size = 1024;
@@ -188,13 +282,12 @@ struct call_eraser<Return(Args...)> {
   using erased_call = Return (*)(void*, Args...);
 
   template <typename Type>
-  static Return typed_call(void* target, Args&&... args) {
+  static Return typed_call(void* target, Args... args) {
     if constexpr (std::is_invocable_v<Type, Args...>) {
       auto* recovered = reinterpret_cast<Type*>(target);
       return (*recovered)(std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call(to_type_string<Type>() +
-                                   " is not invocable");
+      throw std::bad_function_call();
     }
   }
 };
@@ -204,20 +297,19 @@ struct call_eraser<Return(Args...) const> {
   using erased_call = Return (*)(const void*, Args...);
 
   template <typename Type>
-  static Return typed_call(const void* target, Args&&... args) {
+  static Return typed_call(const void* target, Args... args) {
     if constexpr (std::is_invocable_v<Type const, Args...>) {
       auto* recovered = reinterpret_cast<const Type*>(target);
       return (*recovered)(std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call(to_type_string<Type>() +
-                                   " is not const invocable");
+      throw std::bad_function_call();
     }
   }
 };
 
 template <typename Return, typename... Args>
 struct call_eraser<Return(Args...) &&> {
-  using erased_call = Return (*)(void*, Args...);
+  using erased_call = Return (*)(void*, Args&&...);
 
   template <typename Type>
   static Return typed_call(void* target, Args&&... args) {
@@ -225,8 +317,7 @@ struct call_eraser<Return(Args...) &&> {
       auto* recovered = reinterpret_cast<Type*>(target);
       return std::move(*recovered)(std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call(to_type_string<Type>() +
-                                   " is not rv-ref invocable");
+      throw std::bad_function_call();
     }
   }
 };
@@ -410,12 +501,10 @@ class callable_dispatch_mixin {
   callable_dispatch_mixin& operator=(callable_dispatch_mixin&&) = default;
 
   template <typename Return, typename... Args>
-  Return operate(op_call, void* target, Args&&... args) {
-    return erased_call_(target, std::forward<Args>(args)...);
-  }
-
-  template <typename Return, typename... Args>
   Return operate(op_call, void* target, Args&&... args) const {
+    if (!erased_call_) {
+      throw std::bad_function_call();
+    }
     return erased_call_(target, std::forward<Args>(args)...);
   }
 
@@ -518,19 +607,8 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
       : dispatch_mixin_type(static_cast<dispatch_mixin_type&&>(f)),
         storage_mixin_type(static_cast<storage_mixin_type&&>(f)) {}
 
-  // A callable type F is Lvalue-Callable for argument types As and return
-  // type R if the expression INVOKE<R>(declval<F&>(), declval<As>()...),
-  // considered as an unevaluated operand, is well-formed ([func.require]).
-
-  // Requires: f is Cpp17MoveConstructable
-  // Remarks: does not participate in overload unless decay_t<F>& is
-  // callable for R(Args...)
-
-  template <class F,
-            typename std::enable_if_t<
-                std::conjunction_v<std::is_move_constructible<std::decay_t<F>>,
-                                   std::is_invocable<std::decay_t<F>, As...>>,
-                int> = 0>
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
   mofunction(F&& f)
       : dispatch_mixin_type(
             dispatch_mixin_type::template make<std::decay_t<F>>()),
@@ -547,11 +625,8 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
 
   mofunction& operator=(nullptr_t) noexcept { storage_mixin_type::release(); }
 
-  template <class F,
-            typename std::enable_if_t<
-                std::conjunction_v<std::is_move_constructible<std::decay_t<F>>,
-                                   std::is_invocable<std::decay_t<F>, As...>>,
-                int> = 0>
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
   mofunction& operator=(F&& f) {
     *this = dispatch_mixin_type::template make<std::decay_t<F>>();
     *this =
@@ -570,13 +645,142 @@ class mofunction<R(As...)> : private callable_compact_dispatch_mixin<R(As...)>,
     return storage_mixin_type::address() != nullptr;
   }
 
-};  // namespace std
+  R operator()(As&&... args) const {
+    return dispatch_mixin_type::template operate<R, As...>(
+        op_call{}, storage_mixin_type::address(), std::forward<As>(args)...);
+  }
+};
 
 template <class R, class... As>
-class mofunction<R(As...) const> {};
+class mofunction<R(As...) const>
+    : private callable_compact_dispatch_mixin<R(As...) const>,
+      heap_storage_mixin<mofunction<R(As...) const>> {
+ private:
+  using dispatch_mixin_type = callable_compact_dispatch_mixin<R(As...) const>;
+  using storage_mixin_type = heap_storage_mixin<mofunction<R(As...) const>>;
+
+  friend dispatch_mixin_type;
+  friend storage_mixin_type;
+
+ public:
+  using result_type = R;
+
+  mofunction() noexcept = default;
+  mofunction(nullptr_t) noexcept : mofunction() {}
+
+  mofunction(mofunction&& f) noexcept
+      : dispatch_mixin_type(static_cast<dispatch_mixin_type&&>(f)),
+        storage_mixin_type(static_cast<storage_mixin_type&&>(f)) {}
+
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  mofunction(F&& f)
+      : dispatch_mixin_type(
+            dispatch_mixin_type::template make<std::decay_t<F>>()),
+        storage_mixin_type(storage_mixin_type::template make<std::decay_t<F>>(
+            std::forward<F>(f))) {}
+
+  mofunction& operator=(mofunction&& f) {
+    if (this != &f) {
+      *this = static_cast<dispatch_mixin_type&&>(f);
+      *this = static_cast<storage_mixin_type&&>(f);
+    }
+    return *this;
+  }
+
+  mofunction& operator=(nullptr_t) noexcept { storage_mixin_type::release(); }
+
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  mofunction& operator=(F&& f) {
+    *this = dispatch_mixin_type::template make<std::decay_t<F>>();
+    *this =
+        storage_mixin_type::template make<std::decay_t<F>>(std::forward<F>(f));
+    return *this;
+  }
+
+  mofunction(const mofunction&) = delete;
+  mofunction& operator=(const mofunction&) = delete;
+
+  ~mofunction() = default;
+
+  void swap(mofunction& f) noexcept { storage_mixin_type::swap(f); }
+
+  explicit operator bool() const noexcept {
+    return storage_mixin_type::address() != nullptr;
+  }
+
+  R operator()(As&&... args) const {
+    return dispatch_mixin_type::template operate<R, As...>(
+        op_call{}, storage_mixin_type::address(), std::forward<As>(args)...);
+  }
+};
 
 template <class R, class... As>
-class mofunction<R(As...) &&> {};
+class mofunction<R(As...) &&>
+    : private callable_compact_dispatch_mixin<R(As...) &&>,
+      heap_storage_mixin<mofunction<R(As...) &&>> {
+ private:
+  using dispatch_mixin_type = callable_compact_dispatch_mixin<R(As...) &&>;
+  using storage_mixin_type = heap_storage_mixin<mofunction<R(As...) &&>>;
+
+  friend dispatch_mixin_type;
+  friend storage_mixin_type;
+
+ public:
+  using result_type = R;
+
+  mofunction() noexcept = default;
+  mofunction(nullptr_t) noexcept : mofunction() {}
+
+  mofunction(mofunction&& f) noexcept
+      : dispatch_mixin_type(static_cast<dispatch_mixin_type&&>(f)),
+        storage_mixin_type(static_cast<storage_mixin_type&&>(f)) {}
+
+  template <class F,
+            typename std::enable_if_t<
+                std::is_invocable_v<std::decay_t<F>&&, As...>, int> = 0>
+  mofunction(F&& f)
+      : dispatch_mixin_type(
+            dispatch_mixin_type::template make<std::decay_t<F>>()),
+        storage_mixin_type(storage_mixin_type::template make<std::decay_t<F>>(
+            std::forward<F>(f))) {}
+
+  mofunction& operator=(mofunction&& f) {
+    if (this != &f) {
+      *this = static_cast<dispatch_mixin_type&&>(f);
+      *this = static_cast<storage_mixin_type&&>(f);
+    }
+    return *this;
+  }
+
+  mofunction& operator=(nullptr_t) noexcept { storage_mixin_type::release(); }
+
+  template <class F, typename std::enable_if_t<
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  mofunction& operator=(F&& f) {
+    *this = dispatch_mixin_type::template make<std::decay_t<F>>();
+    *this =
+        storage_mixin_type::template make<std::decay_t<F>>(std::forward<F>(f));
+    return *this;
+  }
+
+  mofunction(const mofunction&) = delete;
+  mofunction& operator=(const mofunction&) = delete;
+
+  ~mofunction() = default;
+
+  void swap(mofunction& f) noexcept { storage_mixin_type::swap(f); }
+
+  explicit operator bool() const noexcept {
+    return storage_mixin_type::address() != nullptr;
+  }
+
+  R operator()(As&&... args) const {
+    return dispatch_mixin_type::template operate<R, As...>(
+        op_call{}, storage_mixin_type::address(), std::forward<As>(args)...);
+  }
+};
 
 /*
 // template <class R, class... As>
@@ -631,35 +835,122 @@ int main() {
 
   try {
     {
-      std::mofunction<void()> default_constructable;
-      assert(!default_constructable);
-    }
-    {
-      std::mofunction<void()> nullptr_constructable(nullptr);
-      assert(!nullptr_constructable);
-    }
-    {
+      std::cout << "default constructed mofo is untargeted\n";
       std::mofunction<void()> f;
-      std::mofunction<void()> move_constructable(std::move(f));
-      assert(!move_constructable);
+      assert(!f);
     }
     {
-      std::mofunction<void()> function_constructable(test_empty_function);
-      assert(function_constructable);
+      std::cout << "nullptr constructed mofo is untargeted\n";
+      std::mofunction<void()> f(nullptr);
+      assert(!f);
     }
     {
-      std::mofunction<void()> lambda_constructable(test_empty_lambda);
-      assert(lambda_constructable);
+      std::cout << "function pointer constructed mofo is targeted\n";
+      std::mofunction<void()> f(test_empty_function);
+      assert(f);
     }
     {
-      std::mofunction<void()> functor_constructable(TestMoveOnly{});
-      assert(functor_constructable);
+      std::cout << "lambda constructed mofo is targeted\n";
+      std::mofunction<void()> f(test_empty_lambda);
+      assert(f);
     }
     {
-      std::mofunction<void()> deletes_target(TestDestroy{});
-      assert(TestDestroy::destroyed == 1);
+      std::cout << "move-only object constructed mofo is targeted\n";
+      std::mofunction<void()> f(TestMoveOnly{});
+      assert(f);
     }
-  } catch (std::exception& e) {
+    {
+      std::cout << "move+copyable object constructed mofo is targeted\n";
+      std::mofunction<void()> f(TestCopy{});
+      assert(f);
+    }
+    {
+      std::cout << "destroyable object constructed mofo is targeted\n";
+      std::mofunction<void()> f(TestDestroy{});
+      assert(f);
+    }
+    {
+      std::cout << "copy-only object constructed mofo is targeted\n";
+      std::mofunction<void()> f(TestCopyOnly{});
+      assert(f);
+    }
+    {
+      std::cout << "move-only object constructed mofo is moved\n";
+      size_t moved = 0;
+      std::mofunction<void()> f(TestMoveOnly{&moved});
+      assert(moved > 0);
+    }
+    {
+      std::cout << "destroyable object constructed mofo is destroyed\n";
+      size_t destroyed = 0;
+      std::mofunction<void()> f(TestDestroy{&destroyed});
+      assert(destroyed > 0);
+    }
+    {
+      std::cout << "copy-only object constructed mofo is copied\n";
+      size_t copied = 0;
+      std::mofunction<void()> f(TestCopyOnly{&copied});
+      assert(copied > 0);
+    }
+    {
+      std::cout << "move constructed mofo preserves untargeted\n";
+      std::mofunction<void()> f;
+      std::mofunction<void()> g(std::move(f));
+      assert(!g);
+    }
+    {
+      std::cout << "move constructed mofo preserves targeted\n";
+      std::mofunction<void()> f(test_empty_function);
+      std::mofunction<void()> g(std::move(f));
+      assert(g);
+    }
+    {
+      std::cout << "untargetted mofo throws bad_function_call\n";
+      size_t caught = 0;
+      try {
+        std::mofunction<void()> f;
+        f();
+      } catch (const std::bad_function_call& e) {
+        caught++;
+      }
+      assert(caught > 0);
+    }
+    {
+      std::cout << "function pointer constructed mofo is called\n";
+      size_t called = 0;
+      std::mofunction<void(size_t*)> f(test_function);
+      f(&called);
+      assert(called > 0);
+    }
+    {
+      std::cout << "lambda constructed mofo is called\n";
+      size_t called = 0;
+      std::mofunction<void(size_t*)> f(test_lambda);
+      f(&called);
+      assert(called > 0);
+    }
+    {
+      std::cout << "callable object constructed mofo is called\n";
+      size_t called = 0;
+      std::mofunction<void(size_t*)> f(TestCallable{});
+      f(&called);
+      assert(called > 0);
+    }
+    {
+      std::cout << "const callable object constructed mofo is called\n";
+      size_t called = 0;
+      std::mofunction<void(size_t*) const> f(TestConstCallable{});
+      f(&called);
+      assert(called > 0);
+    }
+    {
+      std::cout << "const callable object constructed mofo is called\n";
+      size_t called = 0;
+      std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+      f(&called);
+      assert(called > 0);
+    }
+  } catch (const std::exception& e) {
     std::cerr << "Caught exception: " << e.what() << "\n";
     assert(false);
   }
