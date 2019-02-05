@@ -163,7 +163,7 @@ struct call_eraser<Return(Args...)> {
 
   template <typename Type>
   static Return typed_call(void* target, Args... args) {
-    if constexpr (std::is_invocable_v<Type, Args...>) {
+    if constexpr (std::is_invocable_v<Type&, Args...>) {
       auto* recovered = reinterpret_cast<Type*>(target);
       return std::invoke(*recovered, std::forward<Args>(args)...);
     } else {
@@ -178,7 +178,7 @@ struct call_eraser<Return(Args...) const> {
 
   template <typename Type>
   static Return typed_call(const void* target, Args... args) {
-    if constexpr (std::is_invocable_v<Type const, Args...>) {
+    if constexpr (std::is_invocable_v<const Type&, Args...>) {
       auto* recovered = reinterpret_cast<const Type*>(target);
       return std::invoke(*recovered, std::forward<Args>(args)...);
     } else {
@@ -248,11 +248,13 @@ class heap_storage_mixin {
     return *this;
   }
 
-  ~heap_storage_mixin() { release(); }
+  ~heap_storage_mixin() noexcept { release(); }
 
-  void* address() const { return address_; }
+  void* address() const noexcept { return address_; }
 
-  void swap(heap_storage_mixin& that) { std::swap(address_, that.address_); }
+  void swap(heap_storage_mixin& that) noexcept {
+    std::swap(address_, that.address_);
+  }
 
   void release() {
     if (address_) {
@@ -312,6 +314,10 @@ class compact_dispatch_mixin {
 
   void operate(op_move_assign, void* src, void* dst) {
     erased_dispatch_(operation::do_move_assign, src, dst);
+  }
+
+  void swap(compact_dispatch_mixin& that) noexcept {
+    std::swap(erased_dispatch_, that.erased_dispatch_);
   }
 
  private:
@@ -388,6 +394,10 @@ class callable_dispatch_mixin {
     return erased_call_(target, std::forward<Args>(args)...);
   }
 
+  void swap(callable_dispatch_mixin& that) noexcept {
+    std::swap(erased_call_, that.erased_call_);
+  }
+
  private:
   explicit callable_dispatch_mixin(
       typename call_eraser<Signature>::erased_call call)
@@ -419,6 +429,11 @@ class callable_compact_dispatch_mixin
   callable_compact_dispatch_mixin(callable_compact_dispatch_mixin&&) = default;
   callable_compact_dispatch_mixin& operator=(
       callable_compact_dispatch_mixin&&) = default;
+
+  void swap(callable_compact_dispatch_mixin& that) noexcept {
+    callable_dispatch_mixin<Signature>::swap(that);
+    compact_dispatch_mixin::swap(that);
+  }
 
   using callable_dispatch_mixin<Signature>::operate;
   using compact_dispatch_mixin::operate;
@@ -472,6 +487,15 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
   friend storage_mixin_type;
 
  public:
+  template <typename Erased>
+  static auto make(Erased&& callable) {
+    return mofunction_impl(
+        dispatch_mixin_type::template make<std::decay_t<Erased>>(),
+        storage_mixin_type(
+            storage_mixin_type::template make<std::decay_t<Erased>>(
+                std::forward<Erased>(callable))));
+  }
+
   using result_type = typename call_traits<Signature>::result_type;
 
   mofunction_impl() noexcept = default;
@@ -487,8 +511,8 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
 
   mofunction_impl& operator=(mofunction_impl&& f) {
     if (this != &f) {
-      *this = static_cast<dispatch_mixin_type&&>(f);
-      *this = static_cast<storage_mixin_type&&>(f);
+      dispatch_mixin_type::operator=(static_cast<dispatch_mixin_type&&>(f));
+      storage_mixin_type::operator=(static_cast<storage_mixin_type&&>(f));
     }
     return *this;
   }
@@ -498,21 +522,10 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
 
   ~mofunction_impl() = default;
 
-  template <typename F>
-  mofunction_impl(F&& f)
-      : dispatch_mixin_type(
-            dispatch_mixin_type::template make<std::decay_t<F>>()),
-        storage_mixin_type(storage_mixin_type::template make<std::decay_t<F>>(
-            std::forward<F>(f))) {}
-
-  template <typename F>
-  mofunction_impl& operator=(F&& f) {
-    *this = dispatch_mixin_type::template make<std::decay_t<F>>();
-    *this =
-        storage_mixin_type::template make<std::decay_t<F>>(std::forward<F>(f));
-    return *this;
+  void swap(mofunction_impl& f) noexcept {
+    dispatch_mixin_type::swap(f);
+    storage_mixin_type::swap(f);
   }
-  void swap(mofunction_impl& f) noexcept { storage_mixin_type::swap(f); }
 
   explicit operator bool() const noexcept {
     return storage_mixin_type::address() != nullptr;
@@ -524,6 +537,12 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
         op_call{}, storage_mixin_type::address(),
         std::forward<Arguments>(args)...);
   }
+
+ private:
+  explicit mofunction_impl(dispatch_mixin_type dispatch,
+                           storage_mixin_type storage)
+      : dispatch_mixin_type(std::move(dispatch)),
+        storage_mixin_type(std::move(storage)) {}
 };
 
 }  // namespace
@@ -543,13 +562,15 @@ class mofunction<R(As...)> : public mofunction_impl<R(As...)> {
   using base_impl_type::base_impl_type;
 
   template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
-  mofunction(F&& f) : base_impl_type(std::forward<F>(f)) {}
+                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  mofunction(F&& f)
+      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
 
   template <class F, typename std::enable_if_t<
                          std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
   mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(std::forward<F>(f));
+    return base_impl_type::operator=(
+        base_impl_type::template make<F>(std::forward<F>(f)));
   }
 
   R operator()(As&&... args) const {
@@ -566,14 +587,18 @@ class mofunction<R(As...) const> : public mofunction_impl<R(As...) const> {
  public:
   using base_impl_type::base_impl_type;
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
-  mofunction(F&& f) : base_impl_type(std::forward<F>(f)) {}
+  template <class F,
+            typename std::enable_if_t<
+                std::is_invocable_v<const std::decay_t<F>&, As...>, int> = 0>
+  mofunction(F&& f)
+      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  template <class F,
+            typename std::enable_if_t<
+                std::is_invocable_v<const std::decay_t<F>&, As...>, int> = 0>
   mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(std::forward<F>(f));
+    return base_impl_type::operator=(
+        base_impl_type::template make<F>(std::forward<F>(f)));
   }
 
   R operator()(As&&... args) const {
@@ -590,14 +615,18 @@ class mofunction<R(As...) &&> : public mofunction_impl<R(As...) &&> {
  public:
   using base_impl_type::base_impl_type;
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>, As...>, int> = 0>
-  mofunction(F&& f) : base_impl_type(std::forward<F>(f)) {}
+  template <class F,
+            typename std::enable_if_t<
+                std::is_invocable_v<std::decay_t<F>&&, As...>, int> = 0>
+  mofunction(F&& f)
+      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
 
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
+  template <class F,
+            typename std::enable_if_t<
+                std::is_invocable_v<std::decay_t<F>&&, As...>, int> = 0>
   mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(std::forward<F>(f));
+    return base_impl_type::operator=(
+        base_impl_type::template make<F>(std::forward<F>(f)));
   }
 
   R operator()(As&&... args) const {
@@ -606,51 +635,41 @@ class mofunction<R(As...) &&> : public mofunction_impl<R(As...) &&> {
   }
 };
 
+template <typename Signature>
+bool operator==(const mofunction<Signature>& f, nullptr_t) noexcept {
+  return !static_cast<bool>(f);
+}
+
+template <typename Signature>
+bool operator==(nullptr_t, const mofunction<Signature>& f) noexcept {
+  return !static_cast<bool>(f);
+}
+
+template <typename Signature>
+bool operator!=(const mofunction<Signature>& f, nullptr_t) noexcept {
+  return static_cast<bool>(f);
+}
+
+template <typename Signature>
+bool operator!=(nullptr_t, const mofunction<Signature>& f) noexcept {
+  return static_cast<bool>(f);
+}
+
+template <typename Signature>
+void swap(mofunction<Signature>& f, mofunction<Signature>& g) noexcept {
+  f.swap(g);
+}
+
 /*
 // template <class R, class... As>
 // mofunction(R (*)(As...))->mofunction<R(As...)>;
 
 // Remarks: This deduction guide participates in overload resolution only if
-// &F::operator() is well-formed when treated as an unevaluated operand. In
-that
+// &F::operator() is well-formed when treated as an unevaluated operand. In that
 // case, if decltype(&F::operator()) is of the form R(G::*)(A...) cv &opt
-// noexceptopt for a class type G, then the deduced type is
-mofunction<R(A...)>.
-// template <class F>
-// mofunction(F)->mofunction<>;
+// noexceptopt for a class type G, then the deduced type is mofunction<R(A...)>.
+// template <class F> mofunction(F)->mofunction<>;
 
-template <class R, class... As>
-bool operator==(const mofunction<R(As...)>&, nullptr_t) noexcept;
-
-template <class R, class... As>
-bool operator==(nullptr_t, const mofunction<R(As...)>&) noexcept;
-
-template <class R, class... As>
-bool operator!=(const mofunction<R(As...)>&, nullptr_t) noexcept;
-
-template <class R, class... As>
-bool operator!=(nullptr_t, const mofunction<R(As...)>&) noexcept;
-
-template <class R, class... As>
-void swap(mofunction<R(As...)>&, mofunction<R(As...)>&) noexcept;
-
-template <class R, class... As>
-mofunction<R(As...)>::mofunction() noexcept {}
-
-template <class R, class... As>
-mofunction<R(As...)>::mofunction(nullptr_t) noexcept {}
-
-template <class R, class... As>
-mofunction<R(As...)>::mofunction(mofunction&& f) noexcept {}
-
-template <class R, class... As>
-template <class F>
-mofunction<R(As...)>::mofunction(F f) {}
-
-template <class R, class... As>
-mofunction<R(As...)>::operator bool() const noexcept {
-  return erased_;
-}
 */
 }  // namespace std
 
@@ -807,126 +826,210 @@ struct TestRvrefCallable {
 int main() {
   std::cout << "Hello mofo\n";
 
-  try {
-    {
-      std::cout << "default constructed mofo is untargeted\n";
+  {
+    std::cout << "default constructed mofo is untargeted\n";
+    std::mofunction<void()> f;
+    assert(!f);
+  }
+  {
+    std::cout << "nullptr constructed mofo is untargeted\n";
+    std::mofunction<void()> f(nullptr);
+    assert(!f);
+  }
+  {
+    std::cout << "nullptr constructed mofo equivalent to nullptr\n";
+    std::mofunction<void()> f(nullptr);
+    assert(f == nullptr);
+  }
+  {
+    std::cout << "function pointer constructed mofo is targeted\n";
+    std::mofunction<void()> f(test_empty_function);
+    assert(f);
+  }
+  {
+    std::cout
+        << "function pointer constructed mofo not equivalent to nullptr\n";
+    std::mofunction<void()> f(test_empty_function);
+    assert(f != nullptr);
+  }
+  {
+    std::cout << "lambda constructed mofo is targeted\n";
+    std::mofunction<void()> f(test_empty_lambda);
+    assert(f);
+  }
+  {
+    std::cout << "move-only object constructed mofo is targeted\n";
+    std::mofunction<void()> f(TestMoveOnly{});
+    assert(f);
+  }
+  {
+    std::cout << "move+copyable object constructed mofo is targeted\n";
+    std::mofunction<void()> f(TestCopy{});
+    assert(f);
+  }
+  {
+    std::cout << "destroyable object constructed mofo is targeted\n";
+    std::mofunction<void()> f(TestDestroy{});
+    assert(f);
+  }
+  {
+    std::cout << "copy-only object constructed mofo is targeted\n";
+    std::mofunction<void()> f(TestCopyOnly{});
+    assert(f);
+  }
+  {
+    std::cout << "move-only object constructed mofo is moved\n";
+    size_t moved = 0;
+    std::mofunction<void()> f(TestMoveOnly{&moved});
+    assert(moved > 0);
+  }
+  {
+    std::cout << "destroyable object constructed mofo is destroyed\n";
+    size_t destroyed = 0;
+    std::mofunction<void()> f(TestDestroy{&destroyed});
+    assert(destroyed > 0);
+  }
+  {
+    std::cout << "copy-only object constructed mofo is copied\n";
+    size_t copied = 0;
+    std::mofunction<void()> f(TestCopyOnly{&copied});
+    assert(copied > 0);
+  }
+  {
+    std::cout << "move constructed mofo preserves untargeted\n";
+    std::mofunction<void()> f;
+    std::mofunction<void()> g(std::move(f));
+    assert(!g);
+  }
+  {
+    std::cout << "move constructed mofo preserves targeted\n";
+    std::mofunction<void()> f(test_empty_function);
+    std::mofunction<void()> g(std::move(f));
+    assert(g);
+  }
+  {
+    std::cout << "untargetted mofo throws bad_function_call\n";
+    size_t caught = 0;
+    try {
       std::mofunction<void()> f;
-      assert(!f);
+      f();
+    } catch (const std::bad_function_call& e) {
+      caught++;
     }
-    {
-      std::cout << "nullptr constructed mofo is untargeted\n";
-      std::mofunction<void()> f(nullptr);
-      assert(!f);
-    }
-    {
-      std::cout << "function pointer constructed mofo is targeted\n";
-      std::mofunction<void()> f(test_empty_function);
-      assert(f);
-    }
-    {
-      std::cout << "lambda constructed mofo is targeted\n";
-      std::mofunction<void()> f(test_empty_lambda);
-      assert(f);
-    }
-    {
-      std::cout << "move-only object constructed mofo is targeted\n";
-      std::mofunction<void()> f(TestMoveOnly{});
-      assert(f);
-    }
-    {
-      std::cout << "move+copyable object constructed mofo is targeted\n";
-      std::mofunction<void()> f(TestCopy{});
-      assert(f);
-    }
-    {
-      std::cout << "destroyable object constructed mofo is targeted\n";
-      std::mofunction<void()> f(TestDestroy{});
-      assert(f);
-    }
-    {
-      std::cout << "copy-only object constructed mofo is targeted\n";
-      std::mofunction<void()> f(TestCopyOnly{});
-      assert(f);
-    }
-    {
-      std::cout << "move-only object constructed mofo is moved\n";
-      size_t moved = 0;
-      std::mofunction<void()> f(TestMoveOnly{&moved});
-      assert(moved > 0);
-    }
-    {
-      std::cout << "destroyable object constructed mofo is destroyed\n";
-      size_t destroyed = 0;
-      std::mofunction<void()> f(TestDestroy{&destroyed});
-      assert(destroyed > 0);
-    }
-    {
-      std::cout << "copy-only object constructed mofo is copied\n";
-      size_t copied = 0;
-      std::mofunction<void()> f(TestCopyOnly{&copied});
-      assert(copied > 0);
-    }
-    {
-      std::cout << "move constructed mofo preserves untargeted\n";
-      std::mofunction<void()> f;
-      std::mofunction<void()> g(std::move(f));
-      assert(!g);
-    }
-    {
-      std::cout << "move constructed mofo preserves targeted\n";
-      std::mofunction<void()> f(test_empty_function);
-      std::mofunction<void()> g(std::move(f));
-      assert(g);
-    }
-    {
-      std::cout << "untargetted mofo throws bad_function_call\n";
-      size_t caught = 0;
-      try {
-        std::mofunction<void()> f;
-        f();
-      } catch (const std::bad_function_call& e) {
-        caught++;
-      }
-      assert(caught > 0);
-    }
-    {
-      std::cout << "function pointer constructed mofo is called\n";
-      size_t called = 0;
-      std::mofunction<void(size_t*)> f(test_function);
-      f(&called);
-      assert(called > 0);
-    }
-    {
-      std::cout << "lambda constructed mofo is called\n";
-      size_t called = 0;
-      std::mofunction<void(size_t*)> f(test_lambda);
-      f(&called);
-      assert(called > 0);
-    }
-    {
-      std::cout << "callable object constructed mofo is called\n";
-      size_t called = 0;
-      std::mofunction<void(size_t*)> f(TestCallable{});
-      f(&called);
-      assert(called > 0);
-    }
-    {
-      std::cout << "const callable object constructed mofo is called\n";
-      size_t called = 0;
-      std::mofunction<void(size_t*) const> f(TestConstCallable{});
-      f(&called);
-      assert(called > 0);
-    }
-    {
-      std::cout << "const callable object constructed mofo is called\n";
-      size_t called = 0;
-      std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
-      f(&called);
-      assert(called > 0);
-    }
-  } catch (const std::exception& e) {
-    std::cerr << "Caught exception: " << e.what() << "\n";
-    assert(false);
+    assert(caught > 0);
+  }
+  {
+    std::cout << "function pointer constructed mofo is called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(test_function);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "lambda constructed mofo is called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(test_lambda);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "const callable object constructed mofo is const called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "rvref callable object constructed mofo is rvref called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "const callable object constructed mofo is called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestConstCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is not const callable\n";
+    size_t called = 0;
+    // Compile Error:
+    // std::mofunction<void(size_t*) const> f(TestCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is rvref callable -- ????\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is swappable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g;
+    f.swap(g);
+    assert(!f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is ADL swappable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g;
+    std::swap(f, g);
+    assert(!f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is move constructible\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g(std::move(f));
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is move assignable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g;
+    g = std::move(f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is not copy constructible\n";
+    size_t called = 0;
+    // Compile Error:
+    // std::mofunction<void(size_t*)> f(TestCallable{});
+    // std::mofunction<void(size_t*)> g(f);
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "callable object constructed mofo is not copy assignable\n";
+    size_t called = 0;
+    // Compile Error:
+    // std::mofunction<void(size_t*)> f(TestCallable{});
+    // std::mofunction<void(size_t*)> g;
+    // f = g;
+    // g(&called);
+    assert(called == 0);
   }
 
   std::cout << "Goodbye!\n";
