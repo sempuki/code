@@ -532,7 +532,21 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
   }
 
   template <typename Return, typename... Arguments>
-  Return operator()(Arguments&&... args) const {
+  Return operator()(Arguments&&... args) const& {
+    return dispatch_mixin_type::template operate<Return, Arguments...>(
+        op_call{}, storage_mixin_type::address(),
+        std::forward<Arguments>(args)...);
+  }
+
+  template <typename Return, typename... Arguments>
+  Return operator()(Arguments&&... args) & {
+    return dispatch_mixin_type::template operate<Return, Arguments...>(
+        op_call{}, storage_mixin_type::address(),
+        std::forward<Arguments>(args)...);
+  }
+
+  template <typename Return, typename... Arguments>
+  Return operator()(Arguments&&... args) && {
     return dispatch_mixin_type::template operate<Return, Arguments...>(
         op_call{}, storage_mixin_type::address(),
         std::forward<Arguments>(args)...);
@@ -573,7 +587,7 @@ class mofunction<R(As...)> : public mofunction_impl<R(As...)> {
         base_impl_type::template make<F>(std::forward<F>(f)));
   }
 
-  R operator()(As&&... args) const {
+  R operator()(As&&... args) {
     return base_impl_type::template operator()<R, As...>(
         std::forward<As>(args)...);
   }
@@ -629,7 +643,7 @@ class mofunction<R(As...) &&> : public mofunction_impl<R(As...) &&> {
         base_impl_type::template make<F>(std::forward<F>(f)));
   }
 
-  R operator()(As&&... args) const {
+  R operator()(As&&... args) && {
     return base_impl_type::template operator()<R, As...>(
         std::forward<As>(args)...);
   }
@@ -950,7 +964,7 @@ int main() {
     std::cout << "rvref callable object constructed mofo is rvref called\n";
     size_t called = 0;
     std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
-    f(&called);
+    std::move(f)(&called);
     assert(called > 0);
   }
   {
@@ -972,7 +986,7 @@ int main() {
     std::cout << "callable object constructed mofo is rvref callable -- ????\n";
     size_t called = 0;
     std::mofunction<void(size_t*) &&> f(TestCallable{});
-    f(&called);
+    std::move(f)(&called);
     assert(called > 0);
   }
   {
