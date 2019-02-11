@@ -137,22 +137,46 @@ template <typename Return, typename... Args>
 struct call_traits<Return(Args...)> {
   using signature_type = Return(Args...);
   using result_type = Return;
+
+  template <typename Target>
+  static inline constexpr bool is_invocable_with =
+      std::is_invocable_r<Return, Target&, Args...>::value;
+
+  template <typename Target>
+  static inline constexpr bool is_nothrow_invocable_with =
+      std::is_nothrow_invocable_r<Return, Target, Args...>::value;
 };
 
 template <typename Return, typename... Args>
 struct call_traits<Return(Args...) const> {
   using signature_type = Return(Args...) const;
   using result_type = Return;
+
+  template <typename Target>
+  static inline constexpr bool is_invocable_with =
+      std::is_invocable_r<Return, const Target&, Args...>::value;
+
+  template <typename Target>
+  static inline constexpr bool is_nothrow_invocable_with =
+      std::is_nothrow_invocable_r<Return, const Target&, Args...>::value;
 };
 
 template <typename Return, typename... Args>
 struct call_traits<Return(Args...) &&> {
   using signature_type = Return(Args...) &&;
   using result_type = Return;
+
+  template <typename Target>
+  static inline constexpr bool is_invocable_with =
+      std::is_invocable_r<Return, Target&&, Args...>::value;
+
+  template <typename Target>
+  static inline constexpr bool is_nothrow_invocable_with =
+      std::is_nothrow_invocable_r<Return, Target&&, Args...>::value;
 };
 
-template <typename F, typename... Args>
-using call_result = decltype(std::declval<F>()(std::declval<Args>()...));
+template <typename Target, typename... Args>
+using call_result = decltype(std::declval<Target>()(std::declval<Args>()...));
 
 template <typename Signature>
 class call_eraser {};
@@ -161,13 +185,14 @@ template <typename Return, typename... Args>
 struct call_eraser<Return(Args...)> {
   using erased_call = Return (*)(void*, Args...);
 
-  template <typename Type>
+  template <typename Target>
   static Return typed_call(void* target, Args... args) {
-    if constexpr (std::is_invocable_v<Type&, Args...>) {
-      auto* recovered = reinterpret_cast<Type*>(target);
+    if constexpr (call_traits<Return(
+                      Args...)>::template is_invocable_with<Target>) {
+      auto* recovered = reinterpret_cast<Target*>(target);
       return std::invoke(*recovered, std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call();
+      static_assert("Not lvalue callable");
     }
   }
 };
@@ -176,13 +201,14 @@ template <typename Return, typename... Args>
 struct call_eraser<Return(Args...) const> {
   using erased_call = Return (*)(const void*, Args...);
 
-  template <typename Type>
+  template <typename Target>
   static Return typed_call(const void* target, Args... args) {
-    if constexpr (std::is_invocable_v<const Type&, Args...>) {
-      auto* recovered = reinterpret_cast<const Type*>(target);
+    if constexpr (call_traits<Return(Args...)
+                                  const>::template is_invocable_with<Target>) {
+      auto* recovered = reinterpret_cast<const Target*>(target);
       return std::invoke(*recovered, std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call();
+      static_assert("Not const callable");
     }
   }
 };
@@ -191,13 +217,14 @@ template <typename Return, typename... Args>
 struct call_eraser<Return(Args...) &&> {
   using erased_call = Return (*)(void*, Args&&...);
 
-  template <typename Type>
+  template <typename Target>
   static Return typed_call(void* target, Args&&... args) {
-    if constexpr (std::is_invocable_v<Type&&, Args...>) {
-      auto* recovered = reinterpret_cast<Type*>(target);
+    if constexpr (call_traits<Return(Args...) &&>::template is_invocable_with<
+                      Target>) {
+      auto* recovered = reinterpret_cast<Target*>(target);
       return std::invoke(std::move(*recovered), std::forward<Args>(args)...);
     } else {
-      throw std::bad_function_call();
+      static_assert("Not rvalue callable");
     }
   }
 };
@@ -371,10 +398,10 @@ class compact_dispatch_mixin {
 template <typename Signature>
 class callable_dispatch_mixin {
  public:
-  template <typename Erased>
+  template <typename Target>
   static auto make() {
     return callable_dispatch_mixin(
-        call_eraser<Signature>::template typed_call<Erased>);
+        call_eraser<Signature>::template typed_call<Target>);
   }
 
   callable_dispatch_mixin() = default;
@@ -411,11 +438,11 @@ class callable_compact_dispatch_mixin
     : public callable_dispatch_mixin<Signature>,
       compact_dispatch_mixin {
  public:
-  template <typename Erased>
+  template <typename Target>
   static auto make() {
     return callable_compact_dispatch_mixin(
-        callable_dispatch_mixin<Signature>::template make<Erased>(),
-        compact_dispatch_mixin::template make<Erased>());
+        callable_dispatch_mixin<Signature>::template make<Target>(),
+        compact_dispatch_mixin::template make<Target>());
   }
 
   callable_compact_dispatch_mixin() = default;
@@ -460,7 +487,7 @@ struct callable_interface_mixin<Mixed, Return(Args...) const> {
 
 template <typename Mixed, typename Return, typename... Args>
 struct callable_interface_mixin<Mixed, Return(Args...)> {
-  Return operator()(Args&&... args) & {
+  Return operator()(Args&&... args) {
     return static_cast<Mixed*>(this)->template operate<Return, Args...>(
         op_call{}, static_cast<Mixed*>(this)->address(),
         std::forward<Args>(args)...);
@@ -476,40 +503,44 @@ struct callable_interface_mixin<Mixed, Return(Args...) &&> {
   }
 };
 
-template <typename Signature>
-class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
-                        heap_storage_mixin<mofunction_impl<Signature>> {
- private:
-  using dispatch_mixin_type = callable_compact_dispatch_mixin<Signature>;
-  using storage_mixin_type = heap_storage_mixin<mofunction_impl<Signature>>;
+}  // namespace
 
+namespace std {
+template <typename Signature>
+class mofunction
+    : public callable_interface_mixin<mofunction<Signature>, Signature>,
+      private callable_compact_dispatch_mixin<Signature>,
+      heap_storage_mixin<mofunction<Signature>> {
+ private:
+  using interface_mixin_type =
+      callable_interface_mixin<mofunction<Signature>, Signature>;
+  using dispatch_mixin_type = callable_compact_dispatch_mixin<Signature>;
+  using storage_mixin_type = heap_storage_mixin<mofunction<Signature>>;
+
+  friend interface_mixin_type;
   friend dispatch_mixin_type;
   friend storage_mixin_type;
 
- public:
-  template <typename Erased>
-  static auto make(Erased&& callable) {
-    return mofunction_impl(
-        dispatch_mixin_type::template make<std::decay_t<Erased>>(),
-        storage_mixin_type(
-            storage_mixin_type::template make<std::decay_t<Erased>>(
-                std::forward<Erased>(callable))));
-  }
+  template <class Target>
+  using target_requirements = std::enable_if_t<
+      call_traits<Signature>::template is_invocable_with<Target>,
+      int>;  // nothrow invocable?
 
+ public:
   using result_type = typename call_traits<Signature>::result_type;
 
-  mofunction_impl() noexcept = default;
-  mofunction_impl(std::nullptr_t) noexcept : mofunction_impl() {}
+  mofunction() noexcept = default;
+  mofunction(std::nullptr_t) noexcept : mofunction() {}
 
-  mofunction_impl& operator=(std::nullptr_t) noexcept {
+  mofunction& operator=(std::nullptr_t) noexcept {
     storage_mixin_type::release();
   }
 
-  mofunction_impl(mofunction_impl&& f) noexcept
+  mofunction(mofunction&& f) noexcept
       : dispatch_mixin_type(static_cast<dispatch_mixin_type&&>(f)),
         storage_mixin_type(static_cast<storage_mixin_type&&>(f)) {}
 
-  mofunction_impl& operator=(mofunction_impl&& f) {
+  mofunction& operator=(mofunction&& f) {
     if (this != &f) {
       dispatch_mixin_type::operator=(static_cast<dispatch_mixin_type&&>(f));
       storage_mixin_type::operator=(static_cast<storage_mixin_type&&>(f));
@@ -517,135 +548,36 @@ class mofunction_impl : private callable_compact_dispatch_mixin<Signature>,
     return *this;
   }
 
-  mofunction_impl(const mofunction_impl&) = delete;
-  mofunction_impl& operator=(const mofunction_impl&) = delete;
+  mofunction(const mofunction&) = delete;
+  mofunction& operator=(const mofunction&) = delete;
 
-  ~mofunction_impl() = default;
+  ~mofunction() = default;
 
-  void swap(mofunction_impl& f) noexcept {
+  template <class Target, target_requirements<Target> = 0>
+  mofunction(Target&& target)
+      : dispatch_mixin_type(
+            dispatch_mixin_type::template make<std::decay_t<Target>>()),
+        storage_mixin_type(
+            storage_mixin_type::template make<std::decay_t<Target>>(
+                std::forward<Target>(target))) {}
+
+  template <class Target, target_requirements<Target> = 0>
+  mofunction& operator=(Target&& target) {
+    dispatch_mixin_type::operator=(
+        dispatch_mixin_type::template make<std::decay_t<Target>>());
+    storage_mixin_type::operator=(
+        storage_mixin_type::template make<std::decay_t<Target>>(
+            std::forward<Target>(target)));
+    return *this;
+  }
+
+  void swap(mofunction& f) noexcept {
     dispatch_mixin_type::swap(f);
     storage_mixin_type::swap(f);
   }
 
   explicit operator bool() const noexcept {
     return storage_mixin_type::address() != nullptr;
-  }
-
-  template <typename Return, typename... Arguments>
-  Return operator()(Arguments&&... args) const& {
-    return dispatch_mixin_type::template operate<Return, Arguments...>(
-        op_call{}, storage_mixin_type::address(),
-        std::forward<Arguments>(args)...);
-  }
-
-  template <typename Return, typename... Arguments>
-  Return operator()(Arguments&&... args) & {
-    return dispatch_mixin_type::template operate<Return, Arguments...>(
-        op_call{}, storage_mixin_type::address(),
-        std::forward<Arguments>(args)...);
-  }
-
-  template <typename Return, typename... Arguments>
-  Return operator()(Arguments&&... args) && {
-    return dispatch_mixin_type::template operate<Return, Arguments...>(
-        op_call{}, storage_mixin_type::address(),
-        std::forward<Arguments>(args)...);
-  }
-
- private:
-  explicit mofunction_impl(dispatch_mixin_type dispatch,
-                           storage_mixin_type storage)
-      : dispatch_mixin_type(std::move(dispatch)),
-        storage_mixin_type(std::move(storage)) {}
-};
-
-}  // namespace
-
-// ==== Interface =============================================================
-
-namespace std {
-template <class Signature>
-class mofunction {};
-
-template <class R, class... As>
-class mofunction<R(As...)> : public mofunction_impl<R(As...)> {
- private:
-  using base_impl_type = mofunction_impl<R(As...)>;
-
- public:
-  using base_impl_type::base_impl_type;
-
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
-  mofunction(F&& f)
-      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
-
-  template <class F, typename std::enable_if_t<
-                         std::is_invocable_v<std::decay_t<F>&, As...>, int> = 0>
-  mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(
-        base_impl_type::template make<F>(std::forward<F>(f)));
-  }
-
-  R operator()(As&&... args) {
-    return base_impl_type::template operator()<R, As...>(
-        std::forward<As>(args)...);
-  }
-};
-
-template <class R, class... As>
-class mofunction<R(As...) const> : public mofunction_impl<R(As...) const> {
- private:
-  using base_impl_type = mofunction_impl<R(As...) const>;
-
- public:
-  using base_impl_type::base_impl_type;
-
-  template <class F,
-            typename std::enable_if_t<
-                std::is_invocable_v<const std::decay_t<F>&, As...>, int> = 0>
-  mofunction(F&& f)
-      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
-
-  template <class F,
-            typename std::enable_if_t<
-                std::is_invocable_v<const std::decay_t<F>&, As...>, int> = 0>
-  mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(
-        base_impl_type::template make<F>(std::forward<F>(f)));
-  }
-
-  R operator()(As&&... args) const {
-    return base_impl_type::template operator()<R, As...>(
-        std::forward<As>(args)...);
-  }
-};
-
-template <class R, class... As>
-class mofunction<R(As...) &&> : public mofunction_impl<R(As...) &&> {
- private:
-  using base_impl_type = mofunction_impl<R(As...) &&>;
-
- public:
-  using base_impl_type::base_impl_type;
-
-  template <class F,
-            typename std::enable_if_t<
-                std::is_invocable_v<std::decay_t<F>&&, As...>, int> = 0>
-  mofunction(F&& f)
-      : base_impl_type(base_impl_type::template make<F>(std::forward<F>(f))) {}
-
-  template <class F,
-            typename std::enable_if_t<
-                std::is_invocable_v<std::decay_t<F>&&, As...>, int> = 0>
-  mofunction& operator=(F&& f) {
-    return base_impl_type::operator=(
-        base_impl_type::template make<F>(std::forward<F>(f)));
-  }
-
-  R operator()(As&&... args) && {
-    return base_impl_type::template operator()<R, As...>(
-        std::forward<As>(args)...);
   }
 };
 
@@ -679,10 +611,11 @@ void swap(mofunction<Signature>& f, mofunction<Signature>& g) noexcept {
 // mofunction(R (*)(As...))->mofunction<R(As...)>;
 
 // Remarks: This deduction guide participates in overload resolution only if
-// &F::operator() is well-formed when treated as an unevaluated operand. In that
-// case, if decltype(&F::operator()) is of the form R(G::*)(A...) cv &opt
+// &Target::operator() is well-formed when treated as an unevaluated operand. In
+that
+// case, if decltype(&Target::operator()) is of the form R(G::*)(A...) cv &opt
 // noexceptopt for a class type G, then the deduced type is mofunction<R(A...)>.
-// template <class F> mofunction(F)->mofunction<>;
+// template <class Target> mofunction(Target)->mofunction<>;
 
 */
 }  // namespace std
@@ -692,101 +625,83 @@ void swap(mofunction<Signature>& f, mofunction<Signature>& g) noexcept {
 struct TestNotCallable {};
 
 struct TestCopyOnly {
-  TestCopyOnly() { std::cout << "TestCopyOnly default construct\n"; }
-  ~TestCopyOnly() { std::cout << "TestCopyOnly deconstruct\n"; }
-
+  TestCopyOnly() {}
+  ~TestCopyOnly() {}
   TestCopyOnly(const TestCopyOnly& that) : copied{that.copied} {
-    std::cout << "TestCopyOnly copy construct\n";
     if (copied) {
       (*copied)++;
     }
   }
 
   TestCopyOnly& operator=(const TestCopyOnly& that) {
-    std::cout << "TestCopyOnly copy assign\n";
     copied = that.copied;
     return *this;
   }
 
-  TestCopyOnly(size_t* ptr) : copied{ptr} {
-    std::cout << "TestDestroy argument construct\n";
-  }
+  TestCopyOnly(size_t* ptr) : copied{ptr} {}
 
-  void operator()() const& { std::cout << "TestCopyOnly const call\n"; }
-  void operator()() & { std::cout << "TestCopyOnly lref call\n"; }
-  void operator()() && { std::cout << "TestCopyOnly rref call\n"; }
+  void operator()() const& {}
+  void operator()() & {}
+  void operator()() && {}
 
   size_t* copied = nullptr;
 };
 
 struct TestDestroy {
-  TestDestroy() { std::cout << "TestDestroy default construct\n"; }
+  TestDestroy() {}
   ~TestDestroy() {
-    std::cout << "TestDestroy destruct\n";
     if (destroyed) {
       (*destroyed)++;
     }
   }
 
-  TestDestroy(size_t* ptr) : destroyed{ptr} {
-    std::cout << "TestDestroy argument construct\n";
-  }
+  TestDestroy(size_t* ptr) : destroyed{ptr} {}
 
-  void operator()() const& { std::cout << "TestDestroy const call\n"; }
-  void operator()() & { std::cout << "TestDestroy lref call\n"; }
-  void operator()() && { std::cout << "TestDestroy rref call\n"; }
+  void operator()() const& {}
+  void operator()() & {}
+  void operator()() && {}
 
   size_t* destroyed = nullptr;
 };
 
 struct TestCopy {
-  TestCopy() { std::cout << "TestCopy default construct\n"; }
-  ~TestCopy() { std::cout << "TestCopy deconstruct\n"; }
+  TestCopy() {}
+  ~TestCopy() {}
 
-  TestCopy(const TestCopy&) { std::cout << "TestCopy copy construct\n"; }
-  TestCopy& operator=(const TestCopy&) {
-    std::cout << "TestCopy copy assign\n";
-    return *this;
-  }
+  TestCopy(const TestCopy&) {}
+  TestCopy& operator=(const TestCopy&) { return *this; }
 
-  TestCopy(TestCopy&&) { std::cout << "TestCopy move construct\n"; }
-  TestCopy& operator=(TestCopy&&) {
-    std::cout << "TestCopy move assign\n";
-    return *this;
-  }
+  TestCopy(TestCopy&&) {}
+  TestCopy& operator=(TestCopy&&) { return *this; }
 
-  void operator()() const& { std::cout << "TestCopy const call\n"; }
-  void operator()() & { std::cout << "TestCopy lref call\n"; }
-  void operator()() && { std::cout << "TestCopy rref call\n"; }
+  void operator()() const& {}
+  void operator()() & {}
+  void operator()() && {}
 };
 
 struct TestMoveOnly {
-  TestMoveOnly() { std::cout << "TestMoveOnly default construct\n"; }
-  ~TestMoveOnly() { std::cout << "TestMoveOnly destruct\n"; }
+  TestMoveOnly() {}
+  ~TestMoveOnly() {}
 
   TestMoveOnly(const TestMoveOnly&) = delete;
   TestMoveOnly& operator=(const TestMoveOnly&) = delete;
 
   TestMoveOnly(TestMoveOnly&& that) : moved{that.moved} {
-    std::cout << "TestMoveOnly move construct\n";
     if (moved) {
       (*moved)++;
     }
   }
 
   TestMoveOnly& operator=(TestMoveOnly&& that) {
-    std::cout << "TestMoveOnly move assign\n";
     moved = that.moved;
     return *this;
   }
 
-  TestMoveOnly(size_t* ptr) : moved{ptr} {
-    std::cout << "TestMoveOnly argument construct\n";
-  }
+  TestMoveOnly(size_t* ptr) : moved{ptr} {}
 
-  void operator()() const& { std::cout << "TestMoveOnly const call\n"; }
-  void operator()() & { std::cout << "TestMoveOnly lref call\n"; }
-  void operator()() && { std::cout << "TestMoveOnly rref call\n"; }
+  void operator()() const& {}
+  void operator()() & {}
+  void operator()() && {}
 
   size_t* moved = nullptr;
 };
@@ -795,14 +710,12 @@ auto test_empty_lambda = [] {};
 void test_empty_function() {}
 
 void test_function(size_t* count) {
-  std::cout << "test_function called\n";
   if (count) {
     (*count)++;
   }
 }
 
 auto test_lambda = [](size_t* count) {
-  std::cout << "test_lambda called\n";
   if (count) {
     (*count)++;
   }
@@ -810,7 +723,6 @@ auto test_lambda = [](size_t* count) {
 
 struct TestCallable {
   void operator()(size_t* count) {
-    std::cout << "TestCallable call\n";
     if (count) {
       (*count)++;
     }
@@ -819,7 +731,6 @@ struct TestCallable {
 
 struct TestConstCallable {
   void operator()(size_t* count) const {
-    std::cout << "TestConstCallable call\n";
     if (count) {
       (*count)++;
     }
@@ -828,7 +739,6 @@ struct TestConstCallable {
 
 struct TestRvrefCallable {
   void operator()(size_t* count) && {
-    std::cout << "TestRvrefCallable call\n";
     if (count) {
       (*count)++;
     }
@@ -838,91 +748,94 @@ struct TestRvrefCallable {
 // ==== Unit Tests ============================================================
 
 int main() {
-  std::cout << "Hello mofo\n";
-
+  // ==== Targetting Constructors
   {
-    std::cout << "default constructed mofo is untargeted\n";
+    std::cout << "default constructed mofunction is untargeted\n";
     std::mofunction<void()> f;
     assert(!f);
   }
   {
-    std::cout << "nullptr constructed mofo is untargeted\n";
+    std::cout << "nullptr constructed mofunction is untargeted\n";
     std::mofunction<void()> f(nullptr);
     assert(!f);
   }
   {
-    std::cout << "nullptr constructed mofo equivalent to nullptr\n";
+    std::cout << "nullptr constructed mofunction equivalent to nullptr\n";
     std::mofunction<void()> f(nullptr);
     assert(f == nullptr);
   }
   {
-    std::cout << "function pointer constructed mofo is targeted\n";
+    std::cout << "function pointer constructed mofunction is targeted\n";
     std::mofunction<void()> f(test_empty_function);
     assert(f);
   }
   {
-    std::cout
-        << "function pointer constructed mofo not equivalent to nullptr\n";
+    std::cout << "function pointer constructed mofunction not equivalent to "
+                 "nullptr\n";
     std::mofunction<void()> f(test_empty_function);
     assert(f != nullptr);
   }
   {
-    std::cout << "lambda constructed mofo is targeted\n";
+    std::cout << "lambda constructed mofunction is targeted\n";
     std::mofunction<void()> f(test_empty_lambda);
     assert(f);
   }
   {
-    std::cout << "move-only object constructed mofo is targeted\n";
+    std::cout << "move-only object constructed mofunction is targeted\n";
     std::mofunction<void()> f(TestMoveOnly{});
     assert(f);
   }
   {
-    std::cout << "move+copyable object constructed mofo is targeted\n";
+    std::cout << "move+copyable object constructed mofunction is targeted\n";
     std::mofunction<void()> f(TestCopy{});
     assert(f);
   }
   {
-    std::cout << "destroyable object constructed mofo is targeted\n";
+    std::cout << "destroyable object constructed mofunction is targeted\n";
     std::mofunction<void()> f(TestDestroy{});
     assert(f);
   }
   {
-    std::cout << "copy-only object constructed mofo is targeted\n";
+    std::cout << "copy-only object constructed mofunction is targeted\n";
     std::mofunction<void()> f(TestCopyOnly{});
     assert(f);
   }
+
+  // ==== Copy/Move Constructors
   {
-    std::cout << "move-only object constructed mofo is moved\n";
+    std::cout << "move-only object constructed mofunction is moved\n";
     size_t moved = 0;
     std::mofunction<void()> f(TestMoveOnly{&moved});
     assert(moved > 0);
   }
   {
-    std::cout << "destroyable object constructed mofo is destroyed\n";
+    std::cout << "destroyable object constructed mofunction is destroyed\n";
     size_t destroyed = 0;
     std::mofunction<void()> f(TestDestroy{&destroyed});
     assert(destroyed > 0);
   }
   {
-    std::cout << "copy-only object constructed mofo is copied\n";
+    std::cout << "copy-only object constructed mofunction is copied\n";
     size_t copied = 0;
     std::mofunction<void()> f(TestCopyOnly{&copied});
     assert(copied > 0);
   }
   {
-    std::cout << "move constructed mofo preserves untargeted\n";
+    std::cout << "move constructed mofunction preserves untargeted\n";
     std::mofunction<void()> f;
     std::mofunction<void()> g(std::move(f));
     assert(!g);
   }
   {
-    std::cout << "move constructed mofo preserves targeted\n";
+    std::cout << "move constructed mofunction preserves targeted\n";
     std::mofunction<void()> f(test_empty_function);
     std::mofunction<void()> g(std::move(f));
     assert(g);
   }
+
+  // ==== Bad Call
   {
-    std::cout << "untargetted mofo throws bad_function_call\n";
+    std::cout << "untargetted mofunction throws bad_function_call\n";
     size_t caught = 0;
     try {
       std::mofunction<void()> f;
@@ -932,65 +845,544 @@ int main() {
     }
     assert(caught > 0);
   }
+
+  // ==== Non-const signature, Non-const object, Lv-Callable
   {
-    std::cout << "function pointer constructed mofo is called\n";
+    std::cout << "Non-const signature, Non-const object, Lv-Callable: function "
+                 "called\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(test_function);
     f(&called);
     assert(called > 0);
   }
   {
-    std::cout << "lambda constructed mofo is called\n";
+    std::cout << "Non-const signature, Non-const object, Lv-Callable: lambda "
+                 "called\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(test_lambda);
     f(&called);
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is called\n";
+    std::cout << "Non-const signature, Non-const object, Lv-Callable: callable "
+                 "called\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(TestCallable{});
     f(&called);
     assert(called > 0);
   }
   {
-    std::cout << "const callable object constructed mofo is const called\n";
-    size_t called = 0;
-    std::mofunction<void(size_t*) const> f(TestConstCallable{});
-    f(&called);
-    assert(called > 0);
-  }
-  {
-    std::cout << "rvref callable object constructed mofo is rvref called\n";
-    size_t called = 0;
-    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
-    std::move(f)(&called);
-    assert(called > 0);
-  }
-  {
-    std::cout << "const callable object constructed mofo is called\n";
+    std::cout << "Non-const signature, Non-const object, Lv-Callable: const "
+                 "callable called\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(TestConstCallable{});
     f(&called);
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is not const callable\n";
+    std::cout << "Non-const signature, Non-const object, Lv-Callable: rvref "
+                 "callable not constructed\n";
     size_t called = 0;
-    // Compile Error:
+    // std::mofunction<void(size_t*)> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Non-const signature, Const object, Lv-Callable
+  {
+    std::cout << "Non-const signature, Const object, Lv-Callable: function not "
+                 "called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*)> f(test_function);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Non-const signature, Const object, Lv-Callable: lambda not "
+                 "called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*)> f(test_lambda);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Non-const signature, Const object, Lv-Callable: callable not "
+                 "called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*)> f(TestCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Non-const signature, Const object, Lv-Callable: const "
+                 "callable not called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*)> f(TestConstCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Non-const signature, Const object, Lv-Callable: rvref "
+                 "callable not called\n";
+    size_t called = 0;
+    // const std::mofunction<void(size_t*)> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Non-const signature, Non-const object, Rv-Callable
+  {
+    std::cout << "Non-const signature, Non-const object, Rv-Callable: function "
+                 "called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(test_function);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Non-const signature, Non-const object, Rv-Callable: lambda "
+                 "not callable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(test_lambda);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Non-const signature, Non-const object, Rv-Callable: callable "
+                 "called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Non-const signature, Non-const object, Rv-Callable: const "
+                 "callable called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestConstCallable{});
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Non-const signature, Non-const object, Rv-Callable: rvref "
+                 "callable not constructed\n";
+    size_t called = 0;
+    // std::mofunction<void(size_t*)> f(TestRvrefCallable{});
+    // std::move(f)(&called);
+    assert(called == 0);
+  }
+
+  // ==== Const signature, Non-const object, Lv-Callable
+  {
+    std::cout << "Const signature, Non-const object, Lv-Callable: function "
+                 "called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(test_function);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout
+        << "Const signature, Non-const object, Lv-Callable: lambda called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(test_lambda);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Non-const object, Lv-Callable: callable not "
+                 "constructed\n";
+    size_t called = 0;
     // std::mofunction<void(size_t*) const> f(TestCallable{});
     // f(&called);
     assert(called == 0);
   }
   {
-    std::cout << "callable object constructed mofo is rvref callable -- ????\n";
+    std::cout << "Const signature, Non-const object, Lv-Callable: const "
+                 "callable called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Non-const object, Lv-Callable: rvref "
+                 "callable not constructed\n";
+    size_t called = 0;
+    // std::mofunction<void(size_t*) const> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Const signature, Const object, Lv-Callable
+  {
+    std::cout
+        << "Const signature, Const object, Lv-Callable: function called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) const> f(test_function);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Const object, Lv-Callable: lambda called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(test_lambda);
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Const object, Lv-Callable: callable not "
+                 "constructed\n";
+    size_t called = 0;
+    // const std::mofunction<void(size_t*) const> f(TestCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Const signature, Const object, Lv-Callable: const callable "
+                 "called\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    f(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Const object, Lv-Callable: rvref callable "
+                 "not constructed\n";
+    size_t called = 0;
+    // const std::mofunction<void(size_t*) const> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Const signature, Non-const object, Rv-Callable
+  {
+    std::cout << "Const signature, Non-const object, Rv-Callable: function "
+                 "called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(test_function);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout
+        << "Const signature, Non-const object, Rv-Callable: lambda called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(test_lambda);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Non-const object, Rv-Callable: callable not "
+                 "constructed\n";
+    size_t called = 0;
+    // std::mofunction<void(size_t*) const> f(TestCallable{});
+    // std::move(f)(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Const signature, Non-const object, Rv-Callable: const "
+                 "callable called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Const signature, Non-const object, Rv-Callable: rvref "
+                 "callable nto constructed\n";
+    size_t called = 0;
+    // std::mofunction<void(size_t*) const> f(TestRvrefCallable{});
+    // std::move(f)(&called);
+    assert(called == 0);
+  }
+
+  // ==== Rvref signature, Non-const object, Lv-Callable
+  {
+    std::cout << "Rvref signature, Non-const object, Lv-Callable: function not "
+                 "callabe\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(test_function);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Lv-Callable: lambda not "
+                 "callabe\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(test_lambda);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Lv-Callable: callabe not "
+                 "callabe\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Lv-Callable: const "
+                 "callabe not callabe\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Lv-Callable: rvref "
+                 "callable not callabe\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Rvref signature, Const object, Lv-Callable
+  {
+    std::cout << "Rvref signature, Const object, Lv-Callable: function not "
+                 "callable\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) &&> f(test_function);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Const object, Lv-Callable: lambda not "
+                 "callable\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) &&> f(test_lambda);
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Const object, Lv-Callable: callable not "
+                 "callable\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) &&> f(TestCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Const object, Lv-Callable: const callable "
+                 "not callable\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "Rvref signature, Const object, Lv-Callable: rvref callable "
+                 "not callable\n";
+    size_t called = 0;
+    const std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    // f(&called);
+    assert(called == 0);
+  }
+
+  // ==== Rvref signature, Non-const object, Rv-Callable
+  {
+    std::cout << "Rvref signature, Non-const object, Rv-Callable: function "
+                 "called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(test_function);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout
+        << "Rvref signature, Non-const object, Rv-Callable: lambda called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(test_lambda);
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Rv-Callable: callable "
+                 "called\n";
     size_t called = 0;
     std::mofunction<void(size_t*) &&> f(TestCallable{});
     std::move(f)(&called);
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is swappable\n";
+    std::cout << "Rvref signature, Non-const object, Rv-Callable: const "
+                 "callable called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "Rvref signature, Non-const object, Rv-Callable: rvref "
+                 "callable called\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::move(f)(&called);
+    assert(called > 0);
+  }
+
+  // ==== Target Copy/Move Constructors
+  {
+    std::cout
+        << "callable object constructed mofunction is move constructible\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g(std::move(f));
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofunction is move assignable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g;
+    g = std::move(f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "callable object constructed mofunction is not copy "
+                 "constructible\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    // std::mofunction<void(size_t*)> g(f);
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout
+        << "callable object constructed mofunction is not copy assignable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*)> g;
+    // f = g;
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "const callable object constructed mofunction is move "
+                 "constructible\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*) const> g(std::move(f));
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "const callable object constructed mofunction is move "
+                 "assignable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*) const> g;
+    g = std::move(f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "rvref callable object constructed mofunction is move "
+                 "constructible\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*) &&> g(std::move(f));
+    std::move(g)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "rvref callable object constructed mofunction is move "
+                 "assignable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*) &&> g;
+    g = std::move(f);
+    std::move(g)(&called);
+    assert(called > 0);
+  }
+
+  // ==== Target Copy/Move Constructors with Const/Non-const Signature
+  {
+    std::cout << "non-const signature mofunction is move constructible from "
+                 "const signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*)> g(std::move(f));
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is move assignable from const "
+                 "signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*)> g;
+    g = std::move(f);
+    // g(&called);
+    // assert(called > 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not move constructible "
+                 "from const signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestConstCallable{});
+    // std::mofunction<void(size_t*) const> g(std::move(f));
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not move assignable from "
+                 "const signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestConstCallable{});
+    std::mofunction<void(size_t*) const> g;
+    // g = std::move(f);
+    // g(&called);
+    assert(called == 0);
+  }
+
+  // ==== Target Copy/Move Constructors with Rvref/Non-const Signature
+  {
+    std::cout << "non-const signature mofunction is not move constructible "
+                 "from rvref signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    // std::mofunction<void(size_t*)> g(std::move(f));
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not move assignable from "
+                 "rvref signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*)> g;
+    // g = std::move(f);
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not move constructible "
+                 "from const signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    // std::mofunction<void(size_t*) &&> g(std::move(f));
+    // g(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not move assignable from "
+                 "const signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*) &&> g;
+    // g = std::move(f);
+    // g(&called);
+    assert(called == 0);
+  }
+
+  // ==== Swap Operations
+  {
+    std::cout << "callable object constructed mofunction is swappable\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(TestCallable{});
     std::mofunction<void(size_t*)> g;
@@ -1000,7 +1392,7 @@ int main() {
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is ADL swappable\n";
+    std::cout << "callable object constructed mofunction is ADL swappable\n";
     size_t called = 0;
     std::mofunction<void(size_t*)> f(TestCallable{});
     std::mofunction<void(size_t*)> g;
@@ -1010,43 +1402,95 @@ int main() {
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is move constructible\n";
+    std::cout << "const callable object constructed mofunction is swappable\n";
     size_t called = 0;
-    std::mofunction<void(size_t*)> f(TestCallable{});
-    std::mofunction<void(size_t*)> g(std::move(f));
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*) const> g;
+    f.swap(g);
+    assert(!f);
     g(&called);
     assert(called > 0);
   }
   {
-    std::cout << "callable object constructed mofo is move assignable\n";
+    std::cout
+        << "const callable object constructed mofunction is ADL swappable\n";
     size_t called = 0;
-    std::mofunction<void(size_t*)> f(TestCallable{});
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*) const> g;
+    std::swap(f, g);
+    assert(!f);
+    g(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout << "rvref callable object constructed mofunction is swappable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*) &&> g;
+    f.swap(g);
+    assert(!f);
+    std::move(g)(&called);
+    assert(called > 0);
+  }
+  {
+    std::cout
+        << "rvref callable object constructed mofunction is ADL swappable\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*) &&> g;
+    std::swap(f, g);
+    assert(!f);
+    std::move(g)(&called);
+    assert(called > 0);
+  }
+
+  // ==== Swap with Const/Non-const Signature
+  {
+    std::cout << "non-const signature mofunction is not swappable from const "
+                 "signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
     std::mofunction<void(size_t*)> g;
-    g = std::move(f);
-    g(&called);
-    assert(called > 0);
-  }
-  {
-    std::cout << "callable object constructed mofo is not copy constructible\n";
-    size_t called = 0;
-    // Compile Error:
-    // std::mofunction<void(size_t*)> f(TestCallable{});
-    // std::mofunction<void(size_t*)> g(f);
-    // g(&called);
+    // f.swap(g);
+    // assert(!f);
+    // std::move(g)(&called);
     assert(called == 0);
   }
   {
-    std::cout << "callable object constructed mofo is not copy assignable\n";
+    std::cout << "non-const signature mofunction is not ADL swappable from "
+                 "const signature\n";
     size_t called = 0;
-    // Compile Error:
-    // std::mofunction<void(size_t*)> f(TestCallable{});
-    // std::mofunction<void(size_t*)> g;
-    // f = g;
-    // g(&called);
+    std::mofunction<void(size_t*) const> f(TestConstCallable{});
+    std::mofunction<void(size_t*)> g;
+    // std::swap(f, g);
+    // assert(!f);
+    // std::move(g)(&called);
     assert(called == 0);
   }
 
-  std::cout << "Goodbye!\n";
+  // ==== Swap with Rvref/Non-const Signature
+  {
+    std::cout << "non-const signature mofunction is not swappable from rvref "
+                 "signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*)> g;
+    // f.swap(g);
+    // assert(!f);
+    // std::move(g)(&called);
+    assert(called == 0);
+  }
+  {
+    std::cout << "non-const signature mofunction is not ADL swappable from "
+                 "rvref signature\n";
+    size_t called = 0;
+    std::mofunction<void(size_t*) &&> f(TestRvrefCallable{});
+    std::mofunction<void(size_t*)> g;
+    // std::swap(f, g);
+    // assert(!f);
+    // std::move(g)(&called);
+    assert(called == 0);
+  }
+
   return 0;
 }
-
