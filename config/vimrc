@@ -87,15 +87,10 @@ nnoremap <Space> <PageDown>
 "nnoremap <C-u> :resize +10<CR>
 "nnoremap <C-d> :resize -10<CR>
 
-" Yank until eol (w/o nl)
-nnoremap Y yg_
-
 " Yank/Put to/from system clipboard
 vnoremap <Leader>y "+y
-nnoremap <Leader>y "+y
-vnoremap <Leader>Y "+yg_
-nnoremap <Leader>Y "+yg_
 vnoremap <Leader>p "+p
+nnoremap <Leader>y "+y
 nnoremap <Leader>p "+p
 
 " Buffer/Window management
