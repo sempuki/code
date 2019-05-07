@@ -199,6 +199,8 @@ autocmd BufEnter * call ConfigureBufferForFileType()
 fun! ConfigureBufferForFileType()
   if (&filetype == 'cpp' || &filetype == 'c')
     call ClangFormatPerBufferSetup()
+  elseif (&filetype == 'proto')
+    call ClangFormatPerBufferSetup()
   elseif (&filetype == 'python')
     " PEP 8 Style
     set tabstop=8 shiftwidth=4 softtabstop=4
