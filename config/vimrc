@@ -63,7 +63,7 @@ set undodir=~/.vim/undo//,.,~/tmp//,/var/tmp//
 
 " Syntax highlighting always on
 if !exists ("syntax_on")
-    syntax on
+  syntax on
 endif
 
 " Save buffer
@@ -135,9 +135,9 @@ nnoremap <Leader>s :,$s/\<<C-r><C-w>\>//gc<Left><Left><Left>
 
 " Multi-platform find
 if has("unix")
-    let find="find . -name "
+  let find="find . -name "
 else
-    let find="dir /b /s "
+  let find="dir /b /s "
 endif
 
 " Grep word under cursor
@@ -156,38 +156,49 @@ let g:clang_format#detect_style_files = 1 " use .clang-format
 let g:clang_format#auto_format = 0        " format on write (default to off)
 let g:clang_format#auto_formatexpr = 1    " format on gq
 
-" Syntastic
-let g:syntastic_python_checkers = ['python']
-let g:syntastic_cpp_checkers = ['clang_tidy']
-"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
-let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++11'
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 2 " close location-list when empty
-
-" Per-buffer file-type configuration (FileType < BufEnter/Leave)
-autocmd BufEnter * call ConfigureBufferForFileType()
-fun! ConfigureBufferForFileType()
-  augroup per_file_type
+fun! ClangFormatPerBufferSetup()
+  augroup ClangFormatSetup
     autocmd!
-  augroup END
 
-  if (&filetype == 'cpp' || &filetype == 'c')
-    " Google Style
-    set tabstop=2 shiftwidth=2 softtabstop=2
-    set cinoptions=g1,h1,N-s
-
+    " Format on write
     :ClangFormatAutoEnable
+
+    " Format on request
     nnoremap = gq
     nnoremap == gqq
     vnoremap = gq
 
-    " Cleanup on leave
-    augroup per_file_type
-      autocmd BufLeave * :ClangFormatAutoDisable
-      autocmd BufLeave * silent! nunmap =
-      autocmd BufLeave * silent! nunmap ==
-      autocmd BufLeave * silent! vunmap =
-    augroup END
+    " Automatic cleanup
+    autocmd BufLeave * :ClangFormatAutoDisable
+    autocmd BufLeave * silent! nunmap =
+    autocmd BufLeave * silent! nunmap ==
+    autocmd BufLeave * silent! vunmap =
+    autocmd BufLeave * autocmd! ClangFormatSetup
+  augroup END
+endfun
+
+" Syntastic
+let g:syntastic_python_checkers = ['python']
+let g:syntastic_cpp_checkers = ['clang_tidy']
+"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
+let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++14'
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 2 " close location-list when empty
+
+" FSwitch
+augroup FSwitchExtensions
+  autocmd!
+  autocmd BufEnter *.hh let b:fswitchdst = 'cc'
+  autocmd BufEnter *.hh let b:fswitchlocs = 'reg:/include/src/,reg:/include.*/src/,../src'
+  autocmd BufEnter *.cc let b:fswitchdst = 'hh,h'
+  autocmd BufEnter *.cc let b:fswitchlocs = 'reg:/src/include/,reg:|src|include/**|,../include'
+augroup END
+
+" Configure using FileType (instead of extension; FileType < BufEnter/Leave)
+autocmd BufEnter * call ConfigureBufferForFileType()
+fun! ConfigureBufferForFileType()
+  if (&filetype == 'cpp' || &filetype == 'c')
+    call ClangFormatPerBufferSetup()
   elseif (&filetype == 'python')
     " PEP 8 Style
     set tabstop=8 shiftwidth=4 softtabstop=4
@@ -212,7 +223,7 @@ set tags+=./cs.tags,cs.tags
 
 " Generate local Java tags file
 nnoremap <silent> <Leader>Gj :!ctags -R --languages=Java --fields=+aiS
-    \ --options=$HOME/.ctags -f java.tags<CR>
+      \ --options=$HOME/.ctags -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 " Generate local Python tags file
@@ -237,12 +248,12 @@ nnoremap <silent> <Leader>Gjs :!find .
 set tags+=./js.tags,js.tags
 
 " Generate local protobuf tags file
-nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extra=+fq
+nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extras=+fq
       \ --options=$HOME/.ctags -f protobuf.tags<CR>
 set tags+=./protobuf.tags,protobuf.tags
 
 " Generate /usr/src C++ tags files
-nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extra=+fq
+nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extras=+fq
       \ --options=$HOME/.ctags -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
@@ -290,33 +301,33 @@ nnoremap <Leader>K :setlocal nospell<CR>
 
 " Windows GUI tweaks
 if has("gui_win32")
-    set guifont=Consolas:h10:cANSI
-    set shellslash "unify shell path seperator handling (eg. Cygwin)
+  set guifont=Consolas:h10:cANSI
+  set shellslash "unify shell path seperator handling (eg. Cygwin)
 endif
 
 " Neovim integration
 if has('nvim')
-    " Terminal history
-    set scrollback=100000
+  " Terminal history
+  set scrollback=100000
 
-    " Neovim terminal bindings
-    nnoremap <C-\>t :set nonumber <bar> :term<CR>
-    nnoremap <C-\>s :set nonumber <bar> :split +:term<CR>
-    nnoremap <C-\>v :set nonumber <bar> :vsplit +:term<CR>
-    tnoremap <Esc><Esc> <C-\><C-n>
+  " Neovim terminal bindings
+  nnoremap <C-\>t :set nonumber <bar> :term<CR>
+  nnoremap <C-\>s :set nonumber <bar> :split +:term<CR>
+  nnoremap <C-\>v :set nonumber <bar> :vsplit +:term<CR>
+  tnoremap <Esc><Esc> <C-\><C-n>
 
-    " Ergonomic versions
-    nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
-    nnoremap <C-\><C-s> :set nonumber <bar> :split +:term<CR>
-    nnoremap <C-\><C-v> :set nonumber <bar> :vsplit +:term<CR>
-    tnoremap <C-e><C-e> <C-\><C-n>
+  " Ergonomic versions
+  nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
+  nnoremap <C-\><C-s> :set nonumber <bar> :split +:term<CR>
+  nnoremap <C-\><C-v> :set nonumber <bar> :vsplit +:term<CR>
+  tnoremap <C-e><C-e> <C-\><C-n>
 
-    " Fast window switching
-    tnoremap <C-n> <C-\><C-n><C-w>wi
-    tnoremap <C-p> <C-\><C-n><C-w>Wi
+  " Fast window switching
+  tnoremap <C-n> <C-\><C-n><C-w>wi
+  tnoremap <C-p> <C-\><C-n><C-w>Wi
 
-    " Always start on insert for terminal
-    ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
+  " Always start on insert for terminal
+  ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
 endif
 
 " Replace default f-motions
@@ -332,12 +343,12 @@ map <Leader><Leader>f <Plug>(easymotion-overwin-f)
 " incsearch.vim x fuzzy x vim-easymotion
 function! s:config_easyfuzzymotion(...) abort
   return extend(copy({
-  \   'converters': [incsearch#config#fuzzyword#converter()],
-  \   'modules': [incsearch#config#easymotion#module({'overwin': 1})],
-  \   'keymap': {"\<CR>": '<Over>(easymotion)'},
-  \   'is_expr': 0,
-  \   'is_stay': 0
-  \ }), get(a:, 1, {}))
+        \   'converters': [incsearch#config#fuzzyword#converter()],
+        \   'modules': [incsearch#config#easymotion#module({'overwin': 1})],
+        \   'keymap': {"\<CR>": '<Over>(easymotion)'},
+        \   'is_expr': 0,
+        \   'is_stay': 0
+        \ }), get(a:, 1, {}))
 endfunction
 noremap <silent><expr> <Leader><Leader>/ incsearch#go(<SID>config_easyfuzzymotion())
 
