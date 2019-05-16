@@ -291,7 +291,7 @@ let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 imap <C-O> <C-X><C-O>
 
 " Avoid searching boost headers on complete
-set include=^\\s*#\\s*include\ \\(<boost/\\)\\@!
+set include=^\\s*#\\s*include\ \\([\"<].*boost/\\)\\@!
 
 " Hex editing
 nnoremap <Leader>h :%!xxd -g1<CR>
