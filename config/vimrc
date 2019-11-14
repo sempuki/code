@@ -83,10 +83,6 @@ nnoremap <Home> zz
 nnoremap <Backspace> <PageUp>
 nnoremap <Space> <PageDown>
 
-" Window resizing
-"nnoremap <C-u> :resize +10<CR>
-"nnoremap <C-d> :resize -10<CR>
-
 " Yank/Put to/from system clipboard
 vnoremap <Leader>y "+y
 vnoremap <Leader>p "+p
@@ -121,6 +117,12 @@ nnoremap <C-j> O<Esc>j
 " Toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-a> :FSHere<CR>
 
+" Jump to BUILD
+nnoremap <silent> <C-b><C-b> :edit %:h/BUILD<CR>
+
+" Jump to test
+nnoremap <silent> <C-u><C-u> :edit %<_test.%:e<CR>
+
 " Ctag searching
 nnoremap <Leader>t :tjump<Space>
 
@@ -148,7 +150,8 @@ nnoremap <C-f> :cgetexpr system(find."")<Left><Left>
 
 " Make local file with quickfix integration
 " may require manual let $CXXFLAGS='--std=c++11'
-nnoremap <Leader>m :make %< \|cwindow<CR>
+nnoremap <Leader><Leader>m :make %< \|cwindow<CR>
+nnoremap <Leader><Leader>r :!./%<<CR>
 
 " Auto Clang Format
 "let g:clang_format#command = 'clang-format-3.6'
