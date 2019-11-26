@@ -44,6 +44,7 @@ set number                  " print line numbers
 set incsearch               " incremental search
 set hlsearch                " highlight search matches
 set wildmenu                " print menu completions
+set wildmode=longest:full   " complete longest substring
 set scrolloff=5             " keep lines of context when scrolling
 set matchpairs+=<:>         " match angle brackets
 set guioptions-=tT          " turn off annoying toolbars
@@ -121,7 +122,7 @@ nnoremap <silent> <C-a> :FSHere<CR>
 nnoremap <silent> <C-b><C-b> :edit %:h/BUILD<CR>
 
 " Jump to test
-nnoremap <silent> <C-u><C-u> :edit %<_test.%:e<CR>
+nnoremap <silent> <C-u><C-u> :edit %<_test.cpp<CR>
 
 " Ctag searching
 nnoremap <Leader>t :tjump<Space>
