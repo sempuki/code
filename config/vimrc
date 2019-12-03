@@ -44,7 +44,7 @@ set number                  " print line numbers
 set incsearch               " incremental search
 set hlsearch                " highlight search matches
 set wildmenu                " print menu completions
-set wildmode=longest:full   " complete longest substring
+set wildmode=longest,full   " complete longest substring
 set scrolloff=5             " keep lines of context when scrolling
 set matchpairs+=<:>         " match angle brackets
 set guioptions-=tT          " turn off annoying toolbars
