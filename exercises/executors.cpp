@@ -4,7 +4,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <tuple>
 #include <type_traits>
+#include <variant>
 
 // Needs clang-10
 
@@ -12,30 +14,28 @@
 // See: wg21.link/p1895
 
 namespace std::impl::customization {
-void customize_on() = delete;
+void customize() = delete;
 
-struct custom_point {
+struct customizable {
   template <typename Customizable, typename... Args>
   requires requires(Customizable cp, Args &&... args) {
-    customize_on(std::forward<Customizable>(cp), std::forward<Args>(args)...);
+    customize(std::forward<Customizable>(cp), std::forward<Args>(args)...);
   }
 
   constexpr decltype(auto) operator()(Customizable cp, Args &&... args) const {
-    return customize_on(std::forward<Customizable>(cp), std::forward<Args>(args)...);
+    return customize(std::forward<Customizable>(cp), std::forward<Args>(args)...);
   }
 };
 } // namespace std::impl::customization
 
 namespace std {
-inline constexpr impl::customization::custom_point customize_on{};
+inline constexpr impl::customization::customizable customize{};
+template <auto &Customizable> using on = std::decay_t<decltype(Customizable)>;
 
-template <auto &Customizable> using custom_point = std::decay_t<decltype(Customizable)>;
-
-#define CREATE_CUSTOMIZATION_POINT(namespace_name, customization_name)                             \
+#define CREATE_FORWARDING_CUSTOMIZATION_POINT(namespace_name, customization_name)                  \
   inline constexpr struct namespace_name##_##customization_name {                                  \
-    template <typename Executor, typename... Args>                                                 \
-    decltype(auto) operator()(Executor &&ex, Args &&... args) const {                              \
-      return std::customize_on(*this, std::forward<Executor>(ex), std::forward<Args>(args)...);    \
+    template <typename... Args> decltype(auto) operator()(Args &&... args) const {                 \
+      return std::customize(*this, std::forward<Args>(args)...);                                   \
     }                                                                                              \
   } customization_name;
 } // namespace std
@@ -44,15 +44,15 @@ template <auto &Customizable> using custom_point = std::decay_t<decltype(Customi
 // See: wg21.link/p0443r13
 
 namespace std::execution {
-CREATE_CUSTOMIZATION_POINT(execution, set_value);
-CREATE_CUSTOMIZATION_POINT(execution, set_error);
-CREATE_CUSTOMIZATION_POINT(execution, set_done);
-CREATE_CUSTOMIZATION_POINT(execution, execute);
-CREATE_CUSTOMIZATION_POINT(execution, connect);
-CREATE_CUSTOMIZATION_POINT(execution, start);
-CREATE_CUSTOMIZATION_POINT(execution, submit);
-CREATE_CUSTOMIZATION_POINT(execution, schedule);
-CREATE_CUSTOMIZATION_POINT(execution, bulk_execute);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, set_value);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, set_error);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, set_done);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, execute);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, connect);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, start);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, submit);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, schedule);
+CREATE_FORWARDING_CUSTOMIZATION_POINT(execution, bulk_execute);
 
 template <typename Sender, typename Receiver>
 using connect_result_t = std::invoke_result_t<decltype(connect), Sender, Receiver>;
@@ -245,10 +245,47 @@ constexpr mapping_t mapping;
 // =============================================================================
 
 namespace my {
+
+enum class Error { A, B, C };
+
+template <typename Sender, typename Receiver>
+concept sender_to = // clang-format off
+  std::execution::sender<Sender> &&
+  std::execution::receiver<Receiver> && 
+  requires(Sender&& s, Receiver&& r) {
+    std::execution::connect(std::forward<Sender>(s), std::forward<Receiver>(r));
+}; // clang-format of
+
+class Sender {
+public:
+  // using value_types = std::variant<std::tuple<>>;
+  // using error_types = std::variant<>;
+  static constexpr bool sends_done = true;
+
+private:
+  friend void customize(std::on<std::execution::execute>) {}
+};
+
+template <typename Type> class Receiver {
+public:
+private:
+  friend void customize(std::on<std::execution::set_done>, Receiver &self) {
+    std::cout << "Set Done: \n";
+  }
+  friend void customize(std::on<std::execution::set_error>, Receiver &self,
+                           Error error) {
+    std::cout << "Set Error: " << static_cast<int>(error) << "\n";
+  }
+  friend void customize(std::on<std::execution::set_value>, Receiver &self,
+                           Type value) {
+    std::cout << "Set Value: " << value << "\n";
+  }
+};
+
 class Executor {
 private:
   template <typename... Args>
-  friend void customize_on(std::custom_point<std::execution::execute>, Executor &ex,
+  friend void customize(std::on<std::execution::execute>, Executor &self,
                            Args &&... args) {
     std::cout << "Executing: ";
     std::invoke(std::forward<Args>(args)...);
