@@ -1,11 +1,10 @@
 #include <cassert>
-#include <iostream>
 #include <memory>
 
-#define IT_SHOULD(test_name, test_body)                                                            \
-  struct it_should_##test_name {                                                                   \
-    it_should_##test_name() { test(); }                                                            \
-    void test() { test_body }                                                                      \
+#define IT_SHOULD(test_name, test_body) \
+  struct it_should_##test_name {        \
+    it_should_##test_name() { test(); } \
+    void test() { test_body }           \
   } do_##test_name;
 #define IT_CAN(test_name, test_body) IT_SHOULD(test_name, test_body)
 #define IT_CANNOT(test_name, test_body) IT_SHOULD(test_name, {})
@@ -22,7 +21,8 @@ struct Foo {
   void bar() {}
 };
 
-template <typename T> using type_under_test = std::unique_ptr<T>;
+template <typename T>
+using type_under_test = std::unique_ptr<T>;
 
 int main() {
   {
@@ -126,7 +126,7 @@ int main() {
       q = std::move(p);
 
       assert(p.get() == nullptr);
-      assert(p.get() == heap);
+      assert(q.get() == heap);
     });
 
     IT_CANNOT(release_ownership_from_const, {
