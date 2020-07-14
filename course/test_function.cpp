@@ -40,6 +40,11 @@ const auto l = [capture = 1](int v) mutable -> int {
   return capture;
 };
 
+int fun(int v) {
+  ::count += v;
+  return ::count;
+}
+
 int main() {
   {
     using some = type_under_test<void()>;
@@ -59,6 +64,25 @@ int main() {
   }
   {
     using some = type_under_test<int(int)>;
+
+    IT_SHOULD(invoke_free_function, {
+      count = 0;
+      some f{fun};
+
+      f(5);
+      assert(count == 5);
+    });
+
+    IT_SHOULD(invoke_free_function_twice, {
+      count = 0;
+      some f{fun};
+
+      f(5);
+      assert(count == 5);
+
+      f(6);
+      assert(count == 11);
+    });
 
     IT_SHOULD(invoke_lambda, {
       count = 0;
