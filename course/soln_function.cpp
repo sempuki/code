@@ -23,7 +23,9 @@ struct function_implementation<R(P...), Callable> final
   function_interface<R(P...)>* clone() const override {
     return new function_implementation<R(P...), Callable>{callable};
   }
-  R invoke(P... params) override { return callable(std::move(params)...); }
+  R invoke(P... params) override {
+    return callable(std::forward<P>(params)...);
+  }
   Callable callable;
 };
 
@@ -53,7 +55,9 @@ class function<R(P...)> final {
     return *this;
   }
 
-  R operator()(P... params) { return target_->invoke(std::move(params)...); }
+  R operator()(P... params) {
+    return target_->invoke(std::forward<P>(params)...);
+  }
 
  private:
   std::unique_ptr<impl::function_interface<R(P...)>> target_;
