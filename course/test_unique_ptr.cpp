@@ -54,44 +54,44 @@ int main() {
 
     IT_SHOULD(be_empty_after_default_construction, {
       some p;
-      assert(p == decltype(p){});
+      assert(p == some{});
     });
 
     IT_SHOULD(not_be_empty_after_value_construction, {
       int *heap = new int;
       some p{heap};
-      assert(p != decltype(p){});
+      assert(p != some{});
     });
 
     IT_SHOULD(be_empty_after_null_construction, {
       some p{nullptr};
-      assert(p == decltype(p){});
+      assert(p == some{});
     });
 
     IT_SHOULD(be_not_empty_after_value_construction, {
       int *heap = new int;
       some p{heap};
-      assert(p != decltype(p){});
+      assert(p != some{});
     });
 
     IT_SHOULD(be_empty_after_assignment_initialization_from_default, {
       some p;
       some q = std::move(p);
-      assert(q == decltype(p){});
+      assert(q == some{});
     });
 
     IT_SHOULD(not_be_empty_after_assignment_initialization_from_value, {
       int *heap = new int;
       some p{heap};
       some q = std::move(p);
-      assert(q != decltype(p){});
+      assert(q != some{});
     });
 
     IT_SHOULD(be_empty_after_assignment_from_default, {
       some p;
       some q;
       q = std::move(p);
-      assert(q == decltype(p){});
+      assert(q == some{});
     });
 
     IT_SHOULD(not_be_empty_after_assignment_from_value, {
@@ -99,7 +99,15 @@ int main() {
       some p{heap};
       some q;
       q = std::move(p);
-      assert(q != decltype(p){});
+      assert(q != some{});
+    });
+
+    IT_SHOULD(be_be_empty_after_move_from, {
+      int *heap = new int;
+      some p{heap};
+      some q;
+      q = std::move(p);
+      assert(p == some{});
     });
 
     IT_SHOULD(have_value_address, {
@@ -174,6 +182,18 @@ int main() {
       assert(Scope::alive == true);
 
       p.reset();
+      assert(Scope::alive == false);
+    });
+    IT_SHOULD(destroy_owned_value_on_move, {
+      assert(Scope::alive == false);
+
+      some p{new Scope{}};
+      assert(Scope::alive == true);
+
+      some q{new Scope{}};
+      assert(Scope::alive == true);
+
+      p = std::move(q);
       assert(Scope::alive == false);
     });
   }
