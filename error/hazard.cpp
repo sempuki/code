@@ -3,27 +3,29 @@
 namespace ctl {
 std::size_t stable_hash(std::string_view str) {
   static const auto shuffle_ = [](std::uint64_t block) {
-    return ((block & 0xFFFF000000000000) >> 16) |
-           ((block & 0x0000FFFF00000000) >> 32) |
-           ((block & 0x00000000FFFF0000) << 32) |
-           ((block & 0x000000000000FFFF) << 16);
+    return // clang-format off
+      ((block & 0xFFFF'0000'0000'0000) >> 16) |
+      ((block & 0x0000'FFFF'0000'0000) >> 32) |
+      ((block & 0x0000'0000'FFFF'0000) << 32) |
+      ((block & 0x0000'0000'0000'FFFF) << 16);
+    // clang-format on
   };
 
-  static const auto diffuse_ = [](std::uint64_t block, std::uint64_t a,
-                                  std::uint64_t b) {
+  static const auto diffuse_ = [](std::uint64_t block, std::uint64_t a, std::uint64_t b) {
     return (block * a) ^ (~block * b);
   };
 
   constexpr std::uint64_t m1 = 0xC2B2AE35C2B2AE35;
   constexpr std::uint64_t m2 = 0x42F0E1EBA9EA3693;
   constexpr std::uint64_t m3 = 0xC96C5795D7870F42;
+  constexpr std::uint64_t block_size = 8;
 
-  std::uint64_t result = diffuse_(str.size(), m1, m2);
-  std::uint64_t block;
   std::size_t i = 0;
+  std::uint64_t block;
+  std::uint64_t result = diffuse_(str.size(), m1, m2);
 
-  for (; i < str.size() && 8 <= str.size(); i += 8) {
-    std::memcpy(&block, str.data() + i, 8);
+  for (; i < str.size() && block_size <= str.size(); i += block_size) {
+    std::memcpy(&block, str.data() + i, block_size);
     result = shuffle_(result) ^ diffuse_(block, ~m2, m3);
   }
 
@@ -34,8 +36,8 @@ std::size_t stable_hash(std::string_view str) {
   return diffuse_(result, m2, ~m3);
 }
 
-gate system::create(code code) { return {this, code}; }
-code system::reveal(gate gate) const { return gate.code_; }
+fault system::create(code code) { return {this, code}; }
+code system::reveal(fault fault) const { return fault.code_; }
 
 std::array<kind_entry, 125> const posix_system::kinds_ = {
     kind_entry{},
@@ -370,4 +372,4 @@ std::map<int, kind_entry> const win32_system::kinds_ = {
 
 std::set<std::pair<int, int>> const win32_system::is_equivalent_{{5, EPERM}};
 
-}  // namespace ctl
+} // namespace ctl
