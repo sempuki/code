@@ -9,8 +9,8 @@ public:
   vector() = default;
   ~vector() = default;
 
-  vector(const vector<T> &that) : size_{that.size_}, capacity_{that.capacity_} {
-    data_ = std::make_unique<T[]>(capacity_);
+  vector(const vector<T> &that)
+      : data_{std::make_unique<T[]>(that.capacity_)}, size_{that.size_}, capacity_{that.capacity_} {
     std::copy_n(that.data_.get(), that.size_, data_.get());
   }
 
