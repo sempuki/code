@@ -4,35 +4,38 @@
 #include <memory>
 #include <utility>
 
-template <typename T> class vector final {
-public:
+template <typename T>
+class vector final {
+ public:
   vector() = default;
   ~vector() = default;
 
   vector(const vector<T> &that)
-      : data_{std::make_unique<T[]>(that.capacity_)}, size_{that.size_}, capacity_{that.capacity_} {
+      : data_{std::make_unique<T[]>(that.capacity_)},
+        size_{that.size_},
+        capacity_{that.capacity_} {
     std::copy_n(that.data_.get(), that.size_, data_.get());
   }
 
   vector<T> &operator=(const vector<T> &that) {
     if (this != &that) {
       vector<T> copy{that};
-      copy.swap(*this);
+      swap(*this, copy);
     }
     return *this;
   }
 
-  vector(vector<T> &&that) { that.swap(*this); }
+  vector(vector<T> &&that) { swap(*this, that); }
 
   vector<T> &operator=(vector<T> &&that) {
     if (this != &that) {
-      that.swap(*this);
+      swap(*this, that);
     }
     return *this;
   }
 
   size_t size() const { return size_; }
-  size_t capacity() const { return capacity; }
+  size_t capacity() const { return capacity_; }
 
   T &operator[](size_t i) { return data_[i]; }
   const T &operator[](size_t i) const { return data_[i]; }
@@ -74,7 +77,7 @@ public:
     }
   }
 
-private:
+ private:
   friend void swap(vector<T> &a, vector<T> &b) {
     using std::swap;
     swap(a.data_, b.data_);
@@ -82,14 +85,16 @@ private:
     swap(a.capacity_, b.capacity_);
   }
 
-  friend bool operator==(vector<T> &a, vector<T> &b) {
-    return std::equal(a.data_.get(), a.size_, b.data_.get(), b.size_);
+  friend bool operator==(const vector<T> &a, const vector<T> &b) {
+    return std::equal(a.data_.get(), a.data_.get() + a.size_, b.data_.get(),
+                      b.data_.get() + b.size_);
   }
 
-  friend bool operator!=(vector<T> &a, vector<T> &b) { return !(a == b); }
+  friend bool operator!=(const vector<T> &a, const vector<T> &b) {
+    return !(a == b);
+  }
 
   std::unique_ptr<T[]> data_;
   size_t size_ = 0;
   size_t capacity_ = 0;
 };
-

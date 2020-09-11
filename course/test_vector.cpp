@@ -1,25 +1,27 @@
 #include <cassert>
-#include <vector>
+// #include <vector>
 
-#define IT_SHOULD(test_name, test_body)                                                            \
-  struct it_should_##test_name {                                                                   \
-    it_should_##test_name() { test(); }                                                            \
-    void test() { test_body }                                                                      \
+#define IT_SHOULD(test_name, test_body) \
+  struct it_should_##test_name {        \
+    it_should_##test_name() { test(); } \
+    void test() { test_body }           \
   } do_##test_name;
 #define IT_CAN(test_name, test_body) IT_SHOULD(test_name, test_body)
 #define IT_CANNOT(test_name, test_body) IT_SHOULD(test_name, {})
 
-template <typename T> using type_under_test = std::vector<T>;
+template <typename T>
+using type_under_test = std::vector<T>;
 
-template <typename T> void setup_sequence(type_under_test<T> &p, size_t I, size_t N) {
+template <typename T>
+void setup_sequence(type_under_test<T> &p, size_t I, size_t N) {
   for (size_t i = I; i < N; ++i) {
     p.push_back(i);
   }
 }
 
-#define verify_sequence(p, I, N)                                                                   \
-  for (size_t i = I; i < N; ++i) {                                                                 \
-    assert(p[i] == i);                                                                             \
+#define verify_sequence(p, I, N)   \
+  for (size_t i = I; i < N; ++i) { \
+    assert(p[i] == i);             \
   }
 
 int main() {
@@ -69,13 +71,13 @@ int main() {
     IT_SHOULD(have_size_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.size() != 0);
+      assert(p.size() != 0u);
     });
 
     IT_SHOULD(have_capacity_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.capacity() != 0);
+      assert(p.capacity() != 0u);
     });
 
     IT_SHOULD(have_front_after_push_back, {
