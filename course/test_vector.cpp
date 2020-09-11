@@ -1,5 +1,6 @@
 #include <cassert>
-// #include <vector>
+#include <cstddef>
+#include <vector>
 
 #define IT_SHOULD(test_name, test_body) \
   struct it_should_##test_name {        \
@@ -170,7 +171,7 @@ int main() {
     IT_SHOULD(increase_capacity_if_necessary, {
       some p;
       auto capacity = p.capacity();
-      p.resize(capacity);
+      p.resize(capacity + 1);
       assert(p.capacity() > capacity);
     });
 
@@ -208,6 +209,23 @@ int main() {
     });
 
     const size_t N = 100;
+
+    IT_CAN(be_use_in_range_based_for_loop, {
+      some p;
+      for (auto v : p) {
+        //
+      }
+    });
+
+    IT_SHOULD(be_able_to_iterate_list_in_range_based_for_loop, {
+      some p;
+      setup_sequence(p, 0, N);
+
+      int i = 0;
+      for (auto v : p) {
+        assert(v == i++);
+      }
+    });
 
     IT_SHOULD(have_same_values_after_copy_construction, {
       some p;

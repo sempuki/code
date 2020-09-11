@@ -40,6 +40,12 @@ class vector final {
   T &operator[](size_t i) { return data_[i]; }
   const T &operator[](size_t i) const { return data_[i]; }
 
+  T *begin() { return &data_[0]; }
+  const T *begin() const { return &data_[0]; }
+
+  T *end() { return &data_[size_ - 1]; }
+  const T *end() const { return &data_[size_ - 1]; }
+
   T &front() { return data_[0]; }
   const T &front() const { return data_[0]; }
 
