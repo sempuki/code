@@ -1,10 +1,14 @@
 #pragma once
 
 #include <cstring>
+#include <experimental/source_location>
 #include <iostream>
 #include <map>
-#include <source_location>
 #include <string_view>
+
+namespace std {
+using experimental::source_location;
+}
 
 namespace ctl {
 namespace detail {
@@ -15,20 +19,20 @@ class code {
     constexpr static uint64_t domain_mask = 0x0000'FFFF'0000'0000;
     constexpr static uint64_t domain_shift = 32;
 
-    constexpr static uint64_t condition_mask = 0x0000'0000'FFFF'0000;
-    constexpr static uint64_t condition_shift = 16;
+    constexpr static uint64_t category_mask = 0x0000'0000'FFFF'0000;
+    constexpr static uint64_t category_shift = 16;
 
     constexpr static uint64_t incident_mask = 0x0000'0000'0000'FFFF;
     constexpr static uint64_t incident_shift = 0;
 
     constexpr static uint64_t domain_compare_mask = domain_mask;
-    constexpr static uint64_t condition_compare_mask = domain_mask | condition_mask;
-    constexpr static uint64_t incident_compare_mask = domain_mask | condition_mask | incident_mask;
+    constexpr static uint64_t category_compare_mask = domain_mask | category_mask;
+    constexpr static uint64_t incident_compare_mask = domain_mask | category_mask | incident_mask;
 
     code() = default;
-    code(uint64_t domain, uint64_t condition, uint64_t incident)
-        : bits_{(domain << domain_shift) |        //
-                (condition << condition_shift) |  //
+    code(uint64_t domain, uint64_t category, uint64_t incident)
+        : bits_{(domain << domain_shift) |      //
+                (category << category_shift) |  //
                 (incident << incident_shift)} {}
 
     uint64_t domain_bits() const noexcept { return (bits_ & domain_mask) >> domain_shift; }
@@ -41,14 +45,14 @@ class code {
         bits_ |= c.bits_ & domain_mask;
     }
 
-    uint64_t condition_bits() const noexcept { return (bits_ & condition_mask) >> condition_shift; }
-    void set_condition_bits(uint64_t v) noexcept {
-        bits_ &= ~condition_mask;
-        bits_ |= v << condition_shift;
+    uint64_t category_bits() const noexcept { return (bits_ & category_mask) >> category_shift; }
+    void set_category_bits(uint64_t v) noexcept {
+        bits_ &= ~category_mask;
+        bits_ |= v << category_shift;
     }
-    void set_condition_bits(code c) noexcept {
-        bits_ &= ~condition_mask;
-        bits_ |= c.bits_ & condition_mask;
+    void set_category_bits(code c) noexcept {
+        bits_ &= ~category_mask;
+        bits_ |= c.bits_ & category_mask;
     }
 
     uint64_t incident_bits() const noexcept { return (bits_ & incident_mask) >> incident_shift; }
@@ -65,8 +69,8 @@ class code {
         return bits_ & domain_compare_mask == that.bits_ & domain_compare_mask;
     }
 
-    bool same_condition(code that) const noexcept {
-        return bits_ & condition_compare_mask == that.bits_ & condition_compare_mask;
+    bool same_category(code that) const noexcept {
+        return bits_ & category_compare_mask == that.bits_ & category_compare_mask;
     }
 
     bool same_incident(code that) const noexcept {
@@ -78,35 +82,8 @@ class code {
 };
 }  // namespace detail
 
-class domain;
-
-class condition {
- private:
-    friend class domain;
-    explicit condition(detail::code c) : code_{c} {}
-    detail::code code_;
-};
-
-class hazard {
- public:
-    std::string_view message() const noexcept { return domain_->message(*this); }
-    std::source_location location() const noexcept { return domain_->location(*this); }
-
- private:
-    friend class domain;
-    explicit hazard(domain *d, detail::code c) : domain_{d}, code_{c} {}
-
-    domain *domain_;
-    detail::code code_;
-
-    friend bool operator==(condition lhs, hazard rhs) const noexcept {
-        return lhs.code_.same_condition(rhs.code_);
-    }
-
-    friend bool operator==(hazard lhs, condition rhs) const noexcept {
-        return lhs.code_.same_condition(rhs.code_);
-    }
-};
+class hazard;
+class condition;
 
 class domain {
  public:
@@ -125,10 +102,52 @@ class domain {
 
  protected:
     detail::code code_;
+
+    friend class hazard;
+    uint64_t domain_bits() const noexcept;
+    uint64_t incident_bits(hazard hazard) const noexcept;
+    hazard make_hazard(detail::code code) const noexcept;
+};
+
+class condition final {
+ private:
+    friend class domain;
+    explicit condition(detail::code c) : code_{c} {}
+
+    detail::code code_;
+
+    friend bool operator==(condition a, detail::code b) { return a.code_.same_category(b); }
+    friend bool operator==(detail::code a, condition b) { return a.same_category(b.code_); }
+};
+
+class hazard final {
+ public:
+    std::string_view message() const noexcept { return domain_->message(*this); }
+    std::source_location location() const noexcept { return domain_->location(*this); }
+
+ private:
+    friend class domain;
+    explicit hazard(const domain *d, detail::code c) : domain_{d}, code_{c} {}
+
+    const domain *domain_;
+    detail::code code_;
+
+    friend bool operator==(condition a, hazard b) { return a == b.code_; }
+    friend bool operator==(hazard a, condition b) { return a.code_ == b; }
+
+    template <typename ConditionEnum>
+    friend bool operator==(ConditionEnum a, hazard b) {
+        return a == b.code_;
+    }
+
+    template <typename ConditionEnum>
+    friend bool operator==(hazard a, ConditionEnum b) {
+        return a.code_ == b;
+    }
 };
 
 namespace detail {
-struct condition_entry {
+struct category_entry {
     std::string message;  // ~64 characters?
 };
 
@@ -227,32 +246,30 @@ class posix_domain final : public domain {
         XDEV,            // Cross-device link.
     };
 
-    explicit posix_domain(size_t code, std::string_view name) : domain{code}, name_{name} {}
+    explicit posix_domain(size_t code) : domain{code}, name_{"posix"} {}
 
     std::string_view name() const noexcept override { return name_; }
 
     std::string_view message(hazard hazard) const noexcept override {
-        return incidents_[hazard.code_.incident_bits()].message;
+        return incidents_[incident_bits(hazard)].message;
     }
 
     std::source_location location(hazard hazard) const noexcept override {
-        return incidents_[hazard.code_.incident_bits()].location;
+        return incidents_[incident_bits(hazard)].location;
     }
 
-    hazard report(condition condition,
-                  std::source_location location,
-                  std::string message = {}) override {
-        incidents_[next_incident_] =
-            detail::incident_entry{std::move(location), std::move(message)};
+    hazard raise(condition condition,
+                 std::string message = {},
+                 std::source_location location = std::source_location::current()) {
+        auto curr_incident = next_incident_;
+        incidents_[curr_incident] = detail::incident_entry{std::move(location), std::move(message)};
         next_incident_ = (next_incident_ + 1) % incidents_.size();
-        return hazard{this,
-                      detail::code{domain::code_,
-                                   static_cast<uint64_t>(condition),
-                                   static_cast<uint64_t>(next_incident_)}};
+        return make_hazard(detail::code{
+            domain_bits(), static_cast<uint64_t>(condition), static_cast<uint64_t>(curr_incident)});
     }
 
  private:
-    static const std::array<detail::condition_entry, 125> conditions_;
+    static const std::array<detail::category_entry, 125> categories_;
     std::array<detail::incident_entry, 128> incidents_;
     std::size_t next_incident_ = 0;
     std::string name_;
@@ -463,36 +480,35 @@ class win32_domain final : public domain {
         SWAPERROR                    // Error performing inpage operation.
     };
 
-    explicit win32_domain(size_t code, std::string_view name) : domain{code}, name_{name} {}
+    explicit win32_domain(size_t code) : domain{code}, name_{"win32"} {}
 
     std::string_view name() const noexcept override { return name_; }
 
     std::string_view message(hazard hazard) const noexcept override {
-        return incidents_[hazard.code_.incident_bits()].message;
+        return incidents_[incident_bits(hazard)].message;
     }
 
     std::source_location location(hazard hazard) const noexcept override {
-        return incidents_[hazard.code_.incident_bits()].location;
+        return incidents_[incident_bits(hazard)].location;
     }
 
-    hazard report(condition condition,
-                  std::source_location location,
-                  std::string message = {}) override {
-        incidents_[next_incident_] =
-            detail::incident_entry{std::move(location), std::move(message)};
+    hazard raise(condition condition,
+                 std::string message = {},
+                 std::source_location location = std::source_location::current()) {
+        auto curr_incident = next_incident_;
+        incidents_[curr_incident] = detail::incident_entry{std::move(location), std::move(message)};
         next_incident_ = (next_incident_ + 1) % incidents_.size();
-        return hazard{this,
-                      detail::code{domain::code_,
-                                   condition_table_[static_cast<uint64_t>(condition)],
-                                   static_cast<uint64_t>(next_incident_)}};
+        return make_hazard(detail::code{domain_bits(),
+                                        category_table_.at(static_cast<uint64_t>(condition)),
+                                        static_cast<uint64_t>(curr_incident)});
     }
 
  private:
-    static const std::array<detail::condition_entry, 199> conditions_;
-    static const std::map<uint64_t, uint64_t> condition_table_;
+    static const std::array<detail::category_entry, 200> categories_;
+    static const std::map<uint64_t, uint64_t> category_table_;
     std::array<detail::incident_entry, 128> incidents_;
     std::size_t next_incident_ = 0;
     std::string name_;
-};
+};  // namespace ctl
 
 }  // namespace ctl
