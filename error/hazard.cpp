@@ -1,53 +1,6 @@
 #include "hazard.hpp"
 
 namespace ctl {
-std::size_t stable_hash(std::string_view str) {
-    static const auto shuffle_ = [](std::uint64_t block) {
-        return  // clang-format off
-      ((block & 0xFFFF'0000'0000'0000) >> 16) |
-      ((block & 0x0000'FFFF'0000'0000) >> 32) |
-      ((block & 0x0000'0000'FFFF'0000) << 32) |
-      ((block & 0x0000'0000'0000'FFFF) << 16);
-        // clang-format on
-    };
-
-    static const auto diffuse_ = [](std::uint64_t block, std::uint64_t a, std::uint64_t b) {
-        return (block * a) ^ (~block * b);
-    };
-
-    constexpr std::uint64_t m1 = 0xC2B2AE35C2B2AE35;
-    constexpr std::uint64_t m2 = 0x42F0E1EBA9EA3693;
-    constexpr std::uint64_t m3 = 0xC96C5795D7870F42;
-    constexpr std::uint64_t block_size = 8;
-
-    std::size_t i = 0;
-    std::uint64_t block;
-    std::uint64_t result = diffuse_(str.size(), m1, m2);
-
-    for (; i < str.size() && block_size <= str.size(); i += block_size) {
-        std::memcpy(&block, str.data() + i, block_size);
-        result = shuffle_(result) ^ diffuse_(block, ~m2, m3);
-    }
-
-    for (; i < str.size(); i++) {
-        result = shuffle_(result) ^ diffuse_(str[i], m3, ~m1);
-    }
-
-    return diffuse_(result, m2, ~m3);
-}
-
-uint64_t domain::domain_bits() const noexcept {
-    return code_.domain_bits();
-}
-
-uint64_t domain::incident_bits(hazard hazard) const noexcept {
-    return hazard.code_.incident_bits();
-}
-
-hazard domain::make_hazard(detail::code code) const noexcept {
-    return hazard{this, code};
-}
-
 const std::array<detail::category_entry, 125> posix_domain::categories_ = {
     detail::category_entry{},
     detail::category_entry{"Operation not permitted"},
@@ -415,5 +368,40 @@ std::map<uint64_t, uint64_t> const win32_domain::category_table_ = {
     {535u, 192u}, {536u, 193u}, {994u, 194u}, {995u, 195u}, {996u, 196u}, {997u, 197u},
     {998u, 198u}, {999u, 199u},
 };
+
+std::size_t stable_hash(std::string_view str) {
+    static const auto shuffle_ = [](std::uint64_t block) {
+        return  // clang-format off
+      ((block & 0xFFFF'0000'0000'0000) >> 16) |
+      ((block & 0x0000'FFFF'0000'0000) >> 32) |
+      ((block & 0x0000'0000'FFFF'0000) << 32) |
+      ((block & 0x0000'0000'0000'FFFF) << 16);
+        // clang-format on
+    };
+
+    static const auto diffuse_ = [](std::uint64_t block, std::uint64_t a, std::uint64_t b) {
+        return (block * a) ^ (~block * b);
+    };
+
+    constexpr std::uint64_t m1 = 0xC2B2AE35C2B2AE35;
+    constexpr std::uint64_t m2 = 0x42F0E1EBA9EA3693;
+    constexpr std::uint64_t m3 = 0xC96C5795D7870F42;
+    constexpr std::uint64_t block_size = 8;
+
+    std::size_t i = 0;
+    std::uint64_t block;
+    std::uint64_t result = diffuse_(str.size(), m1, m2);
+
+    for (; i < str.size() && block_size <= str.size(); i += block_size) {
+        std::memcpy(&block, str.data() + i, block_size);
+        result = shuffle_(result) ^ diffuse_(block, ~m2, m3);
+    }
+
+    for (; i < str.size(); i++) {
+        result = shuffle_(result) ^ diffuse_(str[i], m3, ~m1);
+    }
+
+    return diffuse_(result, m2, ~m3);
+}
 
 }  // namespace ctl
