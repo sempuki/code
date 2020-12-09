@@ -1,3 +1,14 @@
+// Goal: Perform one iteration of critial sequence.
+// Requirements:
+//  1. Type safety of messages.
+//  2. Decoupling of components.
+//
+// Simplifying Assumptions:
+//  - Single threaded.
+//  - All types are known in main.
+//
+// Example code may be modified to meet goal and requirements.
+
 #include <iostream>
 using namespace std;
 
