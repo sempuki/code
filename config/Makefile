@@ -22,11 +22,11 @@ vim-config: install-scripts
 	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
 neovim-config:
-	ln -s ~/.vim ~/.config/nvim 
-	ln -s ~/.vimrc ~/.config/nvim/init.vim
+	ln -sf ~/.vim ~/.config/nvim 
+	ln -sf ~/.vimrc ~/.config/nvim/init.vim
 
 clang-format-config:
-	cp clang-foramt ~/.clang-foramt
+	cp clang-format ~/.clang-format
 
 ctags-config:
 	cp ctags ~/.ctags
