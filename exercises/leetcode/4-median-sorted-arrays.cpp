@@ -9,18 +9,14 @@ auto find_merged(I &iter1, const I &end1, I &iter2, const I &end2) {
   auto merged = iter1;
   if (iter1 != end1 && iter2 != end2) {
     if (*iter1 < *iter2) {
-      merged = iter1;
-      ++iter1;
+      merged = iter1++;
     } else {
-      merged = iter2;
-      ++iter2;
+      merged = iter2++;
     }
   } else if (iter1 != end1) {
-    merged = iter1;
-    ++iter1;
+    merged = iter1++;
   } else if (iter2 != end2) {
-    merged = iter2;
-    ++iter2;
+    merged = iter2++;
   } else {
     assert(false);
   }
