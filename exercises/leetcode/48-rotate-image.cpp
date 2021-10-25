@@ -8,6 +8,7 @@ std::pair<int, int> map_index(int i, int j, int N) {
 
 void print(std::vector<std::vector<int>>& matrix) {
   const int N = matrix.size();
+
   std::cout << '[';
 
   bool first_row = true;
