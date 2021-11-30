@@ -29,7 +29,8 @@ clang-format-config:
 	cp clang-format ~/.clang-format
 
 ctags-config:
-	cp ctags ~/.ctags
+	mkdir -p ~/.ctags.d
+	cp ctags ~/.ctags.d/default.ctags
 
 ack-config:
 	cp ackrc ~/.ackrc

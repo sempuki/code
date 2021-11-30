@@ -231,22 +231,22 @@ endfun
 
 " Generate local C++ tags file
 nnoremap <silent> <Leader>G+ :!ctags -R --languages=C,C++ --c++-kinds=+p --fields-c++=+{properties} --fields=+aiS
-      \ --options=$HOME/.ctags -f cpp.tags<CR>
+      \ -f cpp.tags<CR>
 set tags+=./cpp.tags,cpp.tags,
 
 " Generate local C# tags file
 nnoremap <silent> <Leader>G# :!ctags -R --languages=C\# --fields=+aiS
-      \ --options=$HOME/.ctags -f cs.tags<CR>
+      \ -f cs.tags<CR>
 set tags+=./cs.tags,cs.tags
 
 " Generate local Java tags file
 nnoremap <silent> <Leader>Gj :!ctags -R --languages=Java --fields=+aiS
-      \ --options=$HOME/.ctags -f java.tags<CR>
+      \ -f java.tags<CR>
 set tags+=./java.tags,java.tags
 
 " Generate local Python tags file
 nnoremap <silent> <Leader>Gpy :!ctags -R --languages=Python --python-kinds=-i --fields=+aiS
-      \ --options=$HOME/.ctags -f py.tags<CR>
+      \ -f py.tags<CR>
 set tags+=./py.tags,py.tags
 
 " Generate local JavaScript tags file
@@ -267,12 +267,12 @@ set tags+=./js.tags,js.tags
 
 " Generate local protobuf tags file
 nnoremap <silent> <Leader>Gpb :!ctags -R --languages=protobuf --extras=+fq
-      \ --options=$HOME/.ctags -f protobuf.tags<CR>
+      \ -f protobuf.tags<CR>
 set tags+=./protobuf.tags,protobuf.tags
 
 " Generate /usr/src C++ tags files
 nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --fields=+aiS --extras=+fq
-      \ --options=$HOME/.ctags -f source.tags /usr/src<CR>
+      \ -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
 nnoremap <silent> <Leader>Gg :!find .
