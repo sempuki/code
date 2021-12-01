@@ -100,6 +100,11 @@ nnoremap <Leader>B :buffer! # \| bdelete! #<CR>
 nnoremap ]b :bnext<CR>
 nnoremap [b :bprevious<CR>
 
+" Tab management
+nnoremap <C-t> :tabnext<CR>
+nnoremap ]t :tabnext<CR>
+nnoremap [t :tabprevious<CR>
+
 " Quickfix window
 nnoremap <Leader>q :copen<CR>
 nnoremap <Leader>Q :cclose<CR>
@@ -136,18 +141,8 @@ nnoremap <Leader>g :Gtags -g
 " Search+replace word under cursor
 nnoremap <Leader>s :,$s/\<<C-r><C-w>\>//gc<Left><Left><Left>
 
-" Multi-platform find
-if has("unix")
-  let find="find . -name "
-else
-  let find="dir /b /s "
-endif
-
 " Grep word under cursor
 nnoremap <C-g> :Ack <C-R><C-W> %:h
-
-" Find file with quickfix integration
-nnoremap <C-f> :cgetexpr system(find."")<Left><Left>
 
 " Make local file with quickfix integration
 " may require manual let $CXXFLAGS='--std=c++11'
@@ -343,6 +338,9 @@ if has('nvim')
   " Fast window switching
   tnoremap <C-n> <C-\><C-n><C-w>wi
   tnoremap <C-p> <C-\><C-n><C-w>Wi
+ 
+  " Fast tab switching
+  tnoremap <C-t> <C-\><C-n>:tabnext<CR>
 
   " Always start on insert for terminal
   ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
