@@ -49,7 +49,7 @@ let colors_name = "slate-mine"
 :hi Define          guifg=Gold                      gui=bold    ctermfg=Yellow
 :hi Type            guifg=CornflowerBlue                        ctermfg=2
 :hi Function        guifg=NavajoWhite                           ctermfg=Brown
-:hi Structure       guifg=RoyalBlue                                 ctermfg=Green
+:hi Structure       guifg=Green                                 ctermfg=Green
 :hi LineNr          guifg=Grey50                                ctermfg=3
 :hi Ignore          guifg=Grey40                                cterm=bold ctermfg=7
 :hi Todo            guifg=OrangeRed   guibg=Yellow2
