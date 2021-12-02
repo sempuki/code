@@ -1,6 +1,7 @@
 " Base .vimrc -- Ryan McDougall
 
-colorscheme slate
+colorscheme slate-mine
+set termguicolors " Always use a 265 color terminal.
 
 " Set up vundle
 filetype off
@@ -101,7 +102,7 @@ nnoremap ]b :bnext<CR>
 nnoremap [b :bprevious<CR>
 
 " Tab management
-nnoremap <C-t> :tabnext<CR>
+nnoremap <C-t><C-t> :tabnext<CR>
 nnoremap ]t :tabnext<CR>
 nnoremap [t :tabprevious<CR>
 
@@ -153,6 +154,10 @@ nnoremap <Leader><Leader>r :!./%<<CR>
 nnoremap <Leader><Leader>cc :AsyncRun
       \ c++ -Wall -g ${CXXFLAGS} "$(VIM_FILEPATH)" -o "$(VIM_FILENOEXT)"
       \ && lldb -b -o run -k bt ./"$(VIM_FILENOEXT)"<CR>
+
+" vim-cpp-modern Syntax highlighting
+let g:cpp_attributes_highlight = 1  " Enable highlighting of C++11 attributes
+let g:cpp_member_highlight = 1      " Highlight struct/class member variables
 
 " Automatically open quickfix window and set to 6 lines height
 let g:asyncrun_open = 10
@@ -210,6 +215,10 @@ autocmd BufEnter * call ConfigureBufferForFileType()
 fun! ConfigureBufferForFileType()
   if (&filetype == 'cpp' || &filetype == 'c')
     call ClangFormatPerBufferSetup()
+    " Patch categorization error in vim-cpp-modern
+    syntax keyword Constant nullptr
+    " Add namespace highlighting
+    syntax match Special '\<\w\+::'he=e-2
   elseif (&filetype == 'proto')
     call ClangFormatPerBufferSetup()
   elseif (&filetype == 'python')
