@@ -20,6 +20,7 @@ vim-config: install-scripts
 	cp vimrc ~/.vimrc
 	rm -rf ~/.vim/bundle/Vundle.vim && mkdir -m 755 -p ~/.vim/bundle
 	git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+	cp -a vim/* ~/.vim
 
 neovim-config:
 	ln -sf ~/.vim ~/.config/nvim 

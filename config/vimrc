@@ -1,6 +1,6 @@
 " Base .vimrc -- Ryan McDougall
 
-colorscheme slate-mine
+colorscheme slate
 set termguicolors " Always use a 265 color terminal.
 
 " Set up vundle
