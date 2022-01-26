@@ -2,7 +2,7 @@
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
-//  2. Demonstrate program design ability with C++
+//  2. Demonstrate program design ability in C++
 //
 // Requirements:
 //  1. Messages are Type Safe
@@ -16,6 +16,8 @@
 // Example code may be modified in any way that meets the goal, purpose, or requirements.
 
 #include <functional>
+#include <iostream>
+#include <vector>
 using namespace std;
 
 bool nogo = false;
@@ -28,15 +30,15 @@ struct Trajectory {
   std::string action;
 };
 
-// ...
-
 struct Perception {
   void tick() {
     Obstacle obstacle;  // Output.
     obstacle.type = "Pedestrian";
 
-    // ??
+    out(std::move(obstacle));
   }
+
+  std::function<void(Obstacle)> out;
 };
 
 struct Planning {
@@ -44,36 +46,57 @@ struct Planning {
     Obstacle obstacle;      // Input.
     Trajectory trajectory;  // Output.
 
-    // ??
+    if (in.empty()) {
+      return;
+    }
+
+    obstacle = in.back();
+    in.pop_back();
 
     if (obstacle.type == "Pedestrian") {
       trajectory.action = "Stop";
     }
 
-    // ??
+    out(std::move(trajectory));
   }
+
+  std::vector<Obstacle> in;
+  std::function<void(Trajectory)> out;
 };
 
 struct Control {
   void tick() {
     Trajectory trajectory;  // Input.
 
-    // ??
+    if (in.empty()) {
+      return;
+    }
+
+    trajectory = in.back();
+    in.pop_back();
 
     if (trajectory.action == "Stop") {
       nogo = true;
     }
   }
-};
 
-// ...
+  std::vector<Trajectory> in;
+};
 
 int main(int argc, char** argv) {
   Perception perception;
   Planning planning;
   Control control;
 
-  // ??
+  perception.out = [&planning](auto obstacle) {
+    std::cout << "Sending obstacle\n";
+    planning.in.push_back(std::move(obstacle));
+  };
+
+  planning.out = [&control](auto trajectory) {
+    std::cout << "Sending trajectory\n";
+    control.in.push_back(std::move(trajectory));
+  };
 
   while (!nogo) {
     perception.tick();
