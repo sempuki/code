@@ -1,4 +1,6 @@
-// Goal: Perform one iteration of critial sequence below.
+// Goal: Perform one iteration of critial sequence:
+//  1. Detect an obstacle.
+//  2. Generate a nogo trajectory.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++

@@ -1,4 +1,6 @@
-// Goal: Perform one iteration of critial sequence below.
+// Goal: Perform one iteration of critial sequence:
+//  1. Detect an obstacle.
+//  2. Generate a nogo trajectory.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
@@ -15,7 +17,7 @@
 //
 // Example code may be modified in any way that meets the goal, purpose, or requirements.
 
-#include <functional>
+#include <iostream>
 using namespace std;
 
 bool nogo = false;

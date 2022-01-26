@@ -125,10 +125,10 @@ nnoremap <C-j> O<Esc>j
 nnoremap <silent> <C-a> :FSHere<CR>
 
 " Jump to BUILD
-nnoremap <silent> <C-b><C-b> :edit %:h/BUILD<CR>
+nnoremap <silent> <Leader>bb :edit %:h/BUILD<CR>
 
 " Jump to test
-nnoremap <silent> <C-u><C-u> :edit %<_test.cpp<CR>
+nnoremap <silent> <Leader>uu :edit %<_test.cpp<CR>
 
 " Ctag searching
 nnoremap <Leader>t :tjump<Space>
@@ -192,12 +192,12 @@ endfun
 " Syntastic
 let g:syntastic_python_checkers = ['python']
 let g:syntastic_cpp_checkers = ['clang_tidy']
-"let g:syntastic_cpp_clang_tidy_exec = 'clang-tidy-3.6'
 let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++14'
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
 " FSwitch
+let g:fsnonewfiles = 1
 augroup FSwitchExtensions
   autocmd!
   autocmd BufEnter *.hh let b:fswitchdst = 'cc'
@@ -217,6 +217,8 @@ fun! ConfigureBufferForFileType()
     call ClangFormatPerBufferSetup()
     " Patch categorization error in vim-cpp-modern
     syntax keyword Constant nullptr
+    " Add work-specific types
+    syntax keyword Type Status Result StatusResult Out InOut PristineOut Optional Variant
     " Add namespace highlighting
     syntax match Special '\<\w\+::'he=e-2
   elseif (&filetype == 'proto')
