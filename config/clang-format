@@ -4,11 +4,11 @@ BasedOnStyle: Google
 Standard: Latest
 DerivePointerAlignment: true
 ColumnLimit: 100
-IndentWidth: 4
-TabWidth: 4
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
-AccessModifierOffset: -3
+IndentWidth: 2
+TabWidth: 2
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+AccessModifierOffset: -1
 AlignEscapedNewlines: Left
 AlignOperands: true
 AlignTrailingComments: true
