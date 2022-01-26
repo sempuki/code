@@ -84,6 +84,7 @@ int main() {
   C2 c2;
   C3 c3;
 
+  c1.name = "C1";
   c2.name = "C2";
   c3.name = "C3";
 
