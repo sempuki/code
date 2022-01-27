@@ -125,10 +125,10 @@ nnoremap <C-j> O<Esc>j
 nnoremap <silent> <C-a> :FSHere<CR>
 
 " Jump to BUILD
-nnoremap <silent> <Leader>bb :edit %:h/BUILD<CR>
+nnoremap <silent> <Leader><Leader>b :edit %:h/BUILD<CR>
 
 " Jump to test
-nnoremap <silent> <Leader>uu :edit %<_test.cpp<CR>
+nnoremap <silent> <Leader><Leader>u :edit %<_test.cpp<CR>
 
 " Ctag searching
 nnoremap <Leader>t :tjump<Space>
