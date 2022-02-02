@@ -52,7 +52,7 @@ struct Planning {
       return;
     }
 
-    obstacle = in.back();
+    obstacle = std::move(in.back());
     in.pop_back();
 
     if (obstacle.type == "Pedestrian") {
@@ -74,7 +74,7 @@ struct Control {
       return;
     }
 
-    trajectory = in.back();
+    trajectory = std::move(in.back());
     in.pop_back();
 
     if (trajectory.action == "Stop") {
