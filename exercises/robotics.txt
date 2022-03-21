@@ -13,7 +13,7 @@
 //
 // Simplifying Assumptions:
 //  - Single threaded.
-//  - All types are known ahead of time.
+//  - All types are known at compile time.
 //
 // Example code may be modified in any way that meets the goal, purpose, or requirements.
 
