@@ -1,6 +1,6 @@
-// Goal: Perform one iteration of critial sequence:
-//  1. Detect an obstacle.
-//  2. Generate a stop trajectory.
+// Goal: Perform one iteration of critical sequence:
+//  1. Detect an car, pedestrian, and bus.
+//  2. Generate a stop trajectory for pedestrians.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
@@ -9,10 +9,11 @@
 // Requirements:
 //  1. Messages are Type Safe
 //  2. Components are Decoupled
-//  -- ie. components only understand message types, not component types.
+//  -- ie. components only understand message types, and make
+//     no assumptions about other component types.
 //
 // Simplifying Assumptions:
-//  - Single threaded.
+//  - Not multi-threaded.
 //  - All types are known at compile time.
 //
 // Example code may be modified in any way that meets the goal, purpose, or requirements.
@@ -23,65 +24,73 @@ using namespace std;
 bool nogo = false;
 
 struct Obstacle {
-  std::string type;
+    std::string type;
 };
 
 struct Trajectory {
-  std::string action;
+    std::string action;
 };
 
 // ...
 
 struct Perception {
-  void tick() {
-    Obstacle obstacle;  // Output.
-    obstacle.type = "Pedestrian";
+    void tick() {
+        Obstacle obstacle;  // Output.
+        obstacle.type = "Pedestrian";
 
-    // ??
-  }
+        // ??
+    }
 };
 
 struct Planning {
-  void tick() {
-    Obstacle obstacle;      // Input.
-    Trajectory trajectory;  // Output.
+    void tick() {
+        Obstacle obstacle;      // Input.
+        Trajectory trajectory;  // Output.
 
-    // ??
+        // Default trajectory.
+        trajectory.action = "Road";
 
-    if (obstacle.type == "Pedestrian") {
-      trajectory.action = "Stop";
+        // ??
+
+        if (obstacle.type == "Pedestrian") {
+            trajectory.action = "Stop";
+        }
+
+        // ??
     }
-
-    // ??
-  }
 };
 
 struct Control {
-  void tick() {
-    Trajectory trajectory;  // Input.
+    void tick() {
+        Trajectory trajectory;  // Input.
 
-    // ??
+        // ??
 
-    if (trajectory.action == "Stop") {
-      nogo = true;
+        if (trajectory.action == "Stop") {
+            nogo = true;
+        }
     }
-  }
 };
+
+template <typename Components>
+void run(Components components) {
+    for (auto component : components) {
+        component->tick();
+    }
+}
 
 // ...
 
 int main(int argc, char** argv) {
-  Perception perception;
-  Planning planning;
-  Control control;
+    Perception perception;
+    Planning planning;
+    Control control;
 
-  // ??
+    // ??
 
-  while (!nogo) {
-    perception.tick();
-    planning.tick();
-    control.tick();
-  }
+    while (!nogo) {
+        // ??
+    }
 
-  return 0;
+    return 0;
 }

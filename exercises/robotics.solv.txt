@@ -1,19 +1,20 @@
-// Goal: Perform one iteration of critial sequence:
-//  1. Detect an obstacle.
-//  2. Generate a nogo trajectory.
+// Goal: Perform one iteration of critical sequence:
+//  1. Detect an car, pedestrian, and bus.
+//  2. Generate a stop trajectory for pedestrians.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
-//  2. Demonstrate program design ability in C++
+//  2. Demonstrate program design ability with C++
 //
 // Requirements:
 //  1. Messages are Type Safe
 //  2. Components are Decoupled
-//  -- ie. components only understand message types, not component types.
+//  -- ie. components only understand message types, and make
+//     no assumptions about other component types.
 //
 // Simplifying Assumptions:
-//  - Single threaded.
-//  - All types are known ahead of time.
+//  - Not multi-threaded.
+//  - All types are known at compile time.
 //
 // Example code may be modified in any way that meets the goal, purpose, or requirements.
 
@@ -25,86 +26,106 @@ using namespace std;
 bool nogo = false;
 
 struct Obstacle {
-  std::string type;
+    std::string type;
 };
 
 struct Trajectory {
-  std::string action;
+    std::string action;
 };
 
-struct Perception {
-  void tick() {
-    Obstacle obstacle;  // Output.
-    obstacle.type = "Pedestrian";
-
-    out(std::move(obstacle));
-  }
-
-  std::function<void(Obstacle)> out;
+struct Component {
+    virtual void tick() = 0;
 };
 
-struct Planning {
-  void tick() {
-    Obstacle obstacle;      // Input.
-    Trajectory trajectory;  // Output.
+struct Perception final : public Component {
+    void tick() override {
+        Obstacle obstacle;  // Output.
 
-    if (in.empty()) {
-      return;
+        obstacle.type = "Car";
+        out(std::move(obstacle));
+
+        obstacle.type = "Pedestrian";
+        out(std::move(obstacle));
+
+        obstacle.type = "Bus";
+        out(std::move(obstacle));
     }
 
-    obstacle = std::move(in.back());
-    in.pop_back();
-
-    if (obstacle.type == "Pedestrian") {
-      trajectory.action = "Stop";
-    }
-
-    out(std::move(trajectory));
-  }
-
-  std::vector<Obstacle> in;
-  std::function<void(Trajectory)> out;
+    std::function<void(Obstacle)> out;
 };
 
-struct Control {
-  void tick() {
-    Trajectory trajectory;  // Input.
+struct Planning final : public Component {
+    void tick() override {
+        Obstacle obstacle;      // Input.
+        Trajectory trajectory;  // Output.
 
-    if (in.empty()) {
-      return;
+        // Default trajectory.
+        trajectory.action = "Road";
+
+        while (in.size()) {
+            obstacle = std::move(in.back());
+            in.pop_back();
+
+            if (obstacle.type == "Pedestrian") {
+                trajectory.action = "Stop";
+            }
+        }
+
+        out(std::move(trajectory));
     }
 
-    trajectory = std::move(in.back());
-    in.pop_back();
-
-    if (trajectory.action == "Stop") {
-      nogo = true;
-    }
-  }
-
-  std::vector<Trajectory> in;
+    std::vector<Obstacle> in;
+    std::function<void(Trajectory)> out;
 };
+
+struct Control final : public Component {
+    void tick() override {
+        Trajectory trajectory;  // Input.
+
+        if (in.empty()) {
+            return;
+        }
+
+        trajectory = std::move(in.back());
+        in.pop_back();
+
+        if (trajectory.action == "Stop") {
+            nogo = true;
+        }
+
+        std::cout << "Driving: " << trajectory.action << "\n";
+    }
+
+    std::vector<Trajectory> in;
+};
+
+template <typename Components>
+void run(Components components) {
+    for (auto component : components) {
+        component->tick();
+    }
+}
 
 int main(int argc, char** argv) {
-  Perception perception;
-  Planning planning;
-  Control control;
+    Perception perception;
+    Planning planning;
+    Control control;
 
-  perception.out = [&planning](auto obstacle) {
-    std::cout << "Sending obstacle\n";
-    planning.in.push_back(std::move(obstacle));
-  };
+    perception.out = [&planning](auto obstacle) {
+        std::cout << "Sending obstacle: " << obstacle.type << "\n";
+        planning.in.push_back(std::move(obstacle));
+    };
 
-  planning.out = [&control](auto trajectory) {
-    std::cout << "Sending trajectory\n";
-    control.in.push_back(std::move(trajectory));
-  };
+    planning.out = [&control](auto trajectory) {
+        std::cout << "Sending trajectory: " << trajectory.action << "\n";
+        control.in.push_back(std::move(trajectory));
+    };
 
-  while (!nogo) {
-    perception.tick();
-    planning.tick();
-    control.tick();
-  }
+    std::vector<Component*> components{&control, &planning, &perception};
 
-  return 0;
+    while (!nogo) {
+        run(components);
+    }
+
+    return 0;
 }
