@@ -1,6 +1,7 @@
 // Goal: Perform one iteration of critical sequence:
 //  1. Detect an car, pedestrian, and bus.
 //  2. Generate a stop trajectory for pedestrians.
+//  3. Generate a road following trajectory otherwise.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
@@ -100,7 +101,7 @@ struct Control final : public Component {
 };
 
 template <typename Components>
-void run(Components components) {
+void run(Components&& components) {
     for (auto component : components) {
         component->tick();
     }
