@@ -2,22 +2,26 @@
 //  1. Detect an car, pedestrian, and bus.
 //  2. Generate a stop trajectory for pedestrians.
 //  3. Generate a road following trajectory otherwise.
+//  4. Exit on a stop trajectory.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
 //  2. Demonstrate program design ability with C++
 //
 // Requirements:
-//  1. Messages are Type Safe
+//  1. Messages between Components are Type Safe in C++
 //  2. Components are Decoupled
 //  -- ie. components only understand message types, and make
 //     no assumptions about other component types.
 //
 // Simplifying Assumptions:
-//  - Not multi-threaded.
+//  - Fidelity to reality is not important.
+//  - Not multi-threaded or multi-process.
 //  - All types are known at compile time.
 //
-// Example code may be modified in any way that meets the goal, purpose, or requirements.
+// Example code is a trivial simulation of real autonomy system, may be modified in any way that
+// meets the goal, purpose, or requirements. No actual perception, planning, or control is
+// necessary.
 
 #include <functional>
 #include <iostream>
@@ -59,8 +63,6 @@ struct Planning final : public Component {
     void tick() override {
         Obstacle obstacle;      // Input.
         Trajectory trajectory;  // Output.
-
-        // Default trajectory.
         trajectory.action = "Road";
 
         while (in.size()) {
