@@ -35,38 +35,27 @@ struct Trajectory {
     std::string action;
 };
 
-// ...
-
 struct Perception {
     void tick() {
-        Obstacle obstacle;  // Output.
-        obstacle.type = "Pedestrian";
-
-        // ??
+        // Obstacle output.
     }
 };
 
 struct Planning {
     void tick() {
-        Obstacle obstacle;      // Input.
-        Trajectory trajectory;  // Output.
-        trajectory.action = "Road";
-
-        // ??
+        // Obstacle input.
 
         if (obstacle.type == "Pedestrian") {
             trajectory.action = "Stop";
         }
 
-        // ??
+        // Trajectory output.
     }
 };
 
 struct Control {
     void tick() {
-        Trajectory trajectory;  // Input.
-
-        // ??
+        // Trajectory input.
 
         if (trajectory.action == "Stop") {
             exit = true;
@@ -80,8 +69,6 @@ void run(Components&& components) {
         component->tick();
     }
 }
-
-// ...
 
 int main(int argc, char** argv) {
     Perception perception;
