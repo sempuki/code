@@ -2,7 +2,7 @@
 //  1. Detect any number of obstacles of type car, pedestrian, and bus.
 //  2. For pedestrian obstacles, generate a trajectory that will cause the vehicle to stop.
 //  3. For other obstacles, generate a trajectory that will follow the road.
-//  4. Exit the program on a stop trajectory.
+//  4. Exit the program after receiving a stop trajectory.
 //
 // Purpose:
 //  1. Demonstrate knowledge of C++
