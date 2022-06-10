@@ -9,6 +9,7 @@
 //  2. Demonstrate program design ability with C++
 //
 // Requirements:
+//  For the Framework code:
 //  1. Messages between Components are Type Safe in C++
 //  2. Components are Decoupled
 //  -- ie. components only understand message types, and make
@@ -36,13 +37,13 @@ struct Trajectory {
 };
 
 struct Perception {
-    void tick() {
+    void work() {
         // Obstacle output.
     }
 };
 
 struct Planning {
-    void tick() {
+    void work() {
         // Obstacle input.
 
         if (obstacle.type == "Pedestrian") {
@@ -54,7 +55,7 @@ struct Planning {
 };
 
 struct Control {
-    void tick() {
+    void work() {
         // Trajectory input.
 
         if (trajectory.action == "Stop") {
@@ -66,7 +67,7 @@ struct Control {
 template <typename Components>
 void run(Components&& components) {
     for (auto&& component : components) {
-        component->tick();
+        component->work();
     }
 }
 

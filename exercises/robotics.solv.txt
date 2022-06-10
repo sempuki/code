@@ -9,6 +9,7 @@
 //  2. Demonstrate program design ability with C++
 //
 // Requirements:
+//  For the Framework code:
 //  1. Messages between Components are Type Safe in C++
 //  2. Components are Decoupled
 //  -- ie. components only understand message types, and make
@@ -21,7 +22,6 @@
 // Example code is a trivial simulation of real autonomy system, may be modified in any way that
 // meets the goal, purpose, or requirements. No actual perception, planning, or control is
 // necessary.
-
 
 #include <functional>
 #include <iostream>
