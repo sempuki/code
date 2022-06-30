@@ -106,9 +106,8 @@ struct System {
 };
 
 struct Movement final : public Component<Movement> {
-  double altitude = 0.0;
+  double position = 0.0;
   double velocity = 0.0;
-  double acceleration = 0.0;
 };
 
 struct ComputeMovement {
@@ -117,17 +116,47 @@ struct ComputeMovement {
 
 struct Controls final : public Component<Controls> {
   double acceleration = 0.0;
-  double yaw_rate = 0.0;
   Movement* object = nullptr;
 };
 
-struct ComputeControls {
+struct ForwardEulerIntegration {
   void operator()(Controls* control, double time, double step) {
-    assert(control);
-    assert(control->object);
-    control->object->acceleration = control->acceleration;
-    control->object->velocity += control->object->acceleration * step;
-    control->object->altitude += control->object->velocity * step;
+    auto prev = *control->object;
+    auto& next = *control->object;
+
+    next.velocity = prev.velocity + control->acceleration * step;
+    next.position = prev.position + prev.velocity * step;
+  }
+};
+
+struct TrapezoidIntegration {
+  void operator()(Controls* control, double time, double step) {
+    auto prev = *control->object;
+    auto& next = *control->object;
+
+    next.velocity = prev.velocity + control->acceleration * step;
+    next.position =
+        prev.position + (prev.velocity + next.velocity) * step * 0.5;
+  }
+};
+
+struct RungeKutta2Integration {
+  void operator()(Controls* control, double time, double step) {
+    auto prev = *control->object;
+    auto& next = *control->object;
+    Movement k1, k2, mid;
+
+    k1.velocity = prev.velocity + control->acceleration * step;
+    k1.position = prev.position + prev.velocity * step;
+
+    mid.velocity = prev.velocity + k1.velocity * step * 0.5;
+    mid.position = prev.position + k1.position * step * 0.5;
+
+    k2.velocity = mid.velocity + control->acceleration * step;
+    k2.position = mid.position + k2.velocity * step;
+
+    next.velocity = prev.velocity + control->acceleration * step;
+    next.position = prev.position + k2.velocity * step;
   }
 };
 
@@ -135,7 +164,7 @@ struct Actor : public Entity {};
 
 struct Simulation {
   System<Movement, ComputeMovement> movement;
-  System<Controls, ComputeControls> controls;
+  System<Controls, TrapezoidIntegration> controls;
   std::vector<Actor> actors;
 
   template <typename System>
@@ -162,13 +191,13 @@ int main() {
   auto* movement = ego.component<Movement>();
   auto* controls = ego.component<Controls>();
 
-  movement->altitude = 100.0;
+  movement->position = 100.0;
   controls->acceleration = -10.0;
   controls->object = movement;
 
   simulation.actors.emplace_back(std::move(ego));
-  for (double time = 0.0, step = 0.1; time < 1.0; time += step) {
-    std::cout << "Ego altitude " << movement->altitude << " at " << time
+  for (double time = 0.0, step = 0.1; time < 5.0; time += step) {
+    std::cout << "Ego position " << movement->position << " at " << time
               << "\n";
     simulation(time, step);
   }
