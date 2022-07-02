@@ -130,63 +130,92 @@ struct System {
   std::function<void(ComponentType*, double, double)> compute;
 };
 
-struct Movement final : public Component<Movement> {
-  Vec3 position;
-  Vec3 velocity;
+struct Environment final : public Component<Environment> {
+  Vec3 wind;
 };
 
-struct ComputeMovement {
-  void operator()(Movement* movement, double time, double step) {}
+struct Physical final : public Component<Physical> {
+  double wind_resistance;
 };
 
 struct Controls final : public Component<Controls> {
   Vec3 acceleration;
-  Movement* object = nullptr;
 };
 
-struct ForwardEulerIntegration {
-  void operator()(Controls* control, double time, double step) {
-    auto prev = *control->object;
-    auto& next = *control->object;
+struct Movement final : public Component<Movement> {
+  Vec3 position;
+  Vec3 velocity;
 
-    next.velocity = prev.velocity + control->acceleration * step;
+  Environment* environment = nullptr;
+  Controls* controls = nullptr;
+  Physical* physical = nullptr;
+};
+
+template <typename ComponentType>
+struct NoOp {
+  void operator()(ComponentType* component, double time, double step) {
+    // Do nothing.
+  }
+};
+
+auto compute_acceleration(Movement* m) {
+  return m->controls->acceleration +
+         (m->physical->wind_resistance * (m->environment->wind - m->velocity));
+}
+
+struct ForwardEulerIntegration {
+  void operator()(Movement* movement, double time, double step) {
+    auto prev = *movement;
+    auto& next = *movement;
+    auto acceleration = compute_acceleration(movement);
+
+    next.velocity = prev.velocity + acceleration * step;
     next.position = prev.position + prev.velocity * step;
   }
 };
 
 struct TrapezoidIntegration {
-  void operator()(Controls* control, double time, double step) {
-    auto prev = *control->object;
-    auto& next = *control->object;
+  void operator()(Movement* movement, double time, double step) {
+    auto prev = *movement;
+    auto& next = *movement;
+    auto acceleration = compute_acceleration(movement);
 
-    next.velocity = prev.velocity + control->acceleration * step;
+    next.velocity = prev.velocity + acceleration * step;
     next.position =
         prev.position + (prev.velocity + next.velocity) * step * 0.5;
   }
 };
 
 struct RungeKutta2Integration {
-  void operator()(Controls* control, double time, double step) {
-    auto prev = *control->object;
-    auto& next = *control->object;
-    Movement k1, k2, mid;
+  void operator()(Movement* movement, double time, double step) {
+    auto prev = *movement;
+    auto& next = *movement;
+    auto acceleration = compute_acceleration(movement);
 
-    k1.velocity = prev.velocity + control->acceleration * step;
-    mid.velocity = prev.velocity + k1.velocity * step * 0.5;
-    k2.velocity = mid.velocity + control->acceleration * step;
-    next.velocity = prev.velocity + control->acceleration * step;
-    next.position = prev.position + k2.velocity * step;
+    // k1.velocity = prev.velocity + acceleration * step;
+    // mid.velocity = prev.velocity + k1.velocity * step * 0.5;
+    // k2.velocity = mid.velocity + acceleration * step;
+
+    next.velocity = prev.velocity + acceleration * step;
+    next.position =
+        prev.position +
+        ((prev.velocity + (prev.velocity + acceleration * step) * step * 0.5) +
+         acceleration * step) *
+            step;
   }
 };
 
 struct Actor : public Entity {};
 
+struct ComputeMovement : public ForwardEulerIntegration {};
 constexpr double STEP_SIZE = 1.0;
 constexpr double SUB_STEP_FACTOR = 1.0;
 
 struct Simulation {
+  System<Environment, NoOp<Environment>> environment;
+  System<Physical, NoOp<Physical>> physical;
+  System<Controls, NoOp<Controls>> controls;
   System<Movement, ComputeMovement> movement;
-  System<Controls, TrapezoidIntegration> controls;
   std::vector<Actor> actors;
 
   template <typename System>
@@ -198,6 +227,8 @@ struct Simulation {
   }
 
   void operator()(double time, double step) {
+    do_substep(environment, time, step);
+    do_substep(physical, time, step);
     do_substep(controls, time, step);
     do_substep(movement, time, step);
   }
@@ -207,17 +238,26 @@ int main() {
   Actor ego;
 
   Simulation simulation;
-  simulation.movement.attach(&ego);
+  simulation.environment.attach(&ego);
+  simulation.physical.attach(&ego);
   simulation.controls.attach(&ego);
+  simulation.movement.attach(&ego);
 
-  auto* movement = ego.component<Movement>();
+  auto* environment = ego.component<Environment>();
+  auto* physical = ego.component<Physical>();
   auto* controls = ego.component<Controls>();
+  auto* movement = ego.component<Movement>();
+
+  movement->environment = environment;
+  movement->physical = physical;
+  movement->controls = controls;
 
   movement->position[Y] = 100.0;
   movement->velocity[X] = 10.0;
   movement->velocity[Z] = 30.0;
   controls->acceleration[Y] = -10.0;
-  controls->object = movement;
+  physical->wind_resistance = 0.4;
+  environment->wind[X] = -12.5;
 
   simulation.actors.emplace_back(std::move(ego));
   for (double time = 0.0, step = STEP_SIZE; time <= 5.0; time += step) {
