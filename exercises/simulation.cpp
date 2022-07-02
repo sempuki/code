@@ -3,7 +3,32 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <valarray>
 #include <vector>
+
+template <typename T, size_t N>
+class Vector : public std::valarray<T> {
+ public:
+  Vector() : std::valarray<T>(0.0, N) {}
+  using std::valarray<T>::operator=;
+
+ private:
+  friend std::ostream& operator<<(std::ostream& out, const Vector& vec) {
+    size_t n = vec.size();
+    out << '[';
+    for (auto v : vec) {
+      out << ' ' << v << (--n ? ',' : ' ');
+    }
+    out << ']';
+    return out;
+  }
+};
+
+using Vec2 = Vector<double, 2>;
+using Vec3 = Vector<double, 3>;
+constexpr size_t X = 0;
+constexpr size_t Y = 1;
+constexpr size_t Z = 2;
 
 class Name {
  public:
@@ -106,8 +131,8 @@ struct System {
 };
 
 struct Movement final : public Component<Movement> {
-  double position = 0.0;
-  double velocity = 0.0;
+  Vec3 position;
+  Vec3 velocity;
 };
 
 struct ComputeMovement {
@@ -115,7 +140,7 @@ struct ComputeMovement {
 };
 
 struct Controls final : public Component<Controls> {
-  double acceleration = 0.0;
+  Vec3 acceleration;
   Movement* object = nullptr;
 };
 
@@ -147,20 +172,17 @@ struct RungeKutta2Integration {
     Movement k1, k2, mid;
 
     k1.velocity = prev.velocity + control->acceleration * step;
-    k1.position = prev.position + prev.velocity * step;
-
     mid.velocity = prev.velocity + k1.velocity * step * 0.5;
-    mid.position = prev.position + k1.position * step * 0.5;
-
     k2.velocity = mid.velocity + control->acceleration * step;
-    k2.position = mid.position + k2.velocity * step;
-
     next.velocity = prev.velocity + control->acceleration * step;
     next.position = prev.position + k2.velocity * step;
   }
 };
 
 struct Actor : public Entity {};
+
+constexpr double STEP_SIZE = 1.0;
+constexpr double SUB_STEP_FACTOR = 1.0;
 
 struct Simulation {
   System<Movement, ComputeMovement> movement;
@@ -169,8 +191,8 @@ struct Simulation {
 
   template <typename System>
   void do_substep(System&& system, double time, double step) {
-    for (double substep = step / 10.0, start = time; time < start + step;
-         time += substep) {
+    for (double substep = step * SUB_STEP_FACTOR, start = time;
+         time < start + step; time += substep) {
       system(time, substep);
     }
   }
@@ -191,12 +213,14 @@ int main() {
   auto* movement = ego.component<Movement>();
   auto* controls = ego.component<Controls>();
 
-  movement->position = 100.0;
-  controls->acceleration = -10.0;
+  movement->position[Y] = 100.0;
+  movement->velocity[X] = 10.0;
+  movement->velocity[Z] = 30.0;
+  controls->acceleration[Y] = -10.0;
   controls->object = movement;
 
   simulation.actors.emplace_back(std::move(ego));
-  for (double time = 0.0, step = 0.1; time < 5.0; time += step) {
+  for (double time = 0.0, step = STEP_SIZE; time <= 5.0; time += step) {
     std::cout << "Ego position " << movement->position << " at " << time
               << "\n";
     simulation(time, step);
