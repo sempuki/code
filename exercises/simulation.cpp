@@ -1,8 +1,10 @@
 #include <cassert>
-#include <functional>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <numeric>
+#include <tuple>
 #include <valarray>
 #include <vector>
 
@@ -10,7 +12,13 @@ template <typename T, size_t N>
 class Vector : public std::valarray<T> {
  public:
   Vector() : std::valarray<T>(0.0, N) {}
+  using std::valarray<T>::valarray;
   using std::valarray<T>::operator=;
+
+  double norm() const {
+    return std::sqrt(std::accumulate(std::cbegin(*this), std::cend(*this), 0.0,
+                                     [](auto s, auto v) { return s + v * v; }));
+  }
 
  private:
   friend std::ostream& operator<<(std::ostream& out, const Vector& vec) {
@@ -29,6 +37,9 @@ using Vec3 = Vector<double, 3>;
 constexpr size_t X = 0;
 constexpr size_t Y = 1;
 constexpr size_t Z = 2;
+constexpr double EPSILON = 0.0001;
+
+bool is_equal(double x, double y) { return std::abs(x - y) < EPSILON; }
 
 class Name {
  public:
@@ -117,7 +128,15 @@ struct System {
 
   void operator()(double time, double step) {
     for (auto&& component : components) {
+      compute.initialize();
+    }
+
+    for (auto&& component : components) {
       compute(component.get(), time, step);
+    }
+
+    for (auto&& component : components) {
+      compute.finalize();
     }
   }
 
@@ -127,15 +146,22 @@ struct System {
   }
 
   std::vector<std::unique_ptr<ComponentType>> components;
-  std::function<void(ComponentType*, double, double)> compute;
+  ComputationType compute;
 };
+
+struct Environment;
+struct Physical;
+struct Controls;
+struct Movement;
 
 struct Environment final : public Component<Environment> {
   Vec3 wind;
 };
 
 struct Physical final : public Component<Physical> {
-  double wind_resistance;
+  double radius;
+  double wind_resistance_factor = 1.0;
+  Movement* movement = nullptr;
 };
 
 struct Controls final : public Component<Controls> {
@@ -147,23 +173,42 @@ struct Movement final : public Component<Movement> {
   Vec3 velocity;
 
   Environment* environment = nullptr;
-  Controls* controls = nullptr;
   Physical* physical = nullptr;
+  Controls* controls = nullptr;
 };
 
 template <typename ComponentType>
-struct NoOp {
-  void operator()(ComponentType* component, double time, double step) {
-    // Do nothing.
-  }
+struct ComputeBase {
+  void initialize() {}
+  void finalize() {}
+  void operator()(ComponentType* component, double time, double step) {}
 };
 
 auto compute_acceleration(Movement* m) {
-  return m->controls->acceleration +
-         (m->physical->wind_resistance * (m->environment->wind - m->velocity));
+  return m->controls->acceleration + (m->physical->wind_resistance_factor *
+                                      (m->environment->wind - m->velocity));
 }
 
-struct ForwardEulerIntegration {
+bool is_nearby(Physical* a, Physical* b) {
+  auto distance =
+      static_cast<Vec3>(a->movement->position - b->movement->position).norm();
+  return distance <= (a->radius + b->radius);
+}
+
+struct DetectSphericalCollision : public ComputeBase<DetectSphericalCollision> {
+  void initialize() { others.clear(); }
+  void operator()(Physical* current, double time, double step) {
+    for (auto previous : others) {
+      if (is_nearby(previous, current)) {
+        std::cout << "Collision at " << current->movement->position << "\n";
+      }
+    }
+    others.push_back(current);
+  }
+  std::vector<Physical*> others;
+};
+
+struct ForwardEulerIntegration : public ComputeBase<ForwardEulerIntegration> {
   void operator()(Movement* movement, double time, double step) {
     auto prev = *movement;
     auto& next = *movement;
@@ -174,7 +219,7 @@ struct ForwardEulerIntegration {
   }
 };
 
-struct TrapezoidIntegration {
+struct TrapezoidIntegration : public ComputeBase<TrapezoidIntegration> {
   void operator()(Movement* movement, double time, double step) {
     auto prev = *movement;
     auto& next = *movement;
@@ -186,7 +231,7 @@ struct TrapezoidIntegration {
   }
 };
 
-struct RungeKutta2Integration {
+struct RungeKutta2Integration : public ComputeBase<RungeKutta2Integration> {
   void operator()(Movement* movement, double time, double step) {
     auto prev = *movement;
     auto& next = *movement;
@@ -207,16 +252,37 @@ struct RungeKutta2Integration {
 
 struct Actor : public Entity {};
 
-struct ComputeMovement : public ForwardEulerIntegration {};
-constexpr double STEP_SIZE = 1.0;
-constexpr double SUB_STEP_FACTOR = 1.0;
+struct ComputeMovement : public RungeKutta2Integration {};
+constexpr double STEP_SIZE = 0.1;
+constexpr double SUB_STEP_FACTOR = 0.1;
 
 struct Simulation {
-  System<Environment, NoOp<Environment>> environment;
-  System<Physical, NoOp<Physical>> physical;
-  System<Controls, NoOp<Controls>> controls;
+  System<Environment, ComputeBase<Environment>> environment;
+  System<Physical, DetectSphericalCollision> physical;
+  System<Controls, ComputeBase<Controls>> controls;
   System<Movement, ComputeMovement> movement;
   std::vector<Actor> actors;
+
+  std::tuple<Environment*, Physical*, Controls*, Movement*> include(
+      Actor actor) {
+    environment.attach(&actor);
+    physical.attach(&actor);
+    controls.attach(&actor);
+    movement.attach(&actor);
+
+    auto* environment = actor.component<Environment>();
+    auto* physical = actor.component<Physical>();
+    auto* controls = actor.component<Controls>();
+    auto* movement = actor.component<Movement>();
+
+    physical->movement = movement;
+    movement->environment = environment;
+    movement->physical = physical;
+    movement->controls = controls;
+
+    actors.emplace_back(std::move(actor));
+    return std::make_tuple(environment, physical, controls, movement);
+  }
 
   template <typename System>
   void do_substep(System&& system, double time, double step) {
@@ -235,33 +301,25 @@ struct Simulation {
 };
 
 int main() {
-  Actor ego;
-
   Simulation simulation;
-  simulation.environment.attach(&ego);
-  simulation.physical.attach(&ego);
-  simulation.controls.attach(&ego);
-  simulation.movement.attach(&ego);
+  auto ego = simulation.include(Actor{});
+  auto obj = simulation.include(Actor{});
 
-  auto* environment = ego.component<Environment>();
-  auto* physical = ego.component<Physical>();
-  auto* controls = ego.component<Controls>();
-  auto* movement = ego.component<Movement>();
+  std::get<Environment*>(ego)->wind[X] = -12.5;
+  std::get<Physical*>(ego)->radius = 0.1;
+  std::get<Physical*>(ego)->wind_resistance_factor = 0.4;
+  std::get<Controls*>(ego)->acceleration[Y] = -10.0;
+  std::get<Movement*>(ego)->position[Y] = 100.0;
+  std::get<Movement*>(ego)->velocity[X] = 10.0;
+  std::get<Movement*>(ego)->velocity[Z] = 30.0;
 
-  movement->environment = environment;
-  movement->physical = physical;
-  movement->controls = controls;
+  std::get<Physical*>(obj)->radius = 1.0;
+  std::get<Movement*>(obj)->position[X] = -10.0;
+  std::get<Movement*>(obj)->position[Y] = 36.0;
+  std::get<Movement*>(obj)->position[Z] = 63.0;
 
-  movement->position[Y] = 100.0;
-  movement->velocity[X] = 10.0;
-  movement->velocity[Z] = 30.0;
-  controls->acceleration[Y] = -10.0;
-  physical->wind_resistance = 0.4;
-  environment->wind[X] = -12.5;
-
-  simulation.actors.emplace_back(std::move(ego));
   for (double time = 0.0, step = STEP_SIZE; time <= 5.0; time += step) {
-    std::cout << "Ego position " << movement->position << " at " << time
+    std::cout << "Ego " << std::get<Movement*>(ego)->position << " at " << time
               << "\n";
     simulation(time, step);
   }
