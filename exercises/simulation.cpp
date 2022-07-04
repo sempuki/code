@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -114,7 +115,7 @@ class Event : public EventBase, public PerTypeIdentity<MessageType> {
   Event(double time, Args&&... args)
       : time_{time}, message_{std::forward<Args>(args)...} {}
 
-  const MessageType& message() const { return message_; }
+  const MessageType& data() const { return message_; }
   double time() const override { return time_; }
   EventName event_name() const override { return Event::name(); }
   static EventName name() { return PerTypeIdentity<MessageType>::id_.name(); }
@@ -148,10 +149,29 @@ class Entity : public PerObjectIdentity {
 };
 
 struct EventQueue {
+  template <typename MessageType, typename HandlerType>
+  void subscribe(HandlerType&& handler) {
+    handlers[Event<MessageType>::name()].emplace_back(
+        [msg_handler =
+             std::forward<HandlerType>(handler)](const EventBase* base) {
+          auto* event = dynamic_cast<const Event<MessageType>*>(base);
+          msg_handler(event->data());
+        });
+  }
+
   template <typename MessageType>
   void publish(double time, MessageType&& message) {
     events.emplace(std::make_unique<Event<MessageType>>(
         time, std::forward<MessageType>(message)));
+  }
+
+  void process_until(double time) {
+    while (events.size() && events.top()->time() <= time) {
+      for (auto& handler : handlers[events.top()->event_name()]) {
+        handler(events.top().get());
+      }
+      events.pop();
+    }
   }
 
   struct Compare {
@@ -164,6 +184,8 @@ struct EventQueue {
   std::priority_queue<std::unique_ptr<EventBase>,
                       std::vector<std::unique_ptr<EventBase>>, Compare>
       events;
+  std::map<EventName, std::vector<std::function<void(const EventBase*)>>>
+      handlers;
 };
 
 template <typename ComponentType, typename ComputationType>
@@ -255,7 +277,6 @@ struct DetectSphericalCollision : public ComputeBase<DetectSphericalCollision> {
                   EventQueue* events) {
     for (auto previous : others) {
       if (has_collision(previous, current)) {
-        std::cout << "Collision at " << current->movement->position << "\n";
         events->publish(time, Collision{previous, current});
       }
     }
@@ -357,6 +378,7 @@ struct Simulation {
     do_substep(physical, time, step, &events);
     do_substep(controls, time, step, &events);
     do_substep(movement, time, step, &events);
+    events.process_until(time);
   }
 };
 
@@ -378,7 +400,14 @@ int main() {
   std::get<Movement*>(obj)->position[Y] = 36.0;
   std::get<Movement*>(obj)->position[Z] = 63.0;
 
-  for (double time = 0.0, step = STEP_SIZE; time <= 5.0; time += step) {
+  bool quit = false;
+  simulation.events.subscribe<Collision>([&quit](const Collision& event) {
+    std::cout << "Collision at " << event.a->movement->position << "\n";
+    quit = true;
+  });
+
+  for (double time = 0.0, step = STEP_SIZE; time <= 5.0 && !quit;
+       time += step) {
     std::cout << "Ego " << std::get<Movement*>(ego)->position << " at " << time
               << "\n";
     simulation(time, step);
