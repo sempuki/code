@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <queue>
 #include <tuple>
 #include <valarray>
 #include <vector>
@@ -67,39 +68,67 @@ class Identity {
 struct ComponentName : public Name {
   ComponentName(Name name) : Name{name} {}
 };
+struct EventName : public Name {
+  EventName(Name name) : Name{name} {}
+};
 struct EntityName : public Name {
   EntityName(Name name) : Name{name} {}
 };
 
-struct EmbueEntityIdentity {
+struct PerObjectIdentity {
   Identity id_;
 };
 
-template <typename ComponentType>
-struct EmbueComponentIdentity {
+template <typename Type>
+struct PerTypeIdentity {
   static Identity id_;
 };
 
-template <typename ComponentType>
-Identity EmbueComponentIdentity<ComponentType>::id_;
+template <typename Type>
+Identity PerTypeIdentity<Type>::id_;
 
 class ComponentBase {
  public:
   virtual ComponentName component_name() const = 0;
 };
 
-template <typename ComponentType>
-class Component : public ComponentBase,
-                  public EmbueComponentIdentity<ComponentType> {
+class EventBase {
  public:
-  ComponentName component_name() const override {
-    return ComponentType::id_.name();
-  }
-
-  static ComponentName name() { return ComponentType::id_.name(); }
+  virtual double time() const = 0;
+  virtual EventName event_name() const = 0;
 };
 
-class Entity : public EmbueEntityIdentity {
+template <typename ComponentType>
+class Component : public ComponentBase, public PerTypeIdentity<ComponentType> {
+ public:
+  ComponentName component_name() const override { return Component::name(); }
+  static ComponentName name() {
+    return PerTypeIdentity<ComponentType>::id_.name();
+  }
+};
+
+template <typename MessageType>
+class Event : public EventBase, public PerTypeIdentity<MessageType> {
+ public:
+  template <typename... Args>
+  Event(double time, Args&&... args)
+      : time_{time}, message_{std::forward<Args>(args)...} {}
+
+  const MessageType& message() const { return message_; }
+  double time() const override { return time_; }
+  EventName event_name() const override { return Event::name(); }
+  static EventName name() { return PerTypeIdentity<MessageType>::id_.name(); }
+
+ private:
+  double time_ = 0.0;
+  MessageType message_;
+
+  friend bool operator<(const Event& a, const Event& b) {
+    return a.time_ < b.time_;
+  }
+};
+
+class Entity : public PerObjectIdentity {
  public:
   EntityName entity_name() const { return id_.name(); }
   void attach(ComponentName name, ComponentBase* component) {
@@ -118,6 +147,25 @@ class Entity : public EmbueEntityIdentity {
   std::map<Name, ComponentBase*> components_;
 };
 
+struct EventQueue {
+  template <typename MessageType>
+  void publish(double time, MessageType&& message) {
+    events.emplace(std::make_unique<Event<MessageType>>(
+        time, std::forward<MessageType>(message)));
+  }
+
+  struct Compare {
+    bool operator()(const std::unique_ptr<EventBase>& a,
+                    const std::unique_ptr<EventBase>& b) {
+      return a->time() < b->time();
+    }
+  };
+
+  std::priority_queue<std::unique_ptr<EventBase>,
+                      std::vector<std::unique_ptr<EventBase>>, Compare>
+      events;
+};
+
 template <typename ComponentType, typename ComputationType>
 struct System {
   System() : compute{ComputationType{}} {}
@@ -126,13 +174,13 @@ struct System {
   System(StatefulComputation&& compute)
       : compute{std::forward<StatefulComputation>(compute)} {}
 
-  void operator()(double time, double step) {
+  void operator()(double time, double step, EventQueue* events) {
     for (auto&& component : components) {
       compute.initialize();
     }
 
     for (auto&& component : components) {
-      compute(component.get(), time, step);
+      compute(component.get(), time, step, events);
     }
 
     for (auto&& component : components) {
@@ -147,6 +195,14 @@ struct System {
 
   std::vector<std::unique_ptr<ComponentType>> components;
   ComputationType compute;
+};
+
+template <typename ComponentType>
+struct ComputeBase {
+  void initialize() {}
+  void finalize() {}
+  void operator()(ComponentType* component, double time, double step,
+                  EventQueue* events) {}
 };
 
 struct Environment;
@@ -177,11 +233,9 @@ struct Movement final : public Component<Movement> {
   Controls* controls = nullptr;
 };
 
-template <typename ComponentType>
-struct ComputeBase {
-  void initialize() {}
-  void finalize() {}
-  void operator()(ComponentType* component, double time, double step) {}
+struct Collision final {
+  Physical* a = nullptr;
+  Physical* b = nullptr;
 };
 
 auto compute_acceleration(Movement* m) {
@@ -189,7 +243,7 @@ auto compute_acceleration(Movement* m) {
                                       (m->environment->wind - m->velocity));
 }
 
-bool is_nearby(Physical* a, Physical* b) {
+bool has_collision(Physical* a, Physical* b) {
   auto distance =
       static_cast<Vec3>(a->movement->position - b->movement->position).norm();
   return distance <= (a->radius + b->radius);
@@ -197,10 +251,12 @@ bool is_nearby(Physical* a, Physical* b) {
 
 struct DetectSphericalCollision : public ComputeBase<DetectSphericalCollision> {
   void initialize() { others.clear(); }
-  void operator()(Physical* current, double time, double step) {
+  void operator()(Physical* current, double time, double step,
+                  EventQueue* events) {
     for (auto previous : others) {
-      if (is_nearby(previous, current)) {
+      if (has_collision(previous, current)) {
         std::cout << "Collision at " << current->movement->position << "\n";
+        events->publish(time, Collision{previous, current});
       }
     }
     others.push_back(current);
@@ -209,7 +265,8 @@ struct DetectSphericalCollision : public ComputeBase<DetectSphericalCollision> {
 };
 
 struct ForwardEulerIntegration : public ComputeBase<ForwardEulerIntegration> {
-  void operator()(Movement* movement, double time, double step) {
+  void operator()(Movement* movement, double time, double step,
+                  EventQueue* events) {
     auto prev = *movement;
     auto& next = *movement;
     auto acceleration = compute_acceleration(movement);
@@ -220,7 +277,8 @@ struct ForwardEulerIntegration : public ComputeBase<ForwardEulerIntegration> {
 };
 
 struct TrapezoidIntegration : public ComputeBase<TrapezoidIntegration> {
-  void operator()(Movement* movement, double time, double step) {
+  void operator()(Movement* movement, double time, double step,
+                  EventQueue* events) {
     auto prev = *movement;
     auto& next = *movement;
     auto acceleration = compute_acceleration(movement);
@@ -232,7 +290,8 @@ struct TrapezoidIntegration : public ComputeBase<TrapezoidIntegration> {
 };
 
 struct RungeKutta2Integration : public ComputeBase<RungeKutta2Integration> {
-  void operator()(Movement* movement, double time, double step) {
+  void operator()(Movement* movement, double time, double step,
+                  EventQueue* events) {
     auto prev = *movement;
     auto& next = *movement;
     auto acceleration = compute_acceleration(movement);
@@ -261,6 +320,7 @@ struct Simulation {
   System<Physical, DetectSphericalCollision> physical;
   System<Controls, ComputeBase<Controls>> controls;
   System<Movement, ComputeMovement> movement;
+  EventQueue events;
   std::vector<Actor> actors;
 
   std::tuple<Environment*, Physical*, Controls*, Movement*> include(
@@ -284,19 +344,19 @@ struct Simulation {
     return std::make_tuple(environment, physical, controls, movement);
   }
 
-  template <typename System>
-  void do_substep(System&& system, double time, double step) {
-    for (double substep = step * SUB_STEP_FACTOR, start = time;
-         time < start + step; time += substep) {
-      system(time, substep);
-    }
-  }
-
   void operator()(double time, double step) {
-    do_substep(environment, time, step);
-    do_substep(physical, time, step);
-    do_substep(controls, time, step);
-    do_substep(movement, time, step);
+    static auto do_substep = [](auto& system, double time, double step,
+                                EventQueue* events) {
+      for (double substep = step * SUB_STEP_FACTOR, start = time;
+           time < start + step; time += substep) {
+        system(time, substep, events);
+      }
+    };
+
+    do_substep(environment, time, step, &events);
+    do_substep(physical, time, step, &events);
+    do_substep(controls, time, step, &events);
+    do_substep(movement, time, step, &events);
   }
 };
 
