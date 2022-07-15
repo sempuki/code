@@ -1,6 +1,6 @@
 " Base .vimrc -- Ryan McDougall
 
-colorscheme slate
+colorscheme slatemine
 set termguicolors " Always use a 265 color terminal.
 
 " Set up vundle
@@ -192,7 +192,7 @@ endfun
 " Syntastic
 let g:syntastic_python_checkers = ['python']
 let g:syntastic_cpp_checkers = ['clang_tidy']
-let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++14'
+let g:syntastic_cpp_clang_tidy_args = '-extra-arg=--std=c++20'
 let g:syntastic_always_populate_loc_list = 1
 let g:syntastic_auto_loc_list = 2 " close location-list when empty
 
@@ -215,6 +215,8 @@ autocmd BufEnter * call ConfigureBufferForFileType()
 fun! ConfigureBufferForFileType()
   if (&filetype == 'cpp' || &filetype == 'c')
     call ClangFormatPerBufferSetup()
+    " Include common paths
+    set path=.,/usr/include/,/usr/include/c++/12,src,include
     " Patch categorization error in vim-cpp-modern
     syntax keyword Constant nullptr
     " Add work-specific types
