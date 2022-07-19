@@ -1,0 +1,2 @@
+build --jobs=24
+test --test_output=all

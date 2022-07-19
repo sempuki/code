@@ -124,6 +124,9 @@ nnoremap <C-j> O<Esc>j
 " Toggle .{c|cpp}/.{h|hpp}
 nnoremap <silent> <C-a> :FSHere<CR>
 
+" Add common source paths
+set path=.,src,include,/usr/include/,/usr/include/c++/src
+
 " Jump to BUILD
 nnoremap <silent> <Leader><Leader>b :edit %:h/BUILD<CR>
 
@@ -215,8 +218,6 @@ autocmd BufEnter * call ConfigureBufferForFileType()
 fun! ConfigureBufferForFileType()
   if (&filetype == 'cpp' || &filetype == 'c')
     call ClangFormatPerBufferSetup()
-    " Include common paths
-    set path=.,/usr/include/,/usr/include/c++/12,src,include
     " Patch categorization error in vim-cpp-modern
     syntax keyword Constant nullptr
     " Add work-specific types
