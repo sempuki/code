@@ -52,4 +52,5 @@ int main() {
   CircularBuffer<std::unique_ptr<int>, 3> u;
   auto p = std::make_unique<int>(5);
   u.push(std::move(p));
+  p = u.pop();
 }
