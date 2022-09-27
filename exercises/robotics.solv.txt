@@ -28,8 +28,6 @@
 #include <vector>
 using namespace std;
 
-bool exit = false;
-
 struct Obstacle {
     std::string type;
 };
@@ -93,13 +91,14 @@ struct Control final : public Component {
         in.pop_back();
 
         if (trajectory.action == "Stop") {
-            exit = true;
+            *exit = true;
         }
 
         std::cout << "Driving: " << trajectory.action << "\n";
     }
 
     std::vector<Trajectory> in;
+    bool *exit = nullptr;
 };
 
 template <typename Components>
@@ -110,6 +109,7 @@ void run(Components&& components) {
 }
 
 int main(int argc, char** argv) {
+    bool exit = false;
     Perception perception;
     Planning planning;
     Control control;
@@ -124,8 +124,9 @@ int main(int argc, char** argv) {
         control.in.push_back(std::move(trajectory));
     };
 
-    std::vector<Component*> components{&control, &planning, &perception};
+    control.exit = &exit;
 
+    std::vector<Component*> components{&control, &planning, &perception};
     while (!exit) {
         run(components);
     }

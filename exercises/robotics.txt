@@ -26,8 +26,6 @@
 #include <iostream>
 using namespace std;
 
-bool exit = false;
-
 struct Obstacle {
     std::string type;
 };
@@ -72,6 +70,7 @@ void run(Components&& components) {
 }
 
 int main(int argc, char** argv) {
+    bool exit = false;
     Perception perception;
     Planning planning;
     Control control;

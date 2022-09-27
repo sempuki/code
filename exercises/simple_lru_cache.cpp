@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -13,7 +12,7 @@ template <typename Key, typename Value, size_t Capacity>
 class FlatLruCache final {
  public:
   Value& operator[](const Key& key) {
-    auto [index, found] = try_find(key);
+    auto [index, found] = try_find_index(key);
     if (!found) {
       index =
         std::distance(use_count_.begin(), std::min_element(use_count_.begin(), use_count_.end()));
@@ -25,12 +24,12 @@ class FlatLruCache final {
   }
 
   bool has(const Key& key) {
-    const auto [_, found] = try_find(key);
+    const auto [_, found] = try_find_index(key);
     return found;
   }
 
   bool invalidate(const Key& key) {
-    const auto [index, found] = try_find(key);
+    const auto [index, found] = try_find_index(key);
     if (found) {
       use_count_[index] = 0;
       values_[index] = {};
@@ -39,7 +38,7 @@ class FlatLruCache final {
   }
 
  private:
-  std::pair<size_t, bool> try_find(const Key& key) {
+  std::pair<size_t, bool> try_find_index(const Key& key) {
     const auto iter = std::find(keys_.begin(), keys_.end(), key);
     if (iter != keys_.end()) {
       const auto index = std::distance(keys_.begin(), iter);
