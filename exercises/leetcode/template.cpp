@@ -1,4 +1,4 @@
-#include <iostream>
+#include "dump.hpp"
 
 using namespace std;
 
@@ -11,6 +11,6 @@ class Solution {
 
 int main() {
   Solution s{};
-  cout << s.solve() << "\n";
+  dump(s.solve());
   return 0;
 }

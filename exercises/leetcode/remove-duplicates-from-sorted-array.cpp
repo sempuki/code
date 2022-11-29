@@ -1,6 +1,6 @@
-#include <iostream>
-#include <iterator>
 #include <vector>
+
+#include "dump.hpp"
 
 using namespace std;
 
@@ -24,8 +24,8 @@ int main() {
   auto ex2 = vector<int>{0, 0, 1, 1, 1, 2, 2, 3, 3, 4};
 
   Solution s{};
-  cout << s.removeDuplicates(ex1) << "\n";
-  cout << s.removeDuplicates(ex2) << "\n";
+  dump(s.removeDuplicates(ex1));
+  dump(s.removeDuplicates(ex2));
 
   return 0;
 }
