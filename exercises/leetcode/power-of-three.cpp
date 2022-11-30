@@ -14,7 +14,7 @@ class Solution {
       pow3s[i] = pow3s[i - 1] * 3;
     }
   }
-  bool isPowerOfThree(int n) {  //
+  bool isPowerOfThree(int n) {
     if (n > 0) {
       return find(pow3s.begin(), pow3s.end(), abs(n)) != pow3s.end();
     }
