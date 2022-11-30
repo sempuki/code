@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <utility>
+#include <map>
 #include <vector>
 
 #include "dump.hpp"
@@ -11,25 +11,36 @@ class Solution {
   vector<int> twoSum(vector<int>& nums, int target) {
     vector<int> result;
     if (nums.size() > 1) {
-      vector<pair<int, size_t>> value_to_index;
+      multimap<int, size_t> value_to_index;
       for (size_t i = 0; auto e : nums) {
-        value_to_index.emplace_back(e, i++);
+        value_to_index.emplace(e, i++);
       }
 
-      sort(value_to_index.begin(), value_to_index.end());
       auto lower = value_to_index.begin();
       auto upper = value_to_index.end();
-
-      for (; lower != upper; lower++) {
+      for (; lower != upper && result.empty(); lower++) {
         auto remain = target - lower->first;
         auto index = lower->second;
-        auto found = find_if(lower, upper, [remain, index](auto&& p) {
-          return p.first == remain && p.second != index;
-        });
-        if (found != value_to_index.end()) {
-          result.push_back(lower->second);
-          result.push_back(found->second);
-          break;
+        auto found = value_to_index.equal_range(remain);
+        if (found.first != value_to_index.end()) {
+          switch (distance(found.first, found.second)) {
+            case 0u:  // no matches
+              break;
+            case 1u:  // one match
+              if (found.first->second != index) {
+                result.push_back(found.first->second);
+                result.push_back(lower->second);
+              }
+              break;
+            default:  // N matches
+              auto other =
+                find_if(found.first, found.second, [index](auto&& p) { return p.second != index; });
+              if (other != found.second) {
+                result.push_back(other->second);
+                result.push_back(lower->second);
+              }
+              break;
+          }
         }
       }
     }
@@ -43,6 +54,7 @@ int main() {
   auto ex3 = vector<int>{3, 3};
   auto ex4 = vector<int>{-1, -2, -3, -4, -5};
   auto ex5 = vector<int>{-10, -1, -18, -19};
+  auto ex6 = vector<int>{2, 4, 11, 3};
 
   Solution s{};
   dump(s.twoSum(ex1, 9));
@@ -50,6 +62,7 @@ int main() {
   dump(s.twoSum(ex3, 6));
   dump(s.twoSum(ex4, -8));
   dump(s.twoSum(ex5, -19));
+  dump(s.twoSum(ex6, 6));
 
   return 0;
 }
