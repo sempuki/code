@@ -1,5 +1,5 @@
-#include <map>
 #include <stack>
+#include <unordered_map>
 
 #include "dump.hpp"
 
@@ -15,38 +15,45 @@ class Solution {
  public:
   bool isValidBST(TreeNode *root) {
     if (root) {
-      stack<TreeNode *> next;
-      next.push(root);
+      struct Traversal {
+        TreeNode *node = nullptr;
+        bool expanded = false;
+      };
 
-      map<TreeNode *, TreeNode *> parents;
+      stack<Traversal> next;
+      next.push({root});
+
+      unordered_map<TreeNode *, TreeNode *> parents;
       parents[root] = nullptr;
 
       while (next.size()) {
-        auto curr = next.top();
+        auto [node, expanded] = next.top();
         next.pop();
 
-        if (curr->left) {
-          next.push(curr->left);
-          parents[curr->left] = curr;
-        }
-
-        if (curr->right) {
-          next.push(curr->right);
-          parents[curr->right] = curr;
-        }
-      }
-
-      for (auto &&node_to_parent : parents) {
-        auto *curr = node_to_parent.first;
-        auto *parent = node_to_parent.second;
-        auto value = curr->val;
-        while (curr && parent) {
-          if ((curr == parent->left && value >= parent->val) ||
-              (curr == parent->right && value <= parent->val)) {
-            return false;
+        if (expanded) {
+          auto *curr = node;
+          auto *parent = parents[node];
+          while (curr && parent) {
+            if ((curr == parent->left && node->val >= parent->val) ||
+                (curr == parent->right && node->val <= parent->val)) {
+              return false;
+            }
+            curr = parent;
+            parent = parents[curr];
           }
-          curr = parent;
-          parent = parents[curr];
+
+          parents.erase(node);
+        } else {
+          next.push({node, true});
+
+          if (node->right) {
+            next.push({node->right});
+            parents[node->right] = node;
+          }
+          if (node->left) {
+            next.push({node->left});
+            parents[node->left] = node;
+          }
         }
       }
     }
