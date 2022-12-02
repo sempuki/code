@@ -1,3 +1,4 @@
+#include <map>
 #include <stack>
 
 #include "dump.hpp"
@@ -8,35 +9,49 @@ struct TreeNode {
   int val = 0;
   TreeNode *left = nullptr;
   TreeNode *right = nullptr;
-  TreeNode(int x) : val(x) {}
-  TreeNode(int x, TreeNode *l, TreeNode *r) : val(x), left(l), right(r) {}
 };
 
 class Solution {
  public:
   bool isValidBST(TreeNode *root) {
-    bool valid = true;
     if (root) {
       stack<TreeNode *> next;
       next.push(root);
 
-      while (valid && next.size()) {
+      map<TreeNode *, TreeNode *> parents;
+      parents[root] = nullptr;
+
+      while (next.size()) {
         auto curr = next.top();
         next.pop();
 
-        if (valid && curr->left) {
-          valid = curr->left->val < curr->val;
+        if (curr->left) {
           next.push(curr->left);
+          parents[curr->left] = curr;
         }
 
-        if (valid && curr->right) {
-          valid = curr->right->val > curr->val;
+        if (curr->right) {
           next.push(curr->right);
+          parents[curr->right] = curr;
+        }
+      }
+
+      for (auto &&node_to_parent : parents) {
+        auto *curr = node_to_parent.first;
+        auto *parent = node_to_parent.second;
+        auto value = curr->val;
+        while (curr && parent) {
+          if ((curr == parent->left && value >= parent->val) ||
+              (curr == parent->right && value <= parent->val)) {
+            return false;
+          }
+          curr = parent;
+          parent = parents[curr];
         }
       }
     }
 
-    return valid;
+    return true;
   }
 };
 
