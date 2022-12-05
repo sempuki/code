@@ -1,6 +1,6 @@
 all: install-scripts configure
 
-configure: bash-config tmux-config git-config vim-config neovim-config ctags-config clang-format-config ack-config input-config
+configure: bash-config tmux-config git-config vim-config neovim-config ctags-config clang-format-config clang-tidty-config bazelrc-config ack-config input-config
 
 install-scripts:
 	-mkdir ~/Scripts && cp ../scripts/* ~/Scripts
@@ -28,6 +28,12 @@ neovim-config:
 
 clang-format-config:
 	cp clang-format ~/.clang-format
+
+clang-tidy-config:
+	cp clang-tidy ~/.clang-tidy
+
+bazelrc-config:
+	cp bazelrc  ~/.bazelrc
 
 ctags-config:
 	mkdir -p ~/.ctags.d
