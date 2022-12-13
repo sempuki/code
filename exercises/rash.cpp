@@ -2,14 +2,12 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <array>
-#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
-#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -23,41 +21,54 @@ bool present_prompt(std::ostream& output, const std::string& prompt) {
 }
 
 bool extract_buffered_input(std::istream& input, std::stringstream* stream_buffer) {
+  stream_buffer->clear();
+
   std::string buffer;
   if (std::getline(input, buffer)) {
-    stream_buffer->clear();
     stream_buffer->str(std::move(buffer));
   }
+
   return input && stream_buffer->str().size() <= max_input_chars;
+}
+
+char next_quote(std::istream& input) {
+  char delimiter = ' ';
+  switch (input.peek()) {
+    case '\"':
+    case '\'': input.get(delimiter); break;
+    default: break;
+  }
+  return delimiter;
+}
+
+bool is_balanced_quote(std::istream& input, char delimiter) {
+  bool balanced = true;
+  switch (delimiter) {
+    case '\"':
+    case '\'': {
+      auto position = input.tellg();
+      input.ignore(std::numeric_limits<std::streamsize>::max(), delimiter);
+      balanced = !input.eof();
+      input.seekg(position);
+    } break;
+    default: break;
+  }
+  return balanced;
 }
 
 bool extract_arguments(std::istream& input, std::vector<std::string>* args) {
   args->resize(0);
+
   std::string buffer;
-  while (std::getline(input, buffer, ' ')) {
+  for (char delim = next_quote(input);
+       is_balanced_quote(input, delim) && std::getline(input, buffer, delim);
+       delim = next_quote(input)) {
     if (buffer.size()) {
       args->push_back(std::move(buffer));
     }
   }
-  return input.eof() && args->size() && args->size() <= max_input_args;
-}
 
-bool extract_path(std::vector<std::string>* paths) {
-  const char* env_path = std::getenv("PATH");
-  const size_t env_path_size = std::strlen(env_path);
-
-  std::stringstream input;
-  input.write(env_path, static_cast<std::streamsize>(env_path_size));
-
-  paths->resize(0);
-  std::string buffer;
-  while (std::getline(input, buffer, ':')) {
-    if (buffer.size()) {
-      paths->push_back(std::move(buffer));
-    }
-  }
-
-  return input.eof();
+  return input.eof() && args->size() <= max_input_args;
 }
 
 bool do_builtin_exit(const std::vector<std::string>& args, bool* quit) {
@@ -68,42 +79,42 @@ bool do_builtin_exit(const std::vector<std::string>& args, bool* quit) {
   return false;
 }
 
-bool do_builtin_cd(const std::vector<std::string>& args, std::string* cwd) {
+bool do_builtin_cd(const std::vector<std::string>& args) {
   if (args.size() == 2) {
-    *cwd = args[1];
-    return true;
+    return ::chdir(args[1].c_str()) != -1;
   }
   return false;
 }
 
-bool do_builtin_pwd(const std::vector<std::string>& args,
-                    const std::string& cwd,
-                    std::ostream& out) {
+bool do_builtin_pwd(const std::vector<std::string>& args, std::ostream& out) {
   if (args.size() == 1) {
-    out << cwd << "\n";
-    return true;
+    const char* cwd = ::get_current_dir_name();
+    if (cwd != nullptr) {
+      out << cwd << "\n";
+      std::free((void*)cwd);
+      return true;
+    }
   }
   return false;
 }
 
-bool do_exec(const std::vector<std::string>& args, int* status) {
+bool do_external_exec(const std::vector<std::string>& args, int* exit_status) {
   if (args.size() > 0) {
     switch (::fork()) {
       case -1:  // Error
-        return false;
         break;
       case 0:  // is child.
       {
         auto copy = args;  // exec*() wants potentially mutable chars.
-        auto argv = std::vector<char*>(copy.size());
+        auto argv = std::vector<char*>(copy.size() + 1, nullptr);  // Trailing nullptr is required.
         std::transform(copy.begin(), copy.end(), argv.data(), [](auto& s) { return s.data(); });
         if (::execvp(argv[0], argv.data()) == -1) {
-          std::cerr << "exec fail: " << std::strerror(errno) << std::endl;
+          std::cerr << "exec failed: " << std::strerror(errno) << std::endl;
           std::exit(errno);
         }
       } break;
       default:  // is parent.
-        return ::wait(status) != -1;
+        return ::wait(exit_status) != -1;
     }
   }
   return false;
@@ -113,8 +124,6 @@ bool do_exec(const std::vector<std::string>& args, int* status) {
 
 int main() {
   bool quit = false;
-  std::string curr_working_dir;
-  std::vector<std::string> paths;
   std::vector<std::string> arguments;
   std::stringstream buffer;
 
@@ -125,32 +134,35 @@ int main() {
        return do_builtin_exit(args, &quit);
      }},
     {"cd",
-     [&curr_working_dir](auto&& args) {
-       return do_builtin_cd(args, &curr_working_dir);
+     [](auto&& args) {
+       return do_builtin_cd(args);
      }},
     {"pwd",
-     [&curr_working_dir](auto&& args) {
-       return do_builtin_pwd(args, curr_working_dir, std::cout);
+     [](auto&& args) {
+       return do_builtin_pwd(args, std::cerr);
      }},
   };
 
-  if (extract_path(&paths)) {
-    while (!quit &&                              //
-           present_prompt(std::cout, prompt) &&  //
-           extract_buffered_input(std::cin, &buffer)) {
-      if (extract_arguments(buffer, &arguments)) {
+  while (!quit &&                              //
+         present_prompt(std::cerr, prompt) &&  //
+         extract_buffered_input(std::cin, &buffer)) {
+    if (extract_arguments(buffer, &arguments)) {
+      if (arguments.size()) {
         auto&& command = arguments.front();
         if (builtins.count(command)) {
           if (!builtins[command](arguments)) {
             std::cerr << "error: builtin " << command << " failed.";
           }
         } else {
-          int status = -1;
-          if (!do_exec(arguments, &status)) {
-            std::cerr << "error: " << command << " failed.";
+          int exit_status = -1;
+          if (!do_external_exec(arguments, &exit_status) || exit_status != EXIT_SUCCESS) {
+            std::cerr << "error: " << command << " failed with status " << WEXITSTATUS(exit_status)
+                      << std::endl;
           }
         }
       }
+    } else {
+      std::cerr << "error: failed to extract arguments." << std::endl;
     }
   }
 
