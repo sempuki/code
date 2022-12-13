@@ -1,3 +1,7 @@
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdlib>
@@ -81,6 +85,30 @@ bool do_builtin_pwd(const std::vector<std::string>& args,
   }
   return false;
 }
+
+bool do_exec(const std::vector<std::string>& args, int* status) {
+  if (args.size() > 0) {
+    switch (::fork()) {
+      case -1:  // Error
+        return false;
+        break;
+      case 0:  // is child.
+      {
+        auto copy = args;  // exec*() wants potentially mutable chars.
+        auto argv = std::vector<char*>(copy.size());
+        std::transform(copy.begin(), copy.end(), argv.data(), [](auto& s) { return s.data(); });
+        if (::execvp(argv[0], argv.data()) == -1) {
+          std::cerr << "exec fail: " << std::strerror(errno) << std::endl;
+          std::exit(errno);
+        }
+      } break;
+      default:  // is parent.
+        return ::wait(status) != -1;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -114,9 +142,13 @@ int main() {
         auto&& command = arguments.front();
         if (builtins.count(command)) {
           if (!builtins[command](arguments)) {
-            std::cerr << "error: " << command << " failed.";
+            std::cerr << "error: builtin " << command << " failed.";
           }
         } else {
+          int status = -1;
+          if (!do_exec(arguments, &status)) {
+            std::cerr << "error: " << command << " failed.";
+          }
         }
       }
     }
