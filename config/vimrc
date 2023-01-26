@@ -284,8 +284,10 @@ nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --field
       \ -f source.tags /usr/src<CR>
 set tags+=./source.tags,source.tags
 
-nnoremap <silent> <Leader>Gg :!find .
+" Find is a significant optimization when using pygments parser
+nnoremap <silent> <Leader>Gg+ :!find .
       \ \(
+      \ -name '*.py' -or
       \ -name '*.cpp' -or
       \ -name '*.cxx' -or
       \ -name '*.cc' -or
@@ -296,17 +298,9 @@ nnoremap <silent> <Leader>Gg :!find .
       \ -name '*.h' -or
       \ -name '*.ipp' -or
       \ -name '*.tpp' \)
-      \ -not -path '*/.*'
-      \ -not -path '*/bin/*'
-      \ -not -path '*/build/*'
-      \ -not -path '*/lib/*'
-      \ -not -path '*/log/*'
-      \ -not -path '*/html/*'
-      \ -not -path '*/bazel-*'
-      \ -not -path '*/experimental/*'
-      \ -not -path '*/ThirdParty/*'
-      \ -not -path '*/node_modules/*' \|
-      \ env GTAGSFORCECPP=1 gtags -f-
+      \ -not -path '*/bazel-*' \|
+      \ env GTAGSFORCECPP=1 
+      \ gtags -f-
       \<CR>
 
 " C++ OmniCppComplete
