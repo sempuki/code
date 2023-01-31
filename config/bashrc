@@ -18,7 +18,7 @@ export HISTCONTROL=ignoreboth
 export HISTFILESIZE=10000
 export HISTSIZE=10000
 
-export VIM_COMMAND='vim'
+export VIM_COMMAND='nvim'
 export DIFF_COMMAND='git diff --'
 export FIND_COMMAND='find'
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
@@ -68,6 +68,9 @@ function cl() {
 # VIM integration
 export EDITOR=${VIM_COMMAND}
 set -o vi 
+
+# Qt Applications (install and run qt5ct to set themes)
+export QT_QPA_PLATFORMTHEME=qt5ct
 
 # Git integration
 if [ -d /usr/share/git-core/contrib/completion ]; then
