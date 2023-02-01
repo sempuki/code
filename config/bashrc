@@ -69,8 +69,8 @@ function cl() {
 export EDITOR=${VIM_COMMAND}
 set -o vi 
 
-# Qt Applications (install and run qt5ct to set themes)
-export QT_QPA_PLATFORMTHEME=qt5ct
+# Qt Applications
+export QT_QPA_PLATFORMTHEME=qt5ct # install and run qt5ct to set themes
 
 # Git integration
 if [ -d /usr/share/git-core/contrib/completion ]; then

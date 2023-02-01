@@ -1,6 +1,6 @@
 [user]
     name = Ryan McDougall
-    email = sempuki1@gmail.com
+	email = ryanm@applied.co
 [alias]
     bl = blame
     br = branch
@@ -10,6 +10,7 @@
     co = checkout
     df = diff
     fe = fetch
+    fm = fetch origin main
     lg = log --color --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset'
     lgg = log --color --graph --abbrev-commit --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%C(bold blue)<%an>%Creset'
     pl = pull
@@ -60,3 +61,10 @@
     template=~/.gitmessage
 [rebase]
     instructionFormat = %s [%an]
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[blame]
+	ignoreRevsFile = .git-blame-ignore-revs
