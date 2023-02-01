@@ -285,7 +285,7 @@ nnoremap <silent> <Leader>Gs :!ctags -R --languages=C,C++ --c++-kinds=+p --field
 set tags+=./source.tags,source.tags
 
 " Find is a significant optimization when using pygments parser
-nnoremap <silent> <Leader>Gg+ :!find .
+nnoremap <silent> <Leader>Gg :!find .
       \ \(
       \ -name '*.py' -or
       \ -name '*.cpp' -or
