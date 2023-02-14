@@ -10,8 +10,9 @@ call vundle#begin()
 Plugin 'VundleVim/Vundle.vim'
 Plugin 'FSwitch'
 Plugin 'gtags.vim'
-Plugin 'fugitive.vim'
+Plugin 'matchit.zip'
 Plugin 'OmniCppComplete'
+Plugin 'tpope/vim-fugitive'
 Plugin 'bfrg/vim-cpp-modern'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
@@ -22,7 +23,6 @@ Plugin 'haya14busa/incsearch-easymotion.vim'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'skywind3000/asyncrun.vim'
 Plugin 'mileszs/ack.vim'
-Plugin 'matchit.zip'
 call vundle#end()
 " :PluginList           - list configured plugins
 " :PluginInstall(!)     - install (update) plugins
