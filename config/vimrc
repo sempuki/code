@@ -13,6 +13,7 @@ Plugin 'gtags.vim'
 Plugin 'matchit.zip'
 Plugin 'OmniCppComplete'
 Plugin 'tpope/vim-fugitive'
+Plugin 'tpope/vim-rhubarb'
 Plugin 'bfrg/vim-cpp-modern'
 Plugin 'rhysd/vim-clang-format'
 Plugin 'vim-syntastic/syntastic'
@@ -107,7 +108,7 @@ nnoremap ]t :tabnext<CR>
 nnoremap [t :tabprevious<CR>
 
 " Quickfix window
-nnoremap <Leader>q :copen<CR>
+nnoremap <Leader>q :botright copen<CR>
 nnoremap <Leader>Q :cclose<CR>
 nnoremap ]q :cnext<CR>
 nnoremap [q :cprevious<CR>
