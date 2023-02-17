@@ -347,6 +347,10 @@ if has('nvim')
   tnoremap <C-PageUp> <C-\><C-n>:tabnext<CR>
   tnoremap <C-PageDown> <C-\><C-n>:tabprev<CR>
 
+  " Ergonomic scrolling
+  tnoremap <PageUp> <C-\><C-n><PageUp>
+  tnoremap <PageDown> <C-\><C-n><PageDown>
+
   " Always start on insert for terminal
   ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
 endif
