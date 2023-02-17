@@ -103,7 +103,6 @@ nnoremap ]b :bnext<CR>
 nnoremap [b :bprevious<CR>
 
 " Tab management
-nnoremap <C-t><C-t> :tabnext<CR>
 nnoremap ]t :tabnext<CR>
 nnoremap [t :tabprevious<CR>
 
@@ -204,6 +203,8 @@ let g:syntastic_auto_loc_list = 2 " close location-list when empty
 let g:fsnonewfiles = 1
 augroup FSwitchExtensions
   autocmd!
+  " autocmd BufEnter *.h let b:fswitchdst = 'cc'
+  " autocmd BufEnter *.h let b:fswitchlocs = 'reg:/include/src/,reg:/include.*/src/,../src'
   autocmd BufEnter *.hh let b:fswitchdst = 'cc'
   autocmd BufEnter *.hh let b:fswitchlocs = 'reg:/include/src/,reg:/include.*/src/,../src'
   autocmd BufEnter *.cc let b:fswitchdst = 'hh,h'
@@ -221,8 +222,8 @@ fun! ConfigureBufferForFileType()
     call ClangFormatPerBufferSetup()
     " Patch categorization error in vim-cpp-modern
     syntax keyword Constant nullptr
-    " Add work-specific types
-    syntax keyword Type Status Result StatusResult Out InOut PristineOut Optional Variant
+    " Add project-specific types
+    syntax keyword Type Status StatusOr
     " Add namespace highlighting
     syntax match Special '\<\w\+::'he=e-2
   elseif (&filetype == 'proto')
@@ -333,15 +334,9 @@ if has('nvim')
   set scrollback=100000
 
   " Neovim terminal bindings
-  nnoremap <C-\>t :set nonumber <bar> :term<CR>
-  nnoremap <C-\>s :set nonumber <bar> :split +:term<CR>
-  nnoremap <C-\>v :set nonumber <bar> :vsplit +:term<CR>
-  tnoremap <Esc><Esc> <C-\><C-n>
-
-  " Ergonomic versions
-  nnoremap <C-\><C-t> :set nonumber <bar> :term<CR>
-  nnoremap <C-\><C-s> :set nonumber <bar> :split +:term<CR>
-  nnoremap <C-\><C-v> :set nonumber <bar> :vsplit +:term<CR>
+  nnoremap <C-\><C-t> <C-\><C-n>:set nonumber <bar> :term<CR>
+  nnoremap <C-\><C-s> <C-\><C-n>:set nonumber <bar> :split +:term<CR>
+  nnoremap <C-\><C-v> <C-\><C-n>:set nonumber <bar> :vsplit +:term<CR>
   tnoremap <C-e><C-e> <C-\><C-n>
 
   " Fast window switching
@@ -349,7 +344,8 @@ if has('nvim')
   tnoremap <C-p> <C-\><C-n><C-w>Wi
  
   " Fast tab switching
-  tnoremap <C-t> <C-\><C-n>:tabnext<CR>
+  tnoremap <C-PageUp> <C-\><C-n>:tabnext<CR>
+  tnoremap <C-PageDown> <C-\><C-n>:tabprev<CR>
 
   " Always start on insert for terminal
   ":au BufEnter * if &buftype == 'terminal' | :startinsert | endif
