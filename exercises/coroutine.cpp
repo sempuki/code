@@ -8,34 +8,57 @@
 //  https://devblogs.microsoft.com/oldnewthing/20210331-00/?p=105028
 
 #include <cassert>
-#include <coroutine>
+#include <csetjmp>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <map>
+#include <optional>
+#include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>
+
+template <typename T>
+using __deferred = std::optional<T>;
 
 struct __stack {
   void destroy(){
-    //...
+    // Demo does not support local variables.
   };
 };
 
 struct __state_base {
-  void* suspension_point = nullptr;
+  std::jmp_buf to_caller;
+  std::jmp_buf to_coroutine;
   __stack local_variables;
   virtual ~__state_base() = default;
 };
 
 template <typename Promise>
-struct __promised_state_base : public __state_base {
-  Promise promise;
+struct __state_with_promise : public __state_base {
+  __deferred<Promise> promise;
+  decltype(std::declval<Promise>().get_return_object())* return_object_ptr;
 };
 
-template <typename ReturnFuture, typename... Args>
-struct __state : public __promised_state_base<
-                   typename std::coroutine_traits<ReturnFuture, Args...>::promise_type> {
-  std::tuple<Args...> arguments;
+template <class, class...>
+struct coroutine_traits {};
+
+template <class R, class... Params>
+  requires requires { typename R::promise_type; }
+struct coroutine_traits<R, Params...> {
+  using promise_type = typename R::promise_type;
+};
+
+template <typename ReturnFuture, typename... Params>
+using __state_with_promise_type =
+  __state_with_promise<typename coroutine_traits<ReturnFuture, Params...>::promise_type>;
+
+template <typename ReturnFuture, typename... Params>
+struct __state : public __state_with_promise_type<ReturnFuture, Params...> {
+  template <typename... Args>
+  __state(Args&&... args) : arguments{std::forward<Args>(args)...} {}
+  std::tuple<Params...> arguments;
 };
 
 std::map<std::uintptr_t, __state_base*> __state_registry;
@@ -51,7 +74,7 @@ struct coroutine_handle<void> {
 // For GCC see __builtin_coro_{promise, done, resume, destroy}
 template <typename Promise>
 struct coroutine_handle {
-  __promised_state_base<Promise>* state = nullptr;
+  __state_with_promise<Promise>* state = nullptr;
   bool done = false;
 
   operator coroutine_handle<>() const { return coroutine_handle<>{state}; }
@@ -63,10 +86,10 @@ struct coroutine_handle {
   void* address() const { return state; }
   static coroutine_handle from_address(void* addr) { return coroutine_handle{addr}; }
 
-  Promise& promise() { return state->promise; }
+  Promise& promise() { return state->promise.value(); }
   static coroutine_handle from_promise(Promise& p) {
-    return coroutine_handle{dynamic_cast<__promised_state_base<Promise>>(
-      __state_registry[static_cast<std::uintptr_t>(&p)])};
+    return coroutine_handle{dynamic_cast<__state_with_promise<Promise>*>(
+      __state_registry[reinterpret_cast<std::uintptr_t>(&p)])};
   }
 };
 
@@ -77,33 +100,66 @@ struct std::hash<coroutine_handle<Promise>> {
   }
 };
 
-template <typename ReturnFuture, typename... Args>
-void __do_coroutine(void* body, Args&&... args) {
-  auto* state = new __state<ReturnFuture, Args...>{body, std::forward<Args>(args)...};
-  auto& arguments = state->arguments;
-  auto& promise = state->promise;
+struct suspend_never {
+  bool await_ready() const noexcept {
+    std::cout << "await ready: suspend never\n";
+    return true;
+  }
+  void await_suspend(coroutine_handle<>) const noexcept {
+    std::cout << "await suspend: suspend never\n";
+  }
+  void await_resume() const noexcept { std::cout << "await resume: suspend never\n"; }
+};
 
-  // See coroutine_handle::from_promise.
-  __state_registry[static_cast<std::uintptr_t>(&promise)] = state;
+struct suspend_always {
+  bool await_ready() const noexcept {
+    std::cout << "await ready: suspend always\n";
+    return false;
+  }
+  void await_suspend(coroutine_handle<>) const noexcept {
+    std::cout << "await suspend: suspend always\n";
+  }
+  void await_resume() const noexcept { std::cout << "await resume: suspend always\n"; }
+};
 
-  using Promise = decltype(state->promise);
-  if constexpr (std::is_constructible_v<Promise, Args...>) {
-    promise = Promise(arguments);
+template <typename ReturnFuture, typename... Params, typename... Args>
+void __do_coroutine(ReturnFuture (*body)(__state_with_promise_type<ReturnFuture, Params...>*,
+                                         Params...),
+                    __deferred<ReturnFuture>& return_object,
+                    Args&&... args) {
+  auto* state = new __state<ReturnFuture, Params...>{std::forward<Args>(args)...};
+
+  if constexpr (std::is_constructible_v<
+                  typename coroutine_traits<ReturnFuture, Args...>::promise_type,
+                  Args...>) {
+    std::apply([state](auto... args) { state->promise.emplace(args...); }, state->arguments);
   } else {
-    promise = Promise();
+    state->promise.emplace();
   }
 
-  auto return_object = promise.get_return_object();
+  auto& promise = state->promise.value();
+
+  // See coroutine_handle::from_promise.
+  __state_registry[reinterpret_cast<std::uintptr_t>(&promise)] = state;
+
+  return_object.emplace(promise.get_return_object());
+  state->return_object_ptr = &return_object.value();
+
+  const int status = setjmp(state->to_caller);
+  if (status == 1) {  // Return of control from coroutine.
+    return;
+  }
 
   try {
     // Lazy coroutines aways suspend, eager never suspend.
-    __co_await(state, promise.initial_suspend(), return_object);
-    std::coroutine_handle<Promise>::from_promise(promise).resume();
+    __co_await(state, promise.initial_suspend());
+    // coroutine_handle<Promise>::from_promise(promise).resume();
+    std::apply([body, state](auto... args) { body(state, args...); }, state->arguments);
   } catch (...) {
     promise.unhandled_exception();
   }
 
-  __co_await(state, promise.final_suspend(), return_object);
+  __co_await(state, promise.final_suspend());
   delete state;
 }
 
@@ -136,41 +192,43 @@ decltype(auto) get_awaiter(Awaitable&& awaitable) {
 // <resume-point>. The call to .resume() will return when the coroutine next hits a
 // <return-to-caller-or-resumer> point.
 
-template <typename Promise, typename Expression, typename ReturnFuture>
-decltype(auto) __co_await(__promised_state_base<Promise>* state,
-                          Expression&& expr,
-                          ReturnFuture& return_future) {
-  auto& promise = state->promise;
+template <typename Promise, typename Expression>
+decltype(auto) __co_await(__state_with_promise<Promise>* state, Expression&& expr) {
+  auto& promise = state->promise.value();
   auto&& awaitable = get_awaitable(promise, static_cast<Expression>(expr));
   auto&& awaiter = get_awaiter(static_cast<decltype(awaitable)>(awaitable));
 
   if (!awaiter.await_ready()) {
     using await_suspend_result_type =
-      decltype(awaiter.await_suspend(std::coroutine_handle<Promise>::from_promise(promise)));
+      decltype(awaiter.await_suspend(coroutine_handle<Promise>::from_promise(promise)));
 
     // <suspend-coroutine>
+    // Saving local variables is not supported...
 
     if constexpr (std::is_void_v<await_suspend_result_type>) {
-      awaiter.await_suspend(std::coroutine_handle<Promise>::from_promise(promise));
-      // <return-to-caller-or-resumer>(return_future)
+      awaiter.await_suspend(coroutine_handle<Promise>::from_promise(promise));
+      // <return-to-caller-or-resumer>
+      std::longjmp(state->to_caller, 1);  // Send status from coroutine.
     } else {
       static_assert(std::is_same_v<await_suspend_result_type, bool>,
                     "await_suspend() must return 'void' or 'bool'.");
 
-      if (awaiter.await_suspend(std::coroutine_handle<Promise>::from_promise(promise))) {
-        // <return-to-caller-or-resumer>(return_future)
+      if (awaiter.await_suspend(coroutine_handle<Promise>::from_promise(promise))) {
+        // <return-to-caller-or-resumer>
+        std::longjmp(state->to_caller, 1);  // Send status from coroutine.
       }
     }
 
     // <resume-point>
+    const int status = setjmp(state->to_coroutine);
   }
 
   return awaiter.await_resume();
 }
 
 template <typename Promise, typename... ReturnValues>
-void __co_return(__promised_state_base<Promise>* state, ReturnValues&&... values) {
-  auto& promise = state->promise;
+void __co_return(__state_with_promise<Promise>* state, ReturnValues&&... values) {
+  auto& promise = state->promise.value();
   if (sizeof...(ReturnValues)) {
     promise.return_value(std::forward<ReturnValues>(values)...);
   } else {
@@ -199,9 +257,6 @@ void __co_return(__promised_state_base<Promise>* state, ReturnValues&&... values
 
 // Goal: download N files async in parallel where the code reads sync/sequential.
 // Should co_await on a common init task
-
-#include <coroutine>
-#include <iostream>
 
 struct X {
   X() { std::cout << "X default constructed\n"; }
@@ -247,17 +302,17 @@ struct future_type {
     }
     ~promise_type() { std::cout << "promise destroyed\n"; }
 
-    std::suspend_never initial_suspend() {
-      std::cout << "initial suspend\n";
+    suspend_never initial_suspend() {
+      std::cout << "promise initial suspend\n";
       return {};
     }
-    std::suspend_never final_suspend() noexcept {
-      std::cout << "final suspend\n";
+    suspend_never final_suspend() noexcept {
+      std::cout << "promise final suspend\n";
       return {};
     }
-    void unhandled_exception() { std::cout << "unhandled exception\n"; }
+    void unhandled_exception() { std::cout << "promise unhandled exception\n"; }
     future_type get_return_object() {
-      std::cout << "get return object\n";
+      std::cout << "promise get return object\n";
       return {this};
     }
     void return_value(future_type v) {}
@@ -287,7 +342,7 @@ struct awaitable_type {
     std::cout << "await ready\n";
     return false;
   }
-  bool await_suspend(auto handle) {
+  bool await_suspend(coroutine_handle<> handle) {
     std::cout << "await suspend\n";
     return false;
   }
@@ -301,20 +356,24 @@ struct awaitable_type {
   }
 };
 
-future_type f() {
-  std::cout << "start f\n";
+future_type f(__state_with_promise_type<future_type, int>* state, int v) {
+  std::cout << "start f with " << v << "\n";
   awaitable_type a;
   std::cout << "await a\n";
-  (co_await a).foo();
+  auto x = __co_await(state, a);
+  x.foo();
   std::cout << "end f\n";
   // co_return future_type{};
+  return {};
 }
 
-int main() {
+int main(int argc, char** argv) {
+  std::cout << "using non-std coroutines\n";
   std::cout << "start main\n";
-  auto future = f();
+  __deferred<future_type> future;
+  __do_coroutine(f, future, 5);
   std::cout << "use future\n";
-  future.doit();
+  future->doit();
   std::cout << "end main\n";
 }
 
