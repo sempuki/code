@@ -184,16 +184,17 @@ int main() {
       p.reset();
       assert(Scope::alive == false);
     });
-    IT_SHOULD(destroy_owned_value_on_move, {
+    IT_SHOULD(destroy_owned_value_on_overwritten, {
       assert(Scope::alive == false);
 
       some p{new Scope{}};
       assert(Scope::alive == true);
+      {
+        some q{new Scope{}};
+        assert(Scope::alive == true);
 
-      some q{new Scope{}};
-      assert(Scope::alive == true);
-
-      p = std::move(q);
+        p = std::move(q);
+      }
       assert(Scope::alive == false);
     });
   }
