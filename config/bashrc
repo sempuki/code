@@ -22,6 +22,7 @@ export VIM_COMMAND='nvim'
 export DIFF_COMMAND='git diff --'
 export FIND_COMMAND='find'
 export GREP_COMMAND='grep -Ins --color --exclude=*.tags --exclude-dir={.git,.svn}'
+export GIT_GREP_COMMAND='git grep'
 export LS_COMMAND='ls -lF --color'
 
 # Aliases
@@ -51,6 +52,9 @@ function gr() {
 }
 function gf() {
     ${FIND_COMMAND} . -name "${2}" -exec ${GREP_COMMAND} -E "${1}" {} +
+}
+function gg() {
+    ${GIT_GREP_COMMAND} "$@"
 }
 function f() {
     ${FIND_COMMAND} "$@"
@@ -125,3 +129,10 @@ case "$OS" in
   * )
     ;;
 esac
+
+# Work
+export PATH=${HOME}/bin:${HOME}/Scripts:${PATH}
+export GLOG_logtostderr=1
+export GLOG_alsologtostderr=1
+export GLOG_stderrthreshold=0
+export GLOG_minloglevel=0
