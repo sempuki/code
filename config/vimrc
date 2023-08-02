@@ -125,13 +125,13 @@ nnoremap <C-j> O<Esc>j
 nnoremap <silent> <C-a> :FSHere<CR>
 
 " Add common source paths
-set path=.,src,include,/usr/include/,/usr/include/c++/src
+set path=.,,./tests,src,include,/usr/include/,/usr/include/c++/src
 
 " Jump to BUILD
 nnoremap <silent> <Leader><Leader>b :edit %:h/BUILD<CR>
 
 " Jump to test
-nnoremap <silent> <Leader><Leader>u :edit %<_test.cpp<CR>
+nnoremap <silent> <Leader><Leader>u :find %:t:r_test.cc<CR>
 
 " Ctag searching
 nnoremap <Leader>t :tjump<Space>
@@ -150,8 +150,8 @@ nnoremap <C-g> :Ack <C-R><C-W> %:h
 
 " Make local file with quickfix integration
 " may require manual let $CXXFLAGS='--std=c++11'
-nnoremap <Leader><Leader>m :make %< \|cwindow<CR>
-nnoremap <Leader><Leader>r :!./%< <CR>
+nnoremap <Leader><Leader>m :make %:r \|cwindow<CR>
+nnoremap <Leader><Leader>r :!./%:r <CR>
 
 " Async compile in current directory
 nnoremap <Leader><Leader>cc :AsyncRun
