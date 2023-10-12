@@ -10,32 +10,33 @@ struct StateBase {
 template <typename... States>
 class FiniteStateMachine {
  public:
-  template <typename State>
-  static auto transition_to(State state) {
-    return std::optional<std::variant<States...>>{std::move(state)};
-  }
-
-  static auto remain() {  //
-    return std::optional<std::variant<States...>>{std::nullopt};
-  }
+  static auto transition_to(auto next) { return State{std::move(next)}; }
+  static auto transition_none() { return State{NullState{}}; }
 
   template <typename EventType>
-  std::size_t operator()(const EventType& event) {
+  std::size_t operator()(EventType&& event) {
     auto maybe_next_state = std::visit(
-      [this, &event](auto&& curr_state) {
-        return curr_state(state_, event);  //
+      [event = std::forward<EventType>(event)](auto&& s) mutable {
+        return s(std::forward<EventType>(event));  //
       },
       state_);
-    if (maybe_next_state) {
+    if (!std::holds_alternative<NullState>(maybe_next_state)) {
       std::visit([](auto&& s) { s.on_exit(); }, state_);
-      state_ = std::move(maybe_next_state).value();
+      state_ = std::move(maybe_next_state);
       std::visit([](auto&& s) { s.on_enter(); }, state_);
     }
     return state_.index();
   }
 
  private:
-  std::variant<States...> state_;
+  struct NullState {
+    void on_enter() {}
+    void on_exit() {}
+    auto operator()(auto&&) { return transition_none(); }
+  };
+
+  using State = std::variant<States..., NullState>;
+  State state_;
 };
 
 struct ConnectionEvent {
@@ -50,42 +51,42 @@ struct AppStart {
   int kAppReadyThreshold = 3;
   void on_enter() { std::cout << "AppStart entered.\n"; }
   void on_exit() { std::cout << "AppStart exited.\n"; }
-  auto operator()(auto&& state, const ConnectionEvent& event);
-  auto operator()(auto&& state, const ShutdownEvent& event);
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const ConnectionEvent& event);
+  auto operator()(const ShutdownEvent& event);
+  auto operator()(const auto& ignore);
 };
 struct AppReady {
   void on_enter() { std::cout << "AppReady entered.\n"; }
   void on_exit() { std::cout << "AppReady exited.\n"; }
-  auto operator()(auto&& state, const ScenarioEvent& event);
-  auto operator()(auto&& state, const ShutdownEvent& event);
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const ScenarioEvent& event);
+  auto operator()(const ShutdownEvent& event);
+  auto operator()(const auto& ignore);
 };
 struct AppShutdown {
   void on_enter() { std::cout << "AppShutdown entered.\n"; }
   void on_exit() { std::cout << "AppShutdown exited.\n"; }
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const auto& ignore);
 };
 struct SimReady {
   void on_enter() { std::cout << "SimReady entered.\n"; }
   void on_exit() { std::cout << "SimReady exited.\n"; }
-  auto operator()(auto&& state, const ShutdownEvent& event);
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const ShutdownEvent& event);
+  auto operator()(const auto& ignore);
 };
 struct SimStart {
   void on_enter() { std::cout << "SimStart entered.\n"; }
   void on_exit() { std::cout << "SimStart exited.\n"; }
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const auto& ignore);
 };
 struct SimPause {
   void on_enter() { std::cout << "SimPause entered.\n"; }
   void on_exit() { std::cout << "SimPause exited.\n"; }
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const auto& ignore);
 };
 struct SimStop {
   void on_enter() { std::cout << "SimStop entered.\n"; }
   void on_exit() { std::cout << "SimStop exited.\n"; }
-  auto operator()(auto&& state, const auto& ignore);
+  auto operator()(const auto& ignore);
 };
 
 using MyStateMachine = FiniteStateMachine<  //
@@ -97,58 +98,58 @@ using MyStateMachine = FiniteStateMachine<  //
   SimPause,
   SimStop>;
 
-auto AppStart::operator()(auto&& state, const ConnectionEvent& event) {
+auto AppStart::operator()(const ConnectionEvent& event) {
   if (event.app_shutdown_count) {
     return MyStateMachine::transition_to(AppShutdown{});
   }
   if (event.app_start_count == kAppReadyThreshold) {
     return MyStateMachine::transition_to(AppReady{});
   }
-  return MyStateMachine::remain();
+  return MyStateMachine::transition_none();
 }
 
-auto AppStart::operator()(auto&& state, const ShutdownEvent&) {
+auto AppStart::operator()(const ShutdownEvent&) {
   return MyStateMachine::transition_to(AppShutdown{});
 }
 
-auto AppStart::operator()(auto&& state, const auto& ignore) {
-  return MyStateMachine::remain();
+auto AppStart::operator()(const auto& ignore) {
+  return MyStateMachine::transition_none();
 }
 
-auto AppReady::operator()(auto&& state, const ScenarioEvent&) {
+auto AppReady::operator()(const ScenarioEvent&) {
   return MyStateMachine::transition_to(SimReady{});
 }
 
-auto AppReady::operator()(auto&& state, const ShutdownEvent&) {
+auto AppReady::operator()(const ShutdownEvent&) {
   return MyStateMachine::transition_to(AppShutdown{});
 }
 
-auto AppReady::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto AppReady::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
-auto AppShutdown::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto AppShutdown::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
-auto SimReady::operator()(auto&& state, const ShutdownEvent&) {
+auto SimReady::operator()(const ShutdownEvent&) {
   return MyStateMachine::transition_to(AppShutdown{});
 }
 
-auto SimReady::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto SimReady::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
-auto SimPause::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto SimPause::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
-auto SimStart::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto SimStart::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
-auto SimStop::operator()(auto&& state, const auto&) {
-  return MyStateMachine::remain();
+auto SimStop::operator()(const auto&) {
+  return MyStateMachine::transition_none();
 }
 
 int main() {
