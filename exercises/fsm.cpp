@@ -1,42 +1,46 @@
 #include <iostream>
-#include <optional>
 #include <variant>
-
-struct StateBase {
-  void on_enter() {}
-  void on_exit() {}
-};
 
 template <typename... States>
 class FiniteStateMachine {
  public:
-  static auto transition_to(auto next) { return State{std::move(next)}; }
-  static auto transition_none() { return State{NullState{}}; }
+  FiniteStateMachine() {
+    std::visit([](auto&& s) { s.on_enter(); }, state_);
+  }
+
+  ~FiniteStateMachine() {
+    std::visit([](auto&& s) { s.on_exit(); }, state_);
+  }
+
+  template <typename NextStateType, typename... NextStateArgs>
+  static auto transition_to(NextStateArgs&&... args) {
+    return [... args = std::forward<NextStateArgs>(args)](
+               std::variant<States...>& state) mutable {
+      std::visit([](auto&& s) { s.on_exit(); }, state);
+      state.template emplace<NextStateType>(std::move(args)...);
+      std::visit([](auto&& s) { s.on_enter(); }, state);
+    };
+  }
+  static auto transition_none() {
+    return [](std::variant<States...>&) {};
+  }
 
   template <typename EventType>
   std::size_t operator()(EventType&& event) {
-    auto maybe_next_state = std::visit(
-      [event = std::forward<EventType>(event)](auto&& s) mutable {
-        return s(std::forward<EventType>(event));  //
-      },
-      state_);
-    if (!std::holds_alternative<NullState>(maybe_next_state)) {
-      std::visit([](auto&& s) { s.on_exit(); }, state_);
-      state_ = std::move(maybe_next_state);
-      std::visit([](auto&& s) { s.on_enter(); }, state_);
-    }
+    std::visit(
+        [this, event = std::forward<EventType>(event)](
+            auto&& current_alternative) mutable {
+          current_alternative(std::move(event))(state_);  //
+        },
+        state_);
     return state_.index();
   }
 
- private:
-  struct NullState {
-    void on_enter() {}
-    void on_exit() {}
-    auto operator()(auto&&) { return transition_none(); }
-  };
+  std::size_t state_index() const { return state_.index(); }
+  auto visit_state(auto&& visitor) const { return std::visit(visitor, state_); }
 
-  using State = std::variant<States..., NullState>;
-  State state_;
+ private:
+  std::variant<States...> state_;
 };
 
 struct ConnectionEvent {
@@ -90,26 +94,20 @@ struct SimStop {
 };
 
 using MyStateMachine = FiniteStateMachine<  //
-  AppStart,
-  AppReady,
-  AppShutdown,
-  SimReady,
-  SimStart,
-  SimPause,
-  SimStop>;
+    AppStart, AppReady, AppShutdown, SimReady, SimStart, SimPause, SimStop>;
 
 auto AppStart::operator()(const ConnectionEvent& event) {
   if (event.app_shutdown_count) {
-    return MyStateMachine::transition_to(AppShutdown{});
+    return MyStateMachine::transition_to<AppShutdown>();
   }
   if (event.app_start_count == kAppReadyThreshold) {
-    return MyStateMachine::transition_to(AppReady{});
+    return MyStateMachine::transition_to<AppReady>();
   }
   return MyStateMachine::transition_none();
 }
 
 auto AppStart::operator()(const ShutdownEvent&) {
-  return MyStateMachine::transition_to(AppShutdown{});
+  return MyStateMachine::transition_to<AppShutdown>();
 }
 
 auto AppStart::operator()(const auto& ignore) {
@@ -117,11 +115,11 @@ auto AppStart::operator()(const auto& ignore) {
 }
 
 auto AppReady::operator()(const ScenarioEvent&) {
-  return MyStateMachine::transition_to(SimReady{});
+  return MyStateMachine::transition_to<SimReady>();
 }
 
 auto AppReady::operator()(const ShutdownEvent&) {
-  return MyStateMachine::transition_to(AppShutdown{});
+  return MyStateMachine::transition_to<AppShutdown>();
 }
 
 auto AppReady::operator()(const auto&) {
@@ -133,7 +131,7 @@ auto AppShutdown::operator()(const auto&) {
 }
 
 auto SimReady::operator()(const ShutdownEvent&) {
-  return MyStateMachine::transition_to(AppShutdown{});
+  return MyStateMachine::transition_to<AppShutdown>();
 }
 
 auto SimReady::operator()(const auto&) {
@@ -160,4 +158,4 @@ int main() {
   sm(ConnectionEvent{.app_start_count = 3});
   sm(ScenarioEvent{});
   sm(ShutdownEvent{});
-}
+}:
