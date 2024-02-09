@@ -3,7 +3,7 @@
 	email = ryanm@applied.co
 [alias]
     bl = blame
-    br = branch
+    br = branch -v --sort=-committerdate
     ci = commit
     cam = commit --amend -CHEAD
     cl = clone
@@ -19,6 +19,7 @@
     re = remote
     rb = rebase
     rbs = rebase --autostash
+    rbm = rebase origin/main
     st = status
     sh = stash
 [apply]
