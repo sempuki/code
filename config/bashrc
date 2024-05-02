@@ -77,6 +77,9 @@ set -o vi
 export QT_QPA_PLATFORMTHEME=qt5ct # install and run qt5ct to set themes
 
 # Git integration
+has_git_ps1=false
+
+## Fedora
 if [ -d /usr/share/git-core/contrib/completion ]; then
   cd /usr/share/git-core/contrib/completion
   if [ -f git-completion.sh ]; then
@@ -84,23 +87,9 @@ if [ -d /usr/share/git-core/contrib/completion ]; then
   fi
   if [ -f git-prompt.sh ]; then
       source git-prompt.sh
+      has_git_ps1=true
   fi
   cd -
-fi
-
-## Homebrew
-if [ -d  /usr/local/etc/bash_completion.d ]; then
-    cd usr/local/etc/bash_completion.d
-    [ -f git-completion.bash ] && source git-completion.bash
-    [ -f git-prompt.sh ] && source git-prompt.sh
-    cd -
-else 
-  if [ -d "$(brew --prefix)/etc/bash_completion.d" ]; then
-    cd  "$(brew --prefix)/etc/bash_completion.d"
-    [ -f git-completion.bash ] && source git-completion.bash
-    [ -f git-prompt.sh ] && source git-prompt.sh
-    cd -
-  fi
 fi
 
 ## Ubuntu
@@ -109,12 +98,24 @@ if [ -f /usr/share/bash-completion/completions/git ]; then
 fi
 if [ -f /etc/bash_completion.d/git-prompt ]; then
     source /etc/bash_completion.d/git-prompt
+    has_git_ps1=true
 fi
 
-export GIT_PS1_SHOWCOLORHINTS=true
-export GIT_PS1_SHOWDIRTYSTATE=true
-export GIT_PS1_SHOWUPSTREAM="auto"
-export PROMPT_COMMAND='__git_ps1 "[\u@\h \w]" "\\\$ ";'
+if $has_git_ps1 ; then
+  export GIT_PS1_SHOWCOLORHINTS=true
+  export GIT_PS1_SHOWDIRTYSTATE=true
+  export GIT_PS1_SHOWUPSTREAM="auto"
+  export PROMPT_COMMAND='__git_ps1 "[\u@\h \w]" "\\\$ ";'
+fi
+
+## Homebrew
+if [ -r "/opt/homebrew/etc/profile.d/bash_completion.sh" ]; then 
+  source "/opt/homebrew/etc/profile.d/bash_completion.sh"
+fi
+if [ -f "/opt/homebrew/opt/bash-git-prompt/share/gitprompt.sh" ]; then
+  __GIT_PROMPT_DIR="/opt/homebrew/opt/bash-git-prompt/share"
+  source "/opt/homebrew/opt/bash-git-prompt/share/gitprompt.sh"
+fi
 
 # Per-OS Options
 OS=`uname -s`
@@ -134,7 +135,7 @@ case "$OS" in
 esac
 
 # Work
-export PATH=${HOME}/bin:${HOME}/Scripts:${PATH}
+export PATH=${HOME}/bin:${HOME}/Scripts:/opt/homebrew/bin:${PATH}
 export GLOG_logtostderr=1
 export GLOG_alsologtostderr=1
 export GLOG_stderrthreshold=0
