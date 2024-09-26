@@ -39,11 +39,13 @@ int main(int argc, char **argv) {
   }
 
   Context context;
-  std::string line;
-  for (std::size_t line_position = file.tellg();  //
-       std::getline(file, line);                  //
-       line_position = file.tellg()) {
-    process_line(line_position, std::move(line), std::addressof(context));
+  while (file) {
+    std::size_t line_position = file.tellg();
+    std::string line;
+
+    if (std::getline(file, line)) {
+      process_line(line_position, std::move(line), std::addressof(context));
+    }
   }
 
   for (auto &&word_to_positions : context.words) {
