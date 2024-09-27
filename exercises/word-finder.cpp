@@ -1,4 +1,4 @@
-// `env $CXXFLAGS='--std=c++20 -O3' c++ parser.cpp -o parser`
+// `c++ --std=c++20 -O3 parser.cpp -o parser`
 //   Copyright: Ryan McDougall
 
 #include <cctype>
@@ -21,7 +21,7 @@ void process_line(std::size_t line_position, std::string &&line, Context *contex
     stream >> std::ws;
     std::size_t word_position = stream.tellg();
     if (stream >> word) {
-      context->words[word].push_back(line_position + word_position);
+      context->words[std::move(word)].push_back(line_position + word_position);
     }
   }
 }
