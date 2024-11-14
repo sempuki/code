@@ -3,7 +3,8 @@ all: install-scripts configure
 configure: bash-config tmux-config git-config vim-config neovim-config ctags-config clang-format-config ack-config input-config
 
 install-scripts:
-	-mkdir ~/Scripts && cp ../scripts/* ~/Scripts
+	mkdir -p ~/.local/bin
+	cp ../scripts/* ~/.local/bin
 
 bash-config:
 	cp bashrc ~/.bashrc
