@@ -2,7 +2,6 @@
 --exclude=bin
 --exclude=build
 --exclude=doc
---exclude=lib
 --exclude=obj
 --exclude=log
 --exclude=share

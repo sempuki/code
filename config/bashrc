@@ -15,8 +15,8 @@ export LIBRARY_PATH=/usr/local/lib
 export CPATH=/usr/local/include
 
 export HISTCONTROL=ignoreboth
-export HISTFILESIZE=10000
-export HISTSIZE=10000
+export HISTFILESIZE=100000
+export HISTSIZE=100000
 
 export VIM_COMMAND='nvim'
 export DIFF_COMMAND='git diff --'
@@ -74,7 +74,7 @@ export EDITOR=${VIM_COMMAND}
 set -o vi 
 
 # Qt Applications
-export QT_QPA_PLATFORMTHEME=qt5ct # install and run qt5ct to set themes
+export QT_QPA_PLATFORMTHEME=qt6ct # install and run qt6ct to set themes
 
 # Git integration
 has_git_ps1=false
