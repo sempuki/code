@@ -141,3 +141,4 @@ export GLOG_logtostderr=1
 export GLOG_alsologtostderr=1
 export GLOG_stderrthreshold=0
 export GLOG_minloglevel=0
+source "${HOME}/.cargo/env"
