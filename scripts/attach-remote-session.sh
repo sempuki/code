@@ -1,2 +1,2 @@
 #!/bin/bash
-ssh $@ -t tmux attach
+ssh ${@} -t tmux attach
