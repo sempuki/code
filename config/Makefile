@@ -1,6 +1,6 @@
 all: install-scripts configure
 
-configure: bash-config git-config vim-config neovim-config ctags-config clang-format-config ack-config input-config
+configure: bash-config git-config vim-config neovim-config tmux-config ctags-config clang-format-config ack-config input-config
 
 install-scripts:
 	mkdir -p ~/.local/bin

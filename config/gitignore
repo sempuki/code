@@ -85,3 +85,6 @@ tags
 *.swp
 *~
 *#
+GPATH
+GRTAGS
+GTAGS
