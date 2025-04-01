@@ -3,6 +3,12 @@ if [ -f /etc/bashrc ]; then
     source /etc/bashrc
 fi
 
+# Only configure interactive shells.
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
 # Shell options
 shopt -s cdspell       # auto-correct errors on cd
 shopt -s histappend    # append not truncate
