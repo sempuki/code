@@ -1,3 +1,0 @@
-build --local_cpu_resources=24
-build --local_ram_resources=HOST_RAM-16384
-test --test_output=all

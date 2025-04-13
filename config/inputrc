@@ -1,4 +1,0 @@
-set editing-mode vi
-set show-mode-in-prompt on
-set keymap vi-insert
-    "\C-e": vi-movement-mode
