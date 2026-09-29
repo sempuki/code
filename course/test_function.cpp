@@ -1,13 +1,13 @@
-#include <cassert>
+#include "catch2/catch_test_macros.hpp"
+#include "course/soln_function.hpp"
+
 #include <functional>
 
-#define IT_SHOULD(test_name, test_body)     \
-    struct it_should_##test_name {          \
-        it_should_##test_name() { test(); } \
-        void test() { test_body }           \
-    } do_##test_name;
-#define IT_CAN(test_name, test_body) IT_SHOULD(test_name, test_body)
-#define IT_CANNOT(test_name, test_body) IT_SHOULD(test_name, {})
+// Each IT_* case is a Catch2 section. IT_CANNOT documents code that must not
+// compile; its body is discarded.
+#define IT_SHOULD(test_name, test_body) SECTION("it should " #test_name) test_body
+#define IT_CAN(test_name, test_body) SECTION("it can " #test_name) test_body
+#define IT_CANNOT(test_name, test_body)
 
 #define IT_CAN_BE_DEFAULT_COPY_AND_MOVE_CONSTRUCTED \
     IT_CAN(be_default_constructed, { some f; });    \
@@ -30,8 +30,15 @@
         g = f;                                      \
     });
 
+// Run against the standard library to validate the tests themselves, and
+// against the course solution to validate the solution.
+#if defined(COURSE_TEST_REFERENCE)
 template <typename T>
 using type_under_test = std::function<T>;
+#else
+template <typename T>
+using type_under_test = soln::function<T>;
+#endif
 
 int count = 0;
 const auto l = [capture = 1](int v) mutable -> int {
@@ -45,7 +52,7 @@ int fun(int v) {
     return ::count;
 }
 
-int main() {
+TEST_CASE("function") {
     {
         using some = type_under_test<void()>;
         IT_CAN_BE_DEFAULT_COPY_AND_MOVE_CONSTRUCTED
@@ -70,7 +77,7 @@ int main() {
             some f{fun};
 
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
         });
 
         IT_SHOULD(invoke_free_function_twice, {
@@ -78,10 +85,10 @@ int main() {
             some f{fun};
 
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
 
             f(6);
-            assert(count == 11);
+            CHECK(count == 11);
         });
 
         IT_SHOULD(invoke_lambda, {
@@ -89,7 +96,7 @@ int main() {
             some f{l};
 
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
         });
 
         IT_SHOULD(invoke_lambda_twice, {
@@ -97,10 +104,10 @@ int main() {
             some f{l};
 
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
 
             f(6);
-            assert(count == 11);
+            CHECK(count == 11);
         });
 
         IT_SHOULD(invoke_original_lambda_after_copy, {
@@ -108,11 +115,11 @@ int main() {
 
             some f{l};
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
 
             some g{f};
             f(6);
-            assert(count == 11);
+            CHECK(count == 11);
         });
 
         IT_SHOULD(invoke_copied_lambda_after_copy, {
@@ -121,20 +128,20 @@ int main() {
             some g{f};
 
             f(5);
-            assert(count == 5);
+            CHECK(count == 5);
 
             g(6);
-            assert(count == 11);
+            CHECK(count == 11);
         });
 
         IT_SHOULD(make_distinct_copies, {
             some f{l};
             some g{f};
 
-            assert(f(5) == 6);
-            assert(g(6) == 7);
-            assert(f(5) == 11);
-            assert(g(6) == 13);
+            CHECK(f(5) == 6);
+            CHECK(g(6) == 7);
+            CHECK(f(5) == 11);
+            CHECK(g(6) == 13);
         });
     }
 }

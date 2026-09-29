@@ -1,0 +1,13 @@
+# The C++ standard and warnings come from bazel/copts.bzl, per target.
+
+common --enable_platform_specific_config
+
+# Third-party code is not ours to fix; keep its warnings out of the log.
+build:linux   --per_file_copt=external/.*@-w --host_per_file_copt=external/.*@-w
+build:macos   --per_file_copt=external/.*@-w --host_per_file_copt=external/.*@-w
+build:windows --per_file_copt=external/.*@/w --host_per_file_copt=external/.*@/w
+
+test --test_output=errors
+
+# Machine-local overrides (jobs, caches, sanitizers) belong here, untracked.
+try-import %workspace%/user.bazelrc

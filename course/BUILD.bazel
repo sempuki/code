@@ -1,0 +1,42 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("//bazel:copts.bzl", "COPTS")
+
+# Each exercise has a solution and one test suite, built twice: against the
+# solution, and against the standard library as a reference that validates the
+# tests themselves.
+[
+    [
+        cc_library(
+            name = "soln_" + name,
+            hdrs = ["soln_%s.hpp" % name],
+            copts = COPTS,
+        ),
+        cc_test(
+            name = "test_" + name,
+            size = "small",
+            srcs = ["test_%s.cpp" % name],
+            copts = COPTS,
+            deps = [
+                ":soln_" + name,
+                "@catch2//:catch2_main",
+            ],
+        ),
+        cc_test(
+            name = "test_%s_reference" % name,
+            size = "small",
+            srcs = ["test_%s.cpp" % name],
+            copts = COPTS,
+            local_defines = ["COURSE_TEST_REFERENCE"],
+            deps = [
+                ":soln_" + name,
+                "@catch2//:catch2_main",
+            ],
+        ),
+    ]
+    for name in [
+        "function",
+        "unique_ptr",
+        "vector",
+    ]
+]

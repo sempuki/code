@@ -1,13 +1,13 @@
-#include <cassert>
+#include "catch2/catch_test_macros.hpp"
+#include "course/soln_unique_ptr.hpp"
+
 #include <memory>
 
-#define IT_SHOULD(test_name, test_body) \
-  struct it_should_##test_name {        \
-    it_should_##test_name() { test(); } \
-    void test() { test_body }           \
-  } do_##test_name;
-#define IT_CAN(test_name, test_body) IT_SHOULD(test_name, test_body)
-#define IT_CANNOT(test_name, test_body) IT_SHOULD(test_name, {})
+// Each IT_* case is a Catch2 section. IT_CANNOT documents code that must not
+// compile; its body is discarded.
+#define IT_SHOULD(test_name, test_body) SECTION("it should " #test_name) test_body
+#define IT_CAN(test_name, test_body) SECTION("it can " #test_name) test_body
+#define IT_CANNOT(test_name, test_body)
 
 struct Scope {
   static bool alive;
@@ -21,10 +21,17 @@ struct Foo {
   void bar() {}
 };
 
+// Run against the standard library to validate the tests themselves, and
+// against the course solution to validate the solution.
+#if defined(COURSE_TEST_REFERENCE)
 template <typename T>
 using type_under_test = std::unique_ptr<T>;
+#else
+template <typename T>
+using type_under_test = soln::unique_ptr<T>;
+#endif
 
-int main() {
+TEST_CASE("unique_ptr") {
   {
     using some = type_under_test<int>;
 
@@ -54,44 +61,44 @@ int main() {
 
     IT_SHOULD(be_empty_after_default_construction, {
       some p;
-      assert(p == some{});
+      CHECK(p == some{});
     });
 
     IT_SHOULD(not_be_empty_after_value_construction, {
       int *heap = new int;
       some p{heap};
-      assert(p != some{});
+      CHECK(p != some{});
     });
 
     IT_SHOULD(be_empty_after_null_construction, {
       some p{nullptr};
-      assert(p == some{});
+      CHECK(p == some{});
     });
 
     IT_SHOULD(be_not_empty_after_value_construction, {
       int *heap = new int;
       some p{heap};
-      assert(p != some{});
+      CHECK(p != some{});
     });
 
     IT_SHOULD(be_empty_after_assignment_initialization_from_default, {
       some p;
       some q = std::move(p);
-      assert(q == some{});
+      CHECK(q == some{});
     });
 
     IT_SHOULD(not_be_empty_after_assignment_initialization_from_value, {
       int *heap = new int;
       some p{heap};
       some q = std::move(p);
-      assert(q != some{});
+      CHECK(q != some{});
     });
 
     IT_SHOULD(be_empty_after_assignment_from_default, {
       some p;
       some q;
       q = std::move(p);
-      assert(q == some{});
+      CHECK(q == some{});
     });
 
     IT_SHOULD(not_be_empty_after_assignment_from_value, {
@@ -99,7 +106,7 @@ int main() {
       some p{heap};
       some q;
       q = std::move(p);
-      assert(q != some{});
+      CHECK(q != some{});
     });
 
     IT_SHOULD(be_be_empty_after_move_from, {
@@ -107,20 +114,20 @@ int main() {
       some p{heap};
       some q;
       q = std::move(p);
-      assert(p == some{});
+      CHECK(p == some{});
     });
 
     IT_SHOULD(have_value_address, {
       int *heap = new int;
       some p{heap};
-      assert(p.get() == heap);
+      CHECK(p.get() == heap);
     });
 
     IT_SHOULD(release_ownership, {
       int *heap = new int;
       some p{heap};
       delete p.release();
-      assert(p.get() == nullptr);
+      CHECK(p.get() == nullptr);
     });
 
     IT_SHOULD(transfer_ownership_on_move, {
@@ -128,13 +135,13 @@ int main() {
       some p{heap};
       some q;
 
-      assert(p.get() == heap);
-      assert(q.get() == nullptr);
+      CHECK(p.get() == heap);
+      CHECK(q.get() == nullptr);
 
       q = std::move(p);
 
-      assert(p.get() == nullptr);
-      assert(q.get() == heap);
+      CHECK(p.get() == nullptr);
+      CHECK(q.get() == heap);
     });
 
     IT_CANNOT(release_ownership_from_const, {
@@ -159,43 +166,43 @@ int main() {
     using some = type_under_test<Scope>;
 
     IT_SHOULD(destroy_owned_value_on_scope_exit, {
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
 
       Scope *heap = new Scope{};
-      assert(Scope::alive == true);
+      CHECK(Scope::alive == true);
 
       {
         some p{heap};
-        assert(Scope::alive == true);
+        CHECK(Scope::alive == true);
       }
 
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
     });
 
     IT_SHOULD(destroy_owned_value_on_reset, {
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
 
       Scope *heap = new Scope{};
-      assert(Scope::alive == true);
+      CHECK(Scope::alive == true);
 
       some p{heap};
-      assert(Scope::alive == true);
+      CHECK(Scope::alive == true);
 
       p.reset();
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
     });
     IT_SHOULD(destroy_owned_value_on_overwritten, {
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
 
       some p{new Scope{}};
-      assert(Scope::alive == true);
+      CHECK(Scope::alive == true);
       {
         some q{new Scope{}};
-        assert(Scope::alive == true);
+        CHECK(Scope::alive == true);
 
         p = std::move(q);
       }
-      assert(Scope::alive == false);
+      CHECK(Scope::alive == false);
     });
   }
   {

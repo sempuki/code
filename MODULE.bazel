@@ -1,0 +1,7 @@
+module(
+    name = "code",
+    bazel_compatibility = [">=9.0.0"],
+)
+
+bazel_dep(name = "rules_cc", version = "0.2.25")
+bazel_dep(name = "catch2", version = "3.15.1")

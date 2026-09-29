@@ -1,31 +1,38 @@
-#include <cassert>
+#include "catch2/catch_test_macros.hpp"
+#include "course/soln_vector.hpp"
+
 #include <cstddef>
 #include <vector>
 
-#define IT_SHOULD(test_name, test_body) \
-  struct it_should_##test_name {        \
-    it_should_##test_name() { test(); } \
-    void test() { test_body }           \
-  } do_##test_name;
-#define IT_CAN(test_name, test_body) IT_SHOULD(test_name, test_body)
-#define IT_CANNOT(test_name, test_body) IT_SHOULD(test_name, {})
+// Each IT_* case is a Catch2 section. IT_CANNOT documents code that must not
+// compile; its body is discarded.
+#define IT_SHOULD(test_name, test_body) SECTION("it should " #test_name) test_body
+#define IT_CAN(test_name, test_body) SECTION("it can " #test_name) test_body
+#define IT_CANNOT(test_name, test_body)
 
+// Run against the standard library to validate the tests themselves, and
+// against the course solution to validate the solution.
+#if defined(COURSE_TEST_REFERENCE)
 template <typename T>
 using type_under_test = std::vector<T>;
+#else
+template <typename T>
+using type_under_test = soln::vector<T>;
+#endif
 
 template <typename T>
 void setup_sequence(type_under_test<T> &p, size_t I, size_t N) {
   for (size_t i = I; i < N; ++i) {
-    p.push_back(i);
+    p.push_back(static_cast<T>(i));
   }
 }
 
-#define verify_sequence(p, I, N)   \
-  for (size_t i = I; i < N; ++i) { \
-    assert(p[i] == i);             \
+#define verify_sequence(p, I, N)          \
+  for (size_t i = I; i < N; ++i) {        \
+    CHECK(p[i] == static_cast<int>(i));   \
   }
 
-int main() {
+TEST_CASE("vector") {
   {
     using some = type_under_test<int>;
 
@@ -55,43 +62,43 @@ int main() {
 
     IT_SHOULD(be_empty_after_default_construction, {
       some p;
-      assert(p == some{});
+      CHECK(p == some{});
     });
 
     IT_SHOULD(not_have_size_after_default_construction, {
       some p;
-      assert(p.size() == 0);
+      CHECK(p.size() == 0);
     });
 
     IT_SHOULD(not_be_empty_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p != some{});
+      CHECK(p != some{});
     });
 
     IT_SHOULD(have_size_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.size() != 0u);
+      CHECK(p.size() != 0u);
     });
 
     IT_SHOULD(have_capacity_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.capacity() != 0u);
+      CHECK(p.capacity() != 0u);
     });
 
     IT_SHOULD(have_front_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.front() == 5);
+      CHECK(p.front() == 5);
     });
 
     IT_CAN(have_mutable_front_when_mutable, {
       some p;
       p.push_back(5);
       p.front() = 6;
-      assert(p.front() == 6);
+      CHECK(p.front() == 6);
     });
 
     IT_CANNOT(have_mutable_front_when_const, {
@@ -104,14 +111,14 @@ int main() {
     IT_SHOULD(have_back_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p.back() == 5);
+      CHECK(p.back() == 5);
     });
 
     IT_CAN(have_mutable_back_when_mutable, {
       some p;
       p.push_back(5);
       p.back() = 6;
-      assert(p.back() == 6);
+      CHECK(p.back() == 6);
     });
 
     IT_CANNOT(have_mutable_back_when_const, {
@@ -125,20 +132,20 @@ int main() {
       some p;
       p.push_back(5);
       p.push_back(6);
-      assert(p.front() != p.back());
+      CHECK(p.front() != p.back());
     });
 
     IT_SHOULD(have_index_zero_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p[0] == 5);
+      CHECK(p[0] == 5);
     });
 
     IT_CAN(have_mutable_index_when_mutable, {
       some p;
       p.push_back(5);
       p[0] = 6;
-      assert(p[0] == 6);
+      CHECK(p[0] == 6);
     });
 
     IT_CANNOT(have_mutable_index_when_const, {
@@ -151,28 +158,28 @@ int main() {
     IT_SHOULD(have_index_size_minus_one_after_push_back, {
       some p;
       p.push_back(5);
-      assert(p[p.size() - 1] == 5);
+      CHECK(p[p.size() - 1] == 5);
     });
 
     IT_SHOULD(have_zero_and_one_after_two_push_back, {
       some p;
       p.push_back(5);
       p.push_back(6);
-      assert(p[0] == 5);
-      assert(p[1] == 6);
+      CHECK(p[0] == 5);
+      CHECK(p[1] == 6);
     });
 
     IT_SHOULD(resize, {
       some p;
       p.resize(5);
-      assert(p.size() == 5);
+      CHECK(p.size() == 5);
     });
 
     IT_SHOULD(increase_capacity_if_necessary, {
       some p;
       auto capacity = p.capacity();
       p.resize(capacity + 1);
-      assert(p.capacity() > capacity);
+      CHECK(p.capacity() > capacity);
     });
 
     IT_SHOULD(retain_values_when_resizing_larger, {
@@ -180,8 +187,8 @@ int main() {
       p.push_back(5);
       p.push_back(6);
       p.resize(5);
-      assert(p[0] == 5);
-      assert(p[1] == 6);
+      CHECK(p[0] == 5);
+      CHECK(p[1] == 6);
     });
 
     IT_SHOULD(retain_values_when_resizing_smaller, {
@@ -189,14 +196,14 @@ int main() {
       p.push_back(5);
       p.push_back(6);
       p.resize(1);
-      assert(p[0] == 5);
+      CHECK(p[0] == 5);
     });
 
     IT_SHOULD(be_able_to_grow_to_size_n, {
       for (size_t N : {10, 100, 1000, 10000, 100000}) {
         some p;
         setup_sequence(p, 0, N);
-        assert(p.size() == N);
+        CHECK(p.size() == N);
       }
     });
 
@@ -212,7 +219,7 @@ int main() {
 
     IT_CAN(be_use_in_range_based_for_loop, {
       some p;
-      for (auto v : p) {
+      for ([[maybe_unused]] auto v : p) {
         //
       }
     });
@@ -223,7 +230,7 @@ int main() {
 
       int i = 0;
       for (auto v : p) {
-        assert(v == i++);
+        CHECK(v == i++);
       }
     });
 
@@ -231,7 +238,7 @@ int main() {
       some p;
       setup_sequence(p, 0, N);
       some q{p};
-      assert(p == q);
+      CHECK(p == q);
     });
 
     IT_SHOULD(have_same_values_after_copy_assignment, {
@@ -239,7 +246,7 @@ int main() {
       some q;
       setup_sequence(p, 0, N);
       q = p;
-      assert(p == q);
+      CHECK(p == q);
     });
 
     IT_SHOULD(retain_values_after_copy_construction, {
@@ -277,7 +284,7 @@ int main() {
       setup_sequence(p, 0, N);
       auto copy = p;
       some q{std::move(p)};
-      assert(q == copy);
+      CHECK(q == copy);
     });
 
     IT_SHOULD(have_same_values_after_move_assignment, {
@@ -286,7 +293,7 @@ int main() {
       setup_sequence(p, 0, N);
       auto copy = p;
       q = std::move(p);
-      assert(q == copy);
+      CHECK(q == copy);
     });
 
     IT_SHOULD(transmit_values_to_construced_move, {
